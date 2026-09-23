@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Aref+Ruqaa:wght@400;700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; color: #EAF1F7;
+               font-family: 'Tajawal', sans-serif; direction: rtl; text-align: right; }
+  body.jt-again .jt-leaf .jt-lf { animation: none !important; }   /* grow animation only on first paint */
+  .jt-leaf:focus { outline: none; }
+</style>
+<style id="jt-css"></style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function () {
+  // Minimal Streamlit component protocol (no build step, no npm package).
+  function send(type, data) {
+    window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data || {}), "*");
+  }
+  var root = document.getElementById("root");
+  var painted = false;
+
+  function fit() { send("streamlit:setFrameHeight", { height: Math.ceil(document.documentElement.scrollHeight) }); }
+
+  window.addEventListener("message", function (ev) {
+    var d = ev.data;
+    if (!d || d.type !== "streamlit:render") return;
+    var a = d.args || {};
+    document.getElementById("jt-css").textContent = a.css || "";
+    root.innerHTML = a.html || "";
+    if (painted) document.body.classList.add("jt-again");
+    painted = true;
+    fit();
+    setTimeout(fit, 250);
+  });
+
+  root.addEventListener("click", function (e) {
+    var leaf = e.target.closest ? e.target.closest(".jt-leaf") : null;
+    if (!leaf) return;
+    var key = leaf.getAttribute("data-key");
+    if (key) send("streamlit:setComponentValue", { value: key, dataType: "json" });
+  });
+
+  window.addEventListener("resize", fit);
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(document.body);
+
+  send("streamlit:componentReady", { apiVersion: 1 });
+  fit();
+})();
+</script>
+</body>
+</html>

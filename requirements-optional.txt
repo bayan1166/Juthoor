@@ -1,0 +1,11 @@
+# Optional. The app runs fully offline without this -- llm_remediation.py
+# guards the import and falls back to offline_bank.py automatically if
+# it's missing, if GROQ_API_KEY isn't set, or if the call fails/times out.
+#
+# Install only if you want live, dynamically-generated stepping-stone
+# questions during remediation:
+#
+#   pip install -r requirements-optional.txt
+#   export GROQ_API_KEY=your-key-here
+#
+groq
