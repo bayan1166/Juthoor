@@ -4,7 +4,10 @@ Juthoor knowledge graph: 6th-grade Integers & Operations (Jordan Curriculum)
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
+<<<<<<< HEAD
 from typing import Optional
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 import networkx as nx
 
 @dataclass(frozen=True)
@@ -154,6 +157,7 @@ def depth(skill_id: str) -> int:
     return 0 if not pres else 1 + max(depth(p) for p in pres)
 
 def ordered_skills() -> list[str]:
+<<<<<<< HEAD
     return sorted(SKILLS, key=lambda s: (depth(s), SKILLS[s].x))
 
 
@@ -171,3 +175,6 @@ def nearest_prerequisite_with_bank(skill_id: str, has_bank) -> Optional[str]:
         if found:
             return found
     return None
+=======
+    return sorted(SKILLS, key=lambda s: (depth(s), SKILLS[s].x))
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23

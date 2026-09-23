@@ -11,7 +11,11 @@ import practice as pr
 import config
 
 # التصميم
+<<<<<<< HEAD
 import theme
+=======
+from theme import PALETTE as C
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 import brand
 import tree_view as tv
 import tree_component as tc
@@ -24,6 +28,7 @@ st.set_page_config(page_title="جذور | Juthoor", layout="centered", page_icon
 RNG = random.Random()
 
 # ==========================================
+<<<<<<< HEAD
 # 0. الحالة اللي لازم تكون جاهزة قبل أي CSS (وضع ليلي/نهاري)
 # ==========================================
 S = st.session_state
@@ -32,6 +37,8 @@ if 'dark_mode' not in S: S.dark_mode = True     # الوضع الافتراضي 
 C = theme.get_palette(S.dark_mode)
 
 # ==========================================
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 # 1. CSS العام للتطبيق
 # ==========================================
 st.markdown(f"""
@@ -96,6 +103,7 @@ st.markdown(f"""
 
     header {{ visibility: hidden; }}
 
+<<<<<<< HEAD
     /* ====================================================================
        عناصر Streamlit الأصلية (حقول، نماذج، تبويبات، مفتاح الوضع الليلي...)
        تُعاد تلوينها بالكامل هنا بدل الاعتماد على مظهرها الافتراضي، حتى تبقى
@@ -132,6 +140,8 @@ st.markdown(f"""
     div[data-testid="stCheckbox"] label[data-selected="true"] > div:not([data-testid="stWidgetLabel"]) {{ background-color: {C['gold_deep']} !important; border-color: {C['gold_deep']}; }}
     .theme-caption {{ color: {C['muted']}; font-size: 12px; margin-top: -10px; }}
 
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
     /* الأعمدة تبقى بجانب بعضها على الجوال */
     @media (max-width: 640px) {{
         div[data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap !important; gap: .4rem !important; }}
@@ -147,6 +157,10 @@ st.markdown(f"""
 # ==========================================
 # 2. تهيئة حالة الجلسة
 # ==========================================
+<<<<<<< HEAD
+=======
+S = st.session_state
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 if 'auth_status' not in S: S.auth_status = "login"
 if 'user_data' not in S: S.user_data = {"name": "", "national_id": "", "school": ""}
 
@@ -155,8 +169,12 @@ if 'student_state' not in S:
     ae.start_round(S.student_state)
 
 for _k, _v in (('current_question', None), ('feedback', None), ('remedial', None), ('round_done', False),
+<<<<<<< HEAD
                ('recent_q', []), ('qn', 0), ('selected_lesson', None), ('open_lesson', None), ('_last_click', None),
                ('pending_breadcrumb', None)):
+=======
+               ('recent_q', []), ('qn', 0), ('selected_lesson', None), ('open_lesson', None), ('_last_click', None)):
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
     if _k not in S: S[_k] = _v
 
 if 'gami_state' not in S:
@@ -170,6 +188,7 @@ for _k, _v in av.DEFAULTS.items():                  # حالة قديمة بدو
     S.gami_state.setdefault(_k, _v)
 
 
+<<<<<<< HEAD
 def theme_toggle_row():
     """مفتاح تبديل الوضع الليلي/النهاري، يظهر في أعلى كل صفحة (تسجيل الدخول والتطبيق نفسه)."""
     col_spacer, col_toggle = st.columns([5, 2])
@@ -180,6 +199,8 @@ def theme_toggle_row():
         st.rerun()
 
 
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 def av_kwargs(g, **over):
     kw = dict(gender=g['gender'], skin=g['skin'], clothing=g['clothing'], accessories=g['accessories'],
               top=g['top'], hair=g['hair'], hair_color=g['hair_color'], neck=g['neck'])
@@ -274,11 +295,15 @@ def _set_question(q):
 
 def load_q():
     state = S.student_state
+<<<<<<< HEAD
     q = ob.generate_offline(state.current_skill, state.difficulty, RNG, avoid=S.recent_q)
     if S.pending_breadcrumb:                        # المحرك انتقل بين الدروس؛ فسّر السبب للطالب
         q = {**q, "banner": S.pending_breadcrumb}
         S.pending_breadcrumb = None
     _set_question(q)
+=======
+    _set_question(ob.generate_offline(state.current_skill, state.difficulty, RNG, avoid=S.recent_q))
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 
 def load_remedial():
@@ -302,11 +327,15 @@ def ans_q(selected):
     if kind is None:
         dec = ae.decide_next(state, ok)            # المحرك يرى الأسئلة العادية فقط
         S.round_done = S.round_done or dec.round_over or ae.round_over(state)
+<<<<<<< HEAD
         S.remedial = None if ok else pr.start(q, selected)
         # إن نقل المحرك الطالب لدرس آخر (تراجع/عودة/علاج/جديد) اعرض السبب على السؤال
         # القادم من ae.decide_next -- سيُعرض فوراً إن لم يوجد علاج فوري، أو بعد
         # انتهاء جولة العلاج الفوري في practice.py (التي تُعرض بشاراتها الخاصة أولاً).
         S.pending_breadcrumb = dec.breadcrumb or None
+=======
+        S.remedial = None if ok else pr.start(q)
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
     else:
         S.remedial = pr.advance(S.remedial, ok)
 
@@ -346,6 +375,7 @@ def feedback_html(fb):
 
 
 # ==========================================
+<<<<<<< HEAD
 # 5. واجهة تسجيل الدخول / إنشاء حساب
 # ==========================================
 if S.auth_status in ("login", "signup"):
@@ -391,6 +421,37 @@ if S.auth_status in ("login", "signup"):
                     S.user_data = {"name": name_clean, "national_id": nid2_clean}
                     S.auth_status = "logged_in"
                     st.rerun()
+=======
+# 5. واجهة تسجيل الدخول
+# ==========================================
+if S.auth_status == "login":
+    st.markdown(f"<div style='display:flex; justify-content:center; margin-top:50px;'>{brand.lockup_html(80)}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='clean-card'>", unsafe_allow_html=True)
+    st.markdown("### تسجيل الدخول")
+    nid = st.text_input("الرقم الوطني:")
+    if st.button("دخول 🚀"):
+        if nid: S.auth_status = "logged_in"; st.rerun()
+        else: st.error("يرجى إدخال الرقم الوطني.")
+    st.markdown("---")
+    if st.button("ليس لديك حساب؟ إنشاء حساب جديد"):
+        S.auth_status = "signup"; st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif S.auth_status == "signup":
+    st.markdown(f"<div style='display:flex; justify-content:center; margin-top:50px;'>{brand.lockup_html(80)}</div>", unsafe_allow_html=True)
+    st.markdown("<div class='clean-card'>", unsafe_allow_html=True)
+    name = st.text_input("الاسم الكامل:")
+    nid = st.text_input("الرقم الوطني:")
+    if st.button("تأكيد وإنشاء الحساب ✅"):
+        if name and nid:
+            S.user_data = {"name": name, "national_id": nid}
+            S.auth_status = "logged_in"; st.rerun()
+        else:
+            st.error("يرجى تعبئة الحقول الأساسية.")
+    if st.button("العودة لتسجيل الدخول"):
+        S.auth_status = "login"; st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 # ==========================================
 # 6. الواجهة الرئيسية
@@ -400,7 +461,10 @@ elif S.auth_status == "logged_in":
     g = S.gami_state
 
     # --- رأس الصفحة (الشعار، الإحصائيات، الأفاتار) ---
+<<<<<<< HEAD
     theme_toggle_row()
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
     st.markdown(brand.lockup_html(52), unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns([1, 1, 1.5])

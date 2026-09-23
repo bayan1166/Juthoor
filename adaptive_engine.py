@@ -83,7 +83,10 @@ class Decision:
     reason: str
     gap_skill: Optional[str] = None   # set when a root gap was just diagnosed
     round_over: bool = False
+<<<<<<< HEAD
     breadcrumb: str = ""   # student-facing Arabic sentence explaining the move (UI transparency)
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 
 # Friendly, non-test-like wording for the student (tree metaphor).
@@ -99,6 +102,7 @@ STUDENT_MESSAGES = {
     "complete": "Your tree is in full bloom for now.",
 }
 
+<<<<<<< HEAD
 def _name(sid: str) -> str:
     return kg.SKILLS[sid].name_ar if sid in kg.SKILLS else sid
 
@@ -126,6 +130,8 @@ def _breadcrumb_park(parked_gap: str, moving_to: str) -> str:
 def _breadcrumb_advance(new_skill: str) -> str:
     return f"أحسنت! أصبحت جاهزاً لدرس جديد: «{_name(new_skill)}»."
 
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 # ================================================================= BKT-lite
 def bkt_update(p_known: float, is_correct: bool) -> float:
@@ -143,11 +149,19 @@ def bkt_update(p_known: float, is_correct: bool) -> float:
 
 # ============================================================ small helpers
 def _move(state: StudentState, skill: str, difficulty: int, action: str,
+<<<<<<< HEAD
           reason: str, gap: Optional[str] = None, breadcrumb: str = "") -> Decision:
     state.current_skill = skill
     state.difficulty = difficulty
     state.consec_wrong = 0
     return Decision(action, skill, difficulty, reason, gap_skill=gap, breadcrumb=breadcrumb)
+=======
+          reason: str, gap: Optional[str] = None) -> Decision:
+    state.current_skill = skill
+    state.difficulty = difficulty
+    state.consec_wrong = 0
+    return Decision(action, skill, difficulty, reason, gap_skill=gap)
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 
 def _infer_ancestors(state: StudentState, skill: str) -> None:
@@ -184,15 +198,23 @@ def _route_after_mastery(state: StudentState, skill: str) -> Decision:
         target = state.return_stack.pop()
         if not state.is_mastered(target):
             return _move(state, target, config.MIN_DIFFICULTY, "return_up",
+<<<<<<< HEAD
                          f"Root '{skill}' is solid; returning to '{target}'.",
                          breadcrumb=_breadcrumb_return_up(skill, target))
+=======
+                         f"Root '{skill}' is solid; returning to '{target}'.")
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
     nxt = _pick_frontier(state, just_mastered=skill)
     if nxt is None:
         return Decision("complete", skill, config.MAX_DIFFICULTY,
                         "Every reachable skill is mastered or parked.", round_over=True)
     return _move(state, nxt, config.MIN_DIFFICULTY, "advance",
+<<<<<<< HEAD
                  f"'{skill}' mastered; unlocking '{nxt}'.",
                  breadcrumb=_breadcrumb_advance(nxt))
+=======
+                 f"'{skill}' mastered; unlocking '{nxt}'.")
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 
 # ============================================================= two branches
@@ -230,8 +252,12 @@ def _handle_incorrect(state: StudentState) -> Decision:
         if not state.return_stack or state.return_stack[-1] != skill:
             state.return_stack.append(skill)
         return _move(state, target, config.PROBE_DIFFICULTY, "backtrack",
+<<<<<<< HEAD
                      f"Struggling with '{skill}'; probing prerequisite '{target}'.",
                      breadcrumb=_breadcrumb_backtrack(skill, target))
+=======
+                     f"Struggling with '{skill}'; probing prerequisite '{target}'.")
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
     # 3) All prerequisites are solid -> this skill is the root gap.
     state.gaps.add(skill)
@@ -244,6 +270,7 @@ def _handle_incorrect(state: StudentState) -> Decision:
             return Decision("complete", skill, config.MIN_DIFFICULTY,
                             f"Root gap '{skill}' parked; nothing else unlocked.",
                             gap_skill=skill, round_over=True)
+<<<<<<< HEAD
         return _move(state, nxt, config.MIN_DIFFICULTY, "park",
                      f"Root gap '{skill}' needs the teacher; moving to '{nxt}'.", gap=skill,
                      breadcrumb=_breadcrumb_park(skill, nxt))
@@ -251,6 +278,14 @@ def _handle_incorrect(state: StudentState) -> Decision:
     return Decision("remediate", skill, config.MIN_DIFFICULTY,
                     f"Prerequisites are solid, so '{skill}' is a root gap.", gap_skill=skill,
                     breadcrumb=_breadcrumb_remediate(skill))
+=======
+        d = _move(state, nxt, config.MIN_DIFFICULTY, "park",
+                  f"Root gap '{skill}' needs the teacher; moving to '{nxt}'.", gap=skill)
+        return d
+    state.difficulty = config.MIN_DIFFICULTY
+    return Decision("remediate", skill, config.MIN_DIFFICULTY,
+                    f"Prerequisites are solid, so '{skill}' is a root gap.", gap_skill=skill)
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 
 # ================================================================ public API

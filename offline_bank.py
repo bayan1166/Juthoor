@@ -20,7 +20,11 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
+<<<<<<< HEAD
 from typing import Callable, Optional
+=======
+from typing import Callable
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 LRI, PDI, MINUS = "\u2066", "\u2069", "\u2212"
 
@@ -1249,6 +1253,7 @@ def patterns_of(skill_id: str) -> list[str]:
 
 def template_count() -> int:
     return sum(len(ts) for lv in REGISTRY.values() for ts in lv.values())
+<<<<<<< HEAD
 
 
 # =====================================================================================
@@ -1323,3 +1328,5 @@ def skill_of_pattern(pattern: str) -> Optional[str]:
     the deep drill-down relies on), so callers must not assume the owning skill
     stays the same as the pattern they started from."""
     return _PATTERN_OWNER.get(pattern)
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23

@@ -61,19 +61,26 @@ Target skill: {skill_name} - {skill_description}
 Prerequisite skills (do not test them, only rely on them lightly): {prerequisites}
 Difficulty: {difficulty} of 3 - {difficulty_description}
 Known errors for this skill: {typical_errors}
+<<<<<<< HEAD
 {misconception_block}Language: {language}
+=======
+Language: {language}
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 Context theme (only if you write a word problem): {theme}
 Avoid these recent questions:
 {recent_questions}
 Variation seed: {seed}
 """
 
+<<<<<<< HEAD
 MISCONCEPTION_LINE = (
     "This is a REMEDIATION step: the student just failed a harder question because of this "
     "exact misconception: {misconception}. Write a simpler 'stepping-stone' question that "
     "isolates and directly targets that misconception -- do not just repeat the harder skill.\n"
 )
 
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 # Everyday contexts familiar to students in the region; keeps word problems fresh.
 THEMES = [
     "olive harvest", "school football match", "baking knafeh", "school library",
@@ -84,6 +91,7 @@ THEMES = [
 
 
 def build_messages(skill_id: str, difficulty: int, language: str = "English",
+<<<<<<< HEAD
                    recent: list[str] | None = None, misconception: str | None = None) -> list[dict]:
     """
     Return the chat messages (system + user) for the LLM.
@@ -92,6 +100,10 @@ def build_messages(skill_id: str, difficulty: int, language: str = "English",
     student's last answer (see practice.diagnose). Passing it turns this into a
     targeted remediation prompt instead of a generic question for the skill.
     """
+=======
+                   recent: list[str] | None = None) -> list[dict]:
+    """Return the chat messages (system + user) for the LLM."""
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
     skill = kg.SKILLS[skill_id]
     pres = [kg.SKILLS[p].name for p in skill.prerequisites] or ["none"]
     recent_block = "\n".join(f"- {q}" for q in (recent or [])[-5:]) or "- (none yet)"
@@ -102,7 +114,10 @@ def build_messages(skill_id: str, difficulty: int, language: str = "English",
         difficulty=difficulty,
         difficulty_description=skill.ladder[difficulty - 1],
         typical_errors="; ".join(skill.typical_errors),
+<<<<<<< HEAD
         misconception_block=MISCONCEPTION_LINE.format(misconception=misconception) if misconception else "",
+=======
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
         language=language,
         theme=random.choice(THEMES),
         recent_questions=recent_block,

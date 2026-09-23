@@ -23,6 +23,7 @@ PALETTE = {
     "umber": "#24140F",
     "text": "#EAF1F7",
     "muted": "#9DB2C8",
+<<<<<<< HEAD
     "mode": "dark",
 }
 
@@ -55,6 +56,10 @@ LIGHT_PALETTE = {
 def get_palette(dark: bool) -> dict:
     return PALETTE if dark else LIGHT_PALETTE
 
+=======
+}
+
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 def _hex_to_rgb(h: str) -> tuple[int, int, int]:
     h = h.lstrip("#")

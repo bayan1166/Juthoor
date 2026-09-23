@@ -1,6 +1,7 @@
 """
 What happens around a wrong answer (pure Python, no Streamlit, so it can be tested on its own).
 
+<<<<<<< HEAD
     wrong answer
         -> mistake card (why / rule / worked example)
         -> follow-up question on the SAME pattern (same skill, same level)
@@ -23,16 +24,30 @@ already renders this through the existing `q['banner']` slot -- no UI change nee
 
 The follow-ups are practice: they are not sent to the adaptive engine, so they never
 distort the diagnosis (the engine has already processed the original wrong answer).
+=======
+    wrong answer  ->  mistake card (why / rule / worked example)
+                  ->  follow-up question on the SAME pattern (same skill, same level)
+                  ->  if that is wrong too: a question from a LOWER level
+                  ->  back to the normal adaptive flow
+
+The follow-ups are practice: they are not sent to the adaptive engine, so they never distort the
+diagnosis (the engine has already processed the original wrong answer).
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 """
 from __future__ import annotations
 
 import random
 from typing import Optional
 
+<<<<<<< HEAD
 import config
 import knowledge_graph as kg
 import offline_bank as ob
 import llm_remediation as llm
+=======
+import knowledge_graph as kg
+import offline_bank as ob
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 
 SAME, EASIER = "same_pattern", "easier"
 
@@ -62,6 +77,7 @@ def mistake_card(q: dict, selected) -> dict:
     }
 
 
+<<<<<<< HEAD
 # ------------------------------------------------------------ deep cascading drill-down
 def _step_down(skill: str, pattern: str) -> Optional[tuple[str, str]]:
     """
@@ -153,6 +169,38 @@ def _descend(plan: dict) -> Optional[dict]:
 
 
 # ------------------------------------------------------------ question builders
+=======
+# ------------------------------------------------------------ follow-up flow
+def start(q: dict) -> dict:
+    """Remedial plan created right after a wrong answer to q."""
+    return {"stage": SAME, "skill": q["skill"], "difficulty": q["difficulty"], "pattern": q["pattern"]}
+
+
+def advance(plan: dict, answered_correctly: bool) -> Optional[dict]:
+    """Plan after a remedial question was answered (None = remediation is finished)."""
+    if plan["stage"] == SAME and not answered_correctly:
+        return {**plan, "stage": EASIER}
+    return None
+
+
+def same_pattern_question(plan: dict, rng: random.Random, avoid=()) -> dict:
+    """Another question on the same idea; never the same text again if any other variant exists."""
+    skill, level, pattern = plan["skill"], plan["difficulty"], plan["pattern"]
+    avoid = set(avoid)
+    q = ob.generate_offline(skill, level, rng, avoid, pattern=pattern)
+    if q["question"] in avoid:                          # this idea has a single fixed wording on this level
+        for lvl in sorted(ob.REGISTRY[skill], key=lambda l: (abs(l - level), l)):
+            alt = _build(skill, lvl, rng, avoid, pattern=pattern)
+            if alt and alt["question"] not in avoid:
+                q = alt
+                break
+        else:
+            alt = _build(skill, level, rng, avoid)
+            q = alt if alt and alt["question"] not in avoid else q
+    return {**q, "remedial": SAME, "banner": "سؤال جديد على الفكرة نفسها. جرّب مرة ثانية!"}
+
+
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
 def _build(skill: str, level: int, rng, avoid, pattern: Optional[str] = None, not_pattern: Optional[str] = None):
     pool = [t for t in ob.REGISTRY[skill].get(level, [])
             if (pattern is None or t.pattern == pattern) and (not_pattern is None or t.pattern != not_pattern)]
@@ -168,6 +216,7 @@ def _build(skill: str, level: int, rng, avoid, pattern: Optional[str] = None, no
     return fallback
 
 
+<<<<<<< HEAD
 def same_pattern_question(plan: dict, rng: random.Random, avoid=()) -> dict:
     """Another question on the same idea -- tries a live, targeted LLM generation
     first (grounded in the exact misconception just diagnosed), then the static
@@ -203,3 +252,26 @@ def easier_question(plan: dict, state, rng: random.Random, avoid=()) -> dict:
         q = alt if alt and alt["question"] not in avoid else q
     banner = plan.get("breadcrumb") or "لنتأكد من الأساس الذي يقوم عليه هذا الدرس."
     return {**q, "remedial": EASIER, "banner": banner, "guided": True}
+=======
+def easier_question(plan: dict, state, rng: random.Random, avoid=()) -> dict:
+    """A gentler question: one level down; on level 1, a prerequisite skill; else a guided level-1 question."""
+    skill, level, pattern = plan["skill"], plan["difficulty"], plan["pattern"]
+    q, banner, guided = None, "", False
+    if level > 1:
+        for lvl in range(level - 1, 0, -1):                       # same idea, lower level, if it exists
+            q = _build(skill, lvl, rng, avoid, pattern=pattern)
+            if q:
+                break
+        q = q or _build(skill, level - 1, rng, avoid)
+        banner = "سؤال أسهل قليلاً لنثبّت الفكرة."
+    else:
+        pres = [p for p in kg.prerequisites(skill) if p in ob.REGISTRY]
+        if pres:
+            pre = min(pres, key=lambda p: (state.is_mastered(p), state.mastery(p)))
+            q = _build(pre, 1, rng, avoid)
+            banner = "لنتأكد من الأساس الذي يقوم عليه هذا الدرس."
+        if q is None:
+            q = _build(skill, 1, rng, avoid, not_pattern=pattern) or _build(skill, 1, rng, avoid)
+            banner, guided = "خطوة أبسط، ومعها تلميح يساعدك.", True
+    return {**q, "remedial": EASIER, "banner": banner, "guided": guided}
+>>>>>>> f5ddd40c5c4e762e0d6f52919782547350ed0f23
