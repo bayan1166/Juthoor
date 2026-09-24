@@ -9,7 +9,7 @@ Juthoor is an adaptive educational platform built with Streamlit and NetworkX. I
 * **Avatar System:** Gamified user profiles with unlockable customization items.
 * **Offline Bank:** Local caching of practice problems for continuous learning without an active connection.
 
-## Quickstart (WSL / Linux) 🚀
+## Quickstart 🚀
 
 ### 1. Clone & Navigate
 If you are setting this up for the first time, clone the repository and navigate into the project directory:
@@ -19,7 +19,15 @@ cd juthoor
 ```
 
 ### 2. Setup Virtual Environment
-Create and activate an isolated Python environment:
+Create and activate an isolated Python environment based on your operating system:
+
+**For Windows (Command Prompt / PowerShell):**
+```cmd
+python -m venv venv
+venv\Scripts\activate
+```
+
+**For macOS / Linux / WSL:**
 ```bash
 python3 -m venv venv
 source venv/bin/activate
@@ -38,7 +46,7 @@ Start the application using Streamlit:
 ```bash
 streamlit run app.py
 ```
-Open `http://localhost:8501` in your Windows web browser to view the application.
+Open `http://localhost:8501` in your web browser to view the application.
 
 ## Project Structure 📁
 * `.streamlit/` - Streamlit UI theming and server configuration settings.
