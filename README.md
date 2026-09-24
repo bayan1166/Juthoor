@@ -1,56 +1,50 @@
-# Juthoor 🌳
+# Juthoor 🌱
 
-Juthoor is an interactive, adaptive learning platform built using Python and Streamlit. It leverages knowledge graphs to map out curriculums, provides dynamic skill tree visualizations, and features an adaptive practice engine that tailors the learning experience to the user.
+Juthoor is an adaptive educational platform built with Streamlit and NetworkX. It features an intelligent adaptive engine, interactive skill trees, and a robust offline learning bank to gamify the educational experience.
 
 ## Features
+* **Adaptive Learning Engine:** Dynamically adjusts difficulty based on performance metrics.
+* **Knowledge Graphs & Skill Trees:** Visualizes progression and prerequisites using NetworkX.
+* **LLM Remediation:** AI-driven assistance for debugging and targeted learning support.
+* **Avatar System:** Gamified user profiles with unlockable customization items.
+* **Offline Bank:** Local caching of practice problems for continuous learning without an active connection.
 
-*   **Interactive App:** Built on Streamlit for a seamless, responsive web experience.
-*   **Knowledge Graph & Curriculum:** Uses `networkx` to structure, visualize, and track educational progress through interconnected topics.
-*   **Adaptive Learning Engine:** Dynamically adjusts practice difficulty and content based on user performance.
-*   **Custom Skill Trees:** Features custom-built UI components (`jt_tree`) to render interactive learning paths.
-*   **Gamification & Avatars:** Users can customize their profiles with distinct avatars and unlockable items.
-*   **Offline Question Bank:** Robust local storage of practice questions and prompts.
+## Quickstart (WSL / Linux) 🚀
 
-## Project Structure
+### 1. Clone & Navigate
+If you are setting this up for the first time, clone the repository and navigate into the project directory:
+```bash
+git clone [https://github.com/bayan1166/juthoor.git](https://github.com/bayan1166/juthoor.git)
+cd juthoor
+```
 
-*   `app.py`: Main entry point for the Streamlit application.
-*   `adaptive_engine.py`: Logic for the adaptive learning algorithms.
-*   `knowledge_graph.py` & `curriculum.py`: Data models and structures for the learning paths.
-*   `tree_view.py` & `tree_component.py`: Logic and integration for the custom skill tree visualizations.
-*   `practice.py` & `offline_bank.py`: Practice session logic and local question storage.
-*   `avatar.py` & `avatar_items.py`: User profile and gamification elements.
-*   `theme.py`, `svgkit.py`, `brand.py`: Styling, branding, and custom visual assets.
-*   `components/jt_tree/`: Custom HTML/JS components for rendering the interactive tree.
+### 2. Setup Virtual Environment
+Create and activate an isolated Python environment:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
 
-## Prerequisites
+### 3. Install Dependencies
+Install the core application requirements, followed by the optional dependencies for the LLM remediation features:
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install -r requirements-optional.txt
+```
 
-Make sure you have Python 3.8+ installed on your system. 
-
-## Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd Juthoor-main
-   ```
-
-2. **Install the required dependencies:**
-   The project relies on Streamlit and NetworkX. Install them via the provided requirements file:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Usage
-
-To start the application, run the following command in your terminal:
-
+### 4. Run the Application
+Start the application using Streamlit:
 ```bash
 streamlit run app.py
 ```
+Open `http://localhost:8501` in your Windows web browser to view the application.
 
-The app will open automatically in your default web browser (typically at `http://localhost:8501`).
-
-## Dependencies
-
-*   `streamlit >= 1.37`
-*   `networkx`
+## Project Structure 📁
+* `.streamlit/` - Streamlit UI theming and server configuration settings.
+* `app.py` - Core Streamlit application entry point and main UI layout.
+* `adaptive_engine.py` - Algorithm and logic for the dynamic learning component.
+* `knowledge_graph.py` & `tree_view.py` - NetworkX graph traversal and visual rendering logic.
+* `llm_remediation.py` - AI integration for automated user guidance and feedback.
+* `offline_bank.py` - Caching architecture for offline problem sets.
+* `avatar.py` & `avatar_items.py` - Logic and assets for user profile gamification.
