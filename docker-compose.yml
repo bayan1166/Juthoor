@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: juthoor
+      POSTGRES_PASSWORD: juthoor
+      POSTGRES_DB: juthoor
+    ports:
+      - "5432:5432"
+    volumes:
+      - juthoor_db_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    depends_on:
+      - db
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://juthoor:juthoor@db:5432/juthoor
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+volumes:
+  juthoor_db_data:

@@ -1,2 +1,15 @@
-streamlit>=1.37
-networkx
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9
+alembic==1.13.2
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
+chromadb==0.5.5
+sentence-transformers==3.1.1
+groq==0.11.0
+networkx==3.3
+tenacity==9.0.0
