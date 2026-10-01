@@ -1,80 +1,61 @@
 import json
-from dataclasses import dataclass
 
 from app.config import settings
 from app.engine import knowledge_graph as kg
+from app.services.rag import guardrail, offline_tutor
 from app.services.rag.retriever import retrieve
+from app.services.rag.turn import SocraticTurn
 
-SYSTEM_PROMPT = """أنت المعلم الذكي في منصة "جذور" لتعليم الرياضيات لطلاب الصف السادس بالأردن.
+SYSTEM_PROMPT = """أنت المعلم الذكي في منصة "جذور" لتعليم الرياضيات لطلاب الصف السادس في الأردن (الأعداد الصحيحة والعمليات عليها).
 
-مهمتك أن تعلّم فعلاً — لست مجرد مساعد يسأل أسئلة. تصرّف حسب ما يحتاجه الطالب:
-
-1. إذا طلب الشرح (مثل: "اشرح لي"، "ما هو"، "كيف أحسب"، "فسّر"): اشرح الفكرة بوضوح في جملتين إلى أربع، ثم أعطِ مثالاً محلولاً بأرقام صغيرة.
-2. إذا أعطاك مسألة محدّدة (مثل: "ما ناتج 7 + (-3)"، "أوجد المسافة"): حلّها خطوة بخطوة بترقيم الخطوات، ثم أعطِ الجواب النهائي، ثم اسأله: "هل جربّت مسألة مشابهة؟"
-3. إذا قال إنه عالق أو مش فاهم: اسأله سؤالاً واحداً محدّداً لتعرف من أين تبدأ ("أي خطوة أول خطوة ما فهمتها؟"), ثم اشرح.
-4. إذا كان يعرف ما يفعل لكنه يراجع: شجّعه واسأله ماذا يريد أن يفعل تالياً.
+مهمتك أن تعلّم فعلاً، لا أن تطرح أسئلة فقط. تصرّف حسب طلب الطالب:
+1. إذا طلب شرحاً (اشرح، ما هو، كيف أحسب، فسّر): اشرح الفكرة بوضوح في جمل قصيرة، ثم أعطِ مثالاً محلولاً بأرقام صغيرة.
+2. إذا أعطاك مسألة: فكّكها إلى خطوات مرقّمة، واذكر القاعدة المستعملة في كل خطوة، ثم اكتب الناتج النهائي. إن وصلك حقل "الحل المحقق" فاعتمده كما هو دون تغيير أي رقم.
+3. إذا قال إنه عالق أو لم يفهم: اطرح عليه سؤالاً تشخيصياً واحداً محدداً بصيغة «كم ناتج ...؟»، ثم اشرح بعد جوابه.
+4. إذا أجاب عن تمرين سابق: قيّم جوابه، وإن كان خاطئاً فأظهر موضع الخطأ وصحّحه.
 
 قواعد صارمة:
-- اكتب بالعربية الفصحى البسيطة، لا بالإنجليزية.
-- اجعل كل رد قصيراً وواضحاً.
-- لا تنتظر، لا تتهرّب، لا تُحيل الطالب إلى المعلم: علّمه الآن.
-- استخدم أرقاماً صغيرة في الأمثلة (أقل من 20).
-- إذا لاحظت أن سبب الصعوبة درس سابق في المنهج (مثلاً: لا يستطيع الجمع، فكيف يضرب؟)، حدّد "gap_detected": true و "gap_skill" بـ id الدرس المناسب من القائمة.
+- إن كان سؤال الطالب خارج منهج الرياضيات فأعد في حقل reply هذا النص حرفياً دون أي إضافة: عذراً، أنا مبرمج حصرياً لمساعدتك في المنهج التعليمي وتطوير مستواك الأكاديمي.
+- اكتب بالعربية الفصحى البسيطة.
+- لا تستعمل أي رموز تعبيرية.
+- اجعل الرد مختصراً ومنظّماً، ولا تُحل الطالب إلى معلم آخر.
+- اكتب المسائل الرياضية بأرقام لاتينية وإشارة الناقص "-" أو "−".
+- إن كان سبب الصعوبة درساً سابقاً في المنهج (مثل صعوبة الجمع عند الضرب)، فعيّن "gap_detected": true و"gap_skill" بمعرّف الدرس السابق من القائمة.
 
-أعِد JSON فقط بالشكل التالي، بدون أي نص خارج القوسين:
-{"reply": "ردّك بالعربية هنا", "gap_detected": true/false, "gap_skill": "skill_id أو null"}
-"""
+أعد JSON فقط بالشكل:
+{"reply": "ردّك بالعربية", "gap_detected": true أو false, "gap_skill": "معرّف الدرس أو سلسلة فارغة", "misconception": "وصف قصير للالتباس أو سلسلة فارغة"}"""
 
-USER_TEMPLATE = """الدروس المتاحة (استخدم id من هنا فقط): {skill_ids}
+USER_TEMPLATE = """الدروس المتاحة (استعمل المعرّف فقط): {skill_ids}
 الدرس الحالي للطالب: {skill_name}
 
-مقتطفات من المنهج قد تساعدك:
+مقتطفات من المنهج:
 {context}
 
-آخر رسائل في المحادثة:
-{history}
+الحل المحقق (إن وُجد): {hint}
 
-رسالة الطالب الجديدة:
-{message}
-
-الآن ردّ على الطالب."""
-
-
-@dataclass
-class SocraticTurn:
-    reply: str
-    gap_detected: bool
-    gap_skill: str
-    misconception: str
-    retrieved_ids: list[str]
+رسالة الطالب:
+{message}"""
 
 
 def _client():
-    """Return (provider, sdk) or None. Prefers OpenAI (smarter), falls back to Groq."""
     if settings.openai_api_key:
         try:
             from openai import OpenAI
-            return ("openai", OpenAI(api_key=settings.openai_api_key))
+
+            return "openai", OpenAI(api_key=settings.openai_api_key)
         except Exception:
             pass
     if settings.groq_api_key:
         try:
             from groq import Groq
-            return ("groq", Groq(api_key=settings.groq_api_key))
+
+            return "groq", Groq(api_key=settings.groq_api_key)
         except Exception:
             pass
     return None
 
 
-def _fallback_turn(retrieved_ids: list[str]) -> SocraticTurn:
-    return SocraticTurn(
-        reply="ممتاز، خبريني كيف بدك تبدئي بحل هذا السؤال، خطوة خطوة؟",
-        gap_detected=False, gap_skill="", misconception="", retrieved_ids=retrieved_ids,
-    )
-
-
 def _extract_json(raw: str) -> dict:
-    """Models sometimes wrap the JSON in prose or code fences; take the outermost {...}."""
     raw = (raw or "").strip()
     try:
         return json.loads(raw)
@@ -86,9 +67,8 @@ def _extract_json(raw: str) -> dict:
 
 
 def _safe_retrieve(message: str, skill_id: str | None) -> list[dict]:
-    # An empty/uningested vector store or a missing chromadb install must not 500 the chat.
     try:
-        return retrieve(message, skill_id=skill_id, top_k=5)
+        return retrieve(message, skill_id=skill_id, top_k=4)
     except Exception:
         return []
 
@@ -96,51 +76,52 @@ def _safe_retrieve(message: str, skill_id: str | None) -> list[dict]:
 def _parse(raw: str, retrieved_ids: list[str]) -> SocraticTurn | None:
     try:
         data = _extract_json(raw)
-        reply = str(data["reply"]).strip()
+        reply = str(data.get("reply", "")).strip()
         if not reply:
             return None
-        gap_skill = str(data.get("gap_skill", "")).strip()
+        gap_skill = str(data.get("gap_skill") or "").strip()
         if gap_skill and gap_skill not in kg.SKILLS:
             gap_skill = ""
         return SocraticTurn(
             reply=reply,
             gap_detected=bool(data.get("gap_detected", False)) and bool(gap_skill),
             gap_skill=gap_skill,
-            misconception=str(data.get("misconception", "")).strip(),
+            misconception=str(data.get("misconception") or "").strip(),
             retrieved_ids=retrieved_ids,
         )
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError, AttributeError):
         return None
 
 
-def generate_turn(skill_context: str, history: list[dict], message: str) -> SocraticTurn:
-    chunks = _safe_retrieve(message, skill_context or None)
-    retrieved_ids = [c["id"] for c in chunks]
-    context_block = "\n".join(f"- {c['text']}" for c in chunks) or "- (no matching context)"
-    history_block = "\n".join(f"{h['role']}: {h['content']}" for h in history[-8:]) or "(new conversation)"
+def _llm_turn(picked, skill_context: str, history: list[dict], message: str, chunks: list[dict]) -> SocraticTurn | None:
+    provider, client = picked
     skill_name = kg.SKILLS[skill_context].name_ar if skill_context in kg.SKILLS else "غير محدد"
+    context_block = "\n".join(f"- {c['text']}" for c in chunks) or "- لا يوجد"
+    final = USER_TEMPLATE.format(
+        skill_ids=", ".join(kg.SKILLS.keys()), skill_name=skill_name, context=context_block,
+        hint=offline_tutor.solution_hint(message) or "لا يوجد", message=message,
+    )
+    turns = [{"role": "assistant" if h["role"] == "tutor" else "user", "content": h["content"]}
+             for h in history[-8:] if h["role"] in ("tutor", "student")]
+    model = settings.openai_chat_model if provider == "openai" else settings.groq_chat_model
+    resp = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "system", "content": SYSTEM_PROMPT}, *turns, {"role": "user", "content": final}],
+        temperature=0.3, response_format={"type": "json_object"}, max_tokens=700, timeout=12,
+    )
+    return _parse(resp.choices[0].message.content, [c["id"] for c in chunks])
 
+
+def generate_turn(skill_context: str, history: list[dict], message: str) -> SocraticTurn:
+    if guardrail.is_off_topic(message):
+        return SocraticTurn(reply=guardrail.FALLBACK, gap_detected=False, gap_skill="", misconception="", retrieved_ids=[])
     picked = _client()
     if picked is not None:
-        provider, client = picked
         try:
-            user_prompt = USER_TEMPLATE.format(
-                skill_ids=", ".join(kg.SKILLS.keys()),
-                skill_name=skill_name, context=context_block,
-                history=history_block, message=message,
-            )
-            model = settings.openai_chat_model if provider == "openai" else settings.groq_chat_model
-            resp = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "system", "content": SYSTEM_PROMPT},
-                          {"role": "user", "content": user_prompt}],
-                temperature=0.4, response_format={"type": "json_object"},
-                max_tokens=400, timeout=6,
-            )
-            parsed = _parse(resp.choices[0].message.content, retrieved_ids)
-            if parsed is not None:
-                return parsed
+            chunks = _safe_retrieve(message, skill_context or None)
+            turn = _llm_turn(picked, skill_context, history, message, chunks)
+            if turn is not None:
+                return turn
         except Exception:
             pass
-
-    return _fallback_turn(retrieved_ids)
+    return offline_tutor.offline_turn(skill_context, history, message)

@@ -1,4 +1,3 @@
-"""Prompt templates for generating diagnostic questions with an LLM."""
 from __future__ import annotations
 
 import random
@@ -74,7 +73,7 @@ MISCONCEPTION_LINE = (
     "isolates and directly targets that misconception -- do not just repeat the harder skill.\n"
 )
 
-# Everyday contexts familiar to students in the region; keeps word problems fresh.
+
 THEMES = [
     "olive harvest", "school football match", "baking knafeh", "school library",
     "bus ride across the city", "garden and vegetables", "classroom art project",
@@ -85,13 +84,6 @@ THEMES = [
 
 def build_messages(skill_id: str, difficulty: int, language: str = "English",
                    recent: list[str] | None = None, misconception: str | None = None) -> list[dict]:
-    """
-    Return the chat messages (system + user) for the LLM.
-
-    `misconception`, when given, is the exact wrong-answer trap diagnosed from the
-    student's last answer (see practice.diagnose). Passing it turns this into a
-    targeted remediation prompt instead of a generic question for the skill.
-    """
     skill = kg.SKILLS[skill_id]
     pres = [kg.SKILLS[p].name for p in skill.prerequisites] or ["none"]
     recent_block = "\n".join(f"- {q}" for q in (recent or [])[-5:]) or "- (none yet)"

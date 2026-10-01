@@ -1,4 +1,3 @@
-"""The practice session logic (pure Python, no database): diagnosis + remediation."""
 import random
 
 from app.engine import adaptive_engine as ae
@@ -37,7 +36,7 @@ def test_wrong_answer_then_same_pattern_then_easier():
     assert q2["remedial"] == "same_pattern" and q2["pattern"] == q1["pattern"]
     total_before = s.state.total_answered
     sc.grade(s, WRONG)
-    assert s.state.total_answered == total_before      # remedial answers never reach the engine
+    assert s.state.total_answered == total_before
 
 
 def test_correct_remedial_answer_returns_to_normal_flow():
@@ -54,9 +53,9 @@ def test_correct_remedial_answer_returns_to_normal_flow():
 def test_banner_explains_the_move_on_the_next_normal_question():
     s, rng = _session("adding_integers"), random.Random(4)
     sc.serve(s, rng)
-    r = sc.grade(s, WRONG)                  # level 1 miss with weak prerequisite -> backtrack
+    r = sc.grade(s, WRONG)
     assert r["action"] == "backtrack" and r["breadcrumb"]
-    for _ in range(10):                     # finish the remediation practice
+    for _ in range(10):
         if not s.plan:
             break
         sc.serve(s, rng)

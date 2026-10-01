@@ -1,4 +1,3 @@
-"""Pure engine tests: no web server or database involved."""
 import random
 
 from app.engine import adaptive_engine as ae
@@ -13,7 +12,6 @@ def test_graph_is_a_dag_with_one_root():
 
 
 def test_backtracks_to_the_root_gap():
-    """The core claim: repeated misses on the top skill walk back to the real gap."""
     state = ae.StudentState(current_skill="mult_div_integers", difficulty=1)
     path = []
     for _ in range(5):

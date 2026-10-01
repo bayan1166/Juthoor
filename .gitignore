@@ -1,11 +1,9 @@
-venv/
-.venv/
-
-.env
-.env.*
-
 __pycache__/
-*.py[cod]
-juthoor.db
+*.pyc
+.env
+*.db
+uploads/
 chroma_store/
+node_modules/
 .pytest_cache/
+venv/

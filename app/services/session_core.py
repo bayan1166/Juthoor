@@ -1,15 +1,3 @@
-"""Pure practice-session logic (no database, no web framework) so it can be unit-tested.
-
-Mirrors the original Streamlit prototype exactly:
-  * normal question -> adaptive_engine.decide_next (the diagnosis: level up/down,
-    backtrack to a prerequisite, flag a root gap, park, advance)
-  * wrong normal answer -> a remediation plan (practice.start): same-pattern follow-up,
-    then a deep cascading drill-down to easier stepping stones. Remedial answers are
-    practice only: they never reach the engine, so they never distort the diagnosis.
-  * when the engine moves the student to another skill, the reason (breadcrumb) is shown
-    as a banner on the next normal question.
-engine_bridge.py loads/saves these values from the database around each call.
-"""
 from __future__ import annotations
 
 import random
@@ -28,10 +16,10 @@ CORRECT_COINS_NORMAL = "normal"
 @dataclass
 class Session:
     state: ae.StudentState
-    plan: Optional[dict] = None            # practice remediation plan, or None
-    pending_banner: Optional[str] = None   # engine breadcrumb waiting for the next normal question
+    plan: Optional[dict] = None
+    pending_banner: Optional[str] = None
     recent: list = field(default_factory=list)
-    pending: Optional[dict] = None         # the question currently shown to the student
+    pending: Optional[dict] = None
 
 
 def _options(q: dict, rng: random.Random) -> list[str]:
@@ -42,11 +30,10 @@ def _options(q: dict, rng: random.Random) -> list[str]:
         return opts
     if kind == "tf":
         return ["صح", "خطأ"]
-    return []                               # "input": the student types the answer
+    return []
 
 
 def serve(sess: Session, rng: random.Random) -> dict:
-    """Pick the next question (remedial if a plan is active) and remember it as pending."""
     if sess.plan:
         if sess.plan["stage"] == pr.SAME:
             q = pr.same_pattern_question(sess.plan, rng, sess.recent)
@@ -77,7 +64,6 @@ def serve(sess: Session, rng: random.Random) -> dict:
 
 
 def grade(sess: Session, selected: str) -> dict:
-    """Grade the pending question and move the session on. Caller must check sess.pending."""
     pending = sess.pending
     ok = pr.is_correct(pending, selected)
     kind = pending.get("remedial")

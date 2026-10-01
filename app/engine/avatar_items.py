@@ -1,13 +1,3 @@
-"""
-Everything the avatar can wear, plus the shop catalog.
-
-Drawing functions return SVG fragments in the 240x240 avatar space (head centre ~ (120,110),
-shoulders at y ~ 178, hat line at y ~ 84).  They rely on gradients / patterns declared by
-avatar._defs():  {u}-goldf {u}-em {u}-coat {u}-suit {u}-lens {u}-emb {u}-shr {u}-shb.
-
-Item ids that already existed in the shop keep their names (shirtCrewNeck, blazerAndShirt, overall,
-hat, winterHat1, prescription02, sunglasses) so saved gami_state keeps working.
-"""
 from __future__ import annotations
 
 import math
@@ -24,7 +14,6 @@ def _dk(c, t=0.28): return mix(c, "#000000", t)
 def _lt(c, t=0.45): return mix(c, "#FFFFFF", t)
 
 
-# ============================================================ CLOTHING
 def _tee(u, color):
     d, l = _dk(color), _lt(color)
     return (f'<path d="{BODY}" fill="{color}"/>'
@@ -51,7 +40,7 @@ def _hoodie(u, color):
             f'<path d="M70 244L82 222H158L170 244Z" fill="{_dk(color, .12)}" stroke="{d}" stroke-width="1.6"/>')
 
 
-def _jacket_denim(u, color="#084814"):
+def _jacket_denim(u, color="#3E6DA8"):
     d, l = _dk(color, .3), _lt(color, .35)
     return (f'<path d="{BODY}" fill="{color}"/>'
             f'<path d="M100 178L120 238L140 178C130 187 110 187 100 178Z" fill="#F3F6FA"/>'
@@ -123,7 +112,6 @@ def _jersey(u):
             f'<circle cx="152" cy="208" r="5.5" fill="url(#{u}-goldf)"/>')
 
 
-# ---- jobs
 def _doctor(u):
     return (
         f'<path d="{BODY}" fill="url(#{u}-coat)"/>'
@@ -227,7 +215,6 @@ def _farmer(u):
             f'<rect x="108" y="222" width="24" height="14" rx="2" fill="none" stroke="#2C5185" stroke-width="1.6"/>')
 
 
-# ============================================================ HEADWEAR
 def _cap(u, color="#1E4F3A"):
     d = _dk(color, .3)
     return (f'<path d="M71 82C68 38 98 26 120 26C142 26 172 38 169 82C150 76 90 76 71 82Z" fill="{color}"/>'
@@ -339,7 +326,7 @@ def _coin_scarf(u):
     coin = lambda x, y, r: (f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r}" fill="url(#{u}-goldf)" stroke="#8A6420" stroke-width=".9"/>'
                             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r * .58:.1f}" fill="none" stroke="#8A6420" stroke-opacity=".55" stroke-width=".9"/>')
     row = ""
-    for k in range(9):                                            # a row of gold coins above the forehead
+    for k in range(9):
         x = 84 + k * 9
         y = 108 - 44 * math.sqrt(max(0.0, 1 - ((x - 120) / 43) ** 2)) - 6
         row += coin(x, y, 5.6)
@@ -363,7 +350,6 @@ def _shemagh(u, pat):
             f'<path d="M70 70C90 54 140 52 166 66" fill="none" stroke="#FFFFFF" stroke-opacity=".22" stroke-width="2" stroke-linecap="round"/>')
 
 
-# ============================================================ NECK (scarves)
 def _scarf(u, color, stripe=None):
     d = _dk(color, .25)
     st = ""
@@ -375,7 +361,6 @@ def _scarf(u, color, stripe=None):
             f'<path d="M140 220L165 216M142 230L166 226" stroke="{_lt(color, .35)}" stroke-width="2" opacity=".8"/>')
 
 
-# ============================================================ GLASSES
 def _glasses_round(u):
     return (f'<g fill="#BFE6FF" fill-opacity=".16" stroke="url(#{u}-goldf)" stroke-width="3.2">'
             f'<circle cx="100" cy="113" r="15"/><circle cx="140" cy="113" r="15"/></g>'
@@ -403,24 +388,23 @@ def _glasses_red(u):
             f'<path d="M114 111H126M83 110L74 107M157 110L166 107" stroke="#D64545" stroke-width="3" fill="none" stroke-linecap="round"/>')
 
 
-# ================================================================ registries
 CLOTHING: dict[str, Callable[[str], str]] = {"shirtCrewNeck": _tee_default}
 HEADWEAR: dict[str, Callable[[str], str]] = {}
 NECK: dict[str, Callable[[str], str]] = {}
 GLASSES: dict[str, Callable[[str], str]] = {"prescription02": _glasses_round, "sunglasses": _sunglasses,
                                             "aviator": _aviator, "redframes": _glasses_red}
-HAIR_COVER_FULL = set()          # headwear that hides all hair (hijab, shemagh, coin scarf)
+HAIR_COVER_FULL = set()
 
 
 @dataclass(frozen=True)
 class Item:
     id: str
-    cat: str                    # clothing | top | neck | accessories | hair | hair_color | skin
-    group: str                  # shop section
+    cat: str
+    group: str
     name: str
     price: int = 0
     gender: Optional[str] = None
-    bundle: tuple = field(default_factory=tuple)      # extra (cat, id) equipped together (job outfit + its cap)
+    bundle: tuple = field(default_factory=tuple)
 
 
 CATALOG: list[Item] = []
@@ -429,7 +413,6 @@ CATALOG: list[Item] = []
 def _add(item: Item): CATALOG.append(item)
 
 
-# ---- t-shirts
 TEE_COLORS = {"red": ("أحمر", "#D64545"), "blue": ("أزرق", "#3B7DD8"), "yellow": ("أصفر", "#F2C230"), "white": ("أبيض", "#F1F5FA"),
               "purple": ("بنفسجي", "#8B5CC7"), "orange": ("برتقالي", "#EE8A2E"), "black": ("أسود", "#2B2F3A")}
 _add(Item("shirtCrewNeck", "clothing", "tees", "تيشيرت جذور (أخضر)", 0))
@@ -437,16 +420,16 @@ for k, (nm, col) in TEE_COLORS.items():
     CLOTHING[f"tee_{k}"] = (lambda u, c=col: _tee(u, c))
     _add(Item(f"tee_{k}", "clothing", "tees", f"تيشيرت {nm}", 10))
 CLOTHING["jersey"] = _jersey
-_add(Item("jersey", "clothing", "tees", "قميص المنتخب ⚽", 30))
+_add(Item("jersey", "clothing", "tees", "قميص المنتخب", 30))
 
-# ---- hoodies
+
 HOODIE_COLORS = {"red": ("أحمر", "#D64545"), "blue": ("أزرق", "#3B7DD8"), "green": ("أخضر", "#2FA36B"), "yellow": ("أصفر", "#E9B824"),
                  "purple": ("بنفسجي", "#8B5CC7"), "orange": ("برتقالي", "#EE8A2E"), "gray": ("رمادي", "#8A94A6"), "pink": ("وردي", "#E97FA8")}
 for k, (nm, col) in HOODIE_COLORS.items():
     CLOTHING[f"hoodie_{k}"] = (lambda u, c=col: _hoodie(u, c))
     _add(Item(f"hoodie_{k}", "clothing", "hoodies", f"هودي {nm}", 25))
 
-# ---- jackets
+
 CLOTHING["jacket_denim"] = _jacket_denim
 CLOTHING["jacket_bomber"] = _jacket_bomber
 CLOTHING["jacket_leather"] = _jacket_leather
@@ -458,25 +441,25 @@ for k, (nm, col) in PUFFER.items():
     CLOTHING[f"puffer_{k}"] = (lambda u, c=col: _jacket_puffer(u, c))
     _add(Item(f"puffer_{k}", "clothing", "jackets", f"جاكيت شتوي {nm}", 45))
 
-# ---- heritage
+
 CLOTHING["dishdasha"] = _dishdasha
 _add(Item("dishdasha", "clothing", "heritage", "دشداشة", 60, gender="ولد"))
 for k, (nm, col) in {"black": ("أسود", "#1F1A24"), "maroon": ("عنابي", "#6E1F31")}.items():
     CLOTHING[f"thobe_{k}"] = (lambda u, c=col: _thobe(u, c))
     _add(Item(f"thobe_{k}", "clothing", "heritage", f"ثوب أردني مطرّز ({nm})", 90, gender="بنت"))
 
-# ---- jobs (outfit + its own cap, bought together)
-JOBS = [  # id, Arabic name, outfit fn, (cap id, cap fn) or None, price
-    ("blazerAndShirt", "طبيب 🥼", _doctor, ("scrubcap", _scrub_cap), 40),
-    ("nurse", "ممرض/ة 💉", _nurse, ("nursecap", _nurse_cap), 40),
-    ("engineer", "مهندس 👷", _engineer, ("hardhat", _hardhat), 60),
-    ("pilot", "طيار ✈️", _pilot, ("pilotcap", _pilot_cap), 80),
-    ("officer", "ضابط 🎖️", _officer, ("officercap", _officer_cap), 80),
-    ("chef", "طباخ 👨‍🍳", _chef, ("chefhat", _chef_hat), 50),
-    ("firefighter", "إطفائي 🚒", _firefighter, ("firehelmet", _fire_helmet), 70),
-    ("teacher", "معلم/ة 📚", _teacher, None, 50),
-    ("farmer", "مزارع 🌾", _farmer, ("strawhat", _straw_hat), 45),
-    ("overall", "رائد فضاء 🚀", _astronaut, ("astrohelmet", _astro_helmet), 80),
+
+JOBS = [
+    ("blazerAndShirt", "طبيب", _doctor, ("scrubcap", _scrub_cap), 40),
+    ("nurse", "ممرض/ة", _nurse, ("nursecap", _nurse_cap), 40),
+    ("engineer", "مهندس", _engineer, ("hardhat", _hardhat), 60),
+    ("pilot", "طيار", _pilot, ("pilotcap", _pilot_cap), 80),
+    ("officer", "ضابط", _officer, ("officercap", _officer_cap), 80),
+    ("chef", "طباخ", _chef, ("chefhat", _chef_hat), 50),
+    ("firefighter", "إطفائي", _firefighter, ("firehelmet", _fire_helmet), 70),
+    ("teacher", "معلم/ة", _teacher, None, 50),
+    ("farmer", "مزارع", _farmer, ("strawhat", _straw_hat), 45),
+    ("overall", "رائد فضاء", _astronaut, ("astrohelmet", _astro_helmet), 80),
 ]
 JOB_HEADGEAR_NAMES = {"scrubcap": "قبعة الطبيب", "nursecap": "قبعة التمريض", "hardhat": "خوذة المهندس", "pilotcap": "قبعة الطيار",
                       "officercap": "قبعة الضابط", "chefhat": "قبعة الطباخ", "firehelmet": "خوذة الإطفائي", "strawhat": "قبعة المزارع",
@@ -490,7 +473,7 @@ for jid, nm, fn, cap, price in JOBS:
         _add(Item(cap[0], "top", "jobcaps", JOB_HEADGEAR_NAMES[cap[0]], price // 2))
     _add(Item(jid, "clothing", "jobs", nm, price, bundle=bundle))
 
-# ---- caps & winter hats
+
 HEADWEAR["none"] = lambda u: ""
 _add(Item("none", "top", "caps", "بدون غطاء رأس", 0))
 CAPS = {"hat": ("قبعة رياضية (خضراء)", "#1E4F3A", 30), "cap_red": ("قبعة رياضية حمراء", "#C8202F", 30), "cap_green": ("قبعة رياضية خضراء", "#2A7B57", 30)}
@@ -503,7 +486,7 @@ for wid, (nm, col) in WINTER.items():
     HEADWEAR[wid] = (lambda u, c=col: _beanie(u, c))
     _add(Item(wid, "top", "winter", f"طاقية شتاء {nm}", 30 if wid != "winterHat1" else 50))
 
-# ---- heritage headwear + hijab
+
 HEADWEAR["shemagh_red"] = lambda u: _shemagh(u, "shr")
 HEADWEAR["shemagh_black"] = lambda u: _shemagh(u, "shb")
 HEADWEAR["coin_scarf"] = _coin_scarf
@@ -518,7 +501,7 @@ for k, (nm, col) in HIJAB.items():
     HAIR_COVER_FULL.add(f"hijab_{k}")
     _add(Item(f"hijab_{k}", "top", "hijab", f"حجاب {nm}", 0, gender="بنت"))
 
-# ---- scarves
+
 NECK["none"] = lambda u: ""
 _add(Item("none_neck", "neck", "scarves", "بدون لفحة", 0))
 SCARVES = {"red": ("حمراء", "#C8202F", None), "blue": ("زرقاء", "#3B7DD8", None), "green": ("خضراء", "#2A7B57", None),
@@ -527,11 +510,11 @@ for k, (nm, col, stripe) in SCARVES.items():
     NECK[f"scarf_{k}"] = (lambda u, c=col, s=stripe: _scarf(u, c, s))
     _add(Item(f"scarf_{k}", "neck", "scarves", f"لفحة {nm}", 20))
 
-# ---- glasses
+
 _add(Item("blank", "accessories", "glasses", "بدون نظارة", 0))
-_add(Item("prescription02", "accessories", "glasses", "نظارة طبية 👓", 30))
+_add(Item("prescription02", "accessories", "glasses", "نظارة طبية", 30))
 _add(Item("redframes", "accessories", "glasses", "نظارة بإطار أحمر", 30))
-_add(Item("sunglasses", "accessories", "glasses", "نظارة شمسية 🕶️", 50))
+_add(Item("sunglasses", "accessories", "glasses", "نظارة شمسية", 50))
 _add(Item("aviator", "accessories", "glasses", "نظارة طيّارين", 50))
 
 BY_ID = {(i.cat, i.id): i for i in CATALOG}

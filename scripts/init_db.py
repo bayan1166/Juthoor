@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app import models  # noqa: F401
+from app import models
 from app.database import Base, engine
 
 

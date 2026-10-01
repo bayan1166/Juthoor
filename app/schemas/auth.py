@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.org import UserRole
 
-# Admin roles must be granted by an existing admin, never self-assigned at sign-up.
 SELF_REGISTER_ROLES = {UserRole.student, UserRole.parent, UserRole.teacher}
 
 
@@ -16,9 +16,9 @@ class RegisterRequest(BaseModel):
     role: UserRole = UserRole.student
     org_slug: str | None = None
     guardian_id: uuid.UUID | None = None
-    guardian_email: EmailStr | None = None   # friendlier alternative to guardian_id
+    guardian_email: EmailStr | None = None
     grade_level: int = Field(default=6, ge=1, le=12)
-    gender: str | None = Field(default=None, max_length=10)
+    gender: Literal["ولد", "بنت"] | None = None
 
     @field_validator("email")
     @classmethod
@@ -64,11 +64,13 @@ class MeOut(BaseModel):
     email: str
     full_name: str
     role: UserRole
-    organization_id: uuid.UUID | None
+    organization_id: uuid.UUID | None = None
     organization_name: str | None = None
     grade_level: int
     plan: str = "basic"
+    plan_source: str = "own"
     plan_expires_at: datetime | None = None
+    trial_days_left: int | None = None
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -80,6 +82,20 @@ class ForgotPasswordRequest(BaseModel):
         return v.lower()
 
 
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^\d{6}$")
+
+    @field_validator("email")
+    @classmethod
+    def _lower(cls, v: str) -> str:
+        return v.lower()
+
+
+class ResetTokenOut(BaseModel):
+    reset_token: str
+
+
 class ResetPasswordRequest(BaseModel):
-    token: str = Field(min_length=20, max_length=200)
+    reset_token: str = Field(min_length=20, max_length=200)
     new_password: str = Field(min_length=6, max_length=128)

@@ -1,21 +1,3 @@
-"""
-Juthoor offline question bank  (Unit 1: integers and their operations, 6th grade).
-
-Every skill has 3 difficulty levels and every level has 5-7 question *templates*.  A template builds
-a fresh question from random numbers each time, so a lesson is covered from many angles:
-
-    generate_offline(skill_id, difficulty, rng, avoid=[...], pattern="ai_diff")
-
-Each template belongs to a **pattern** (a specific idea / typical mistake, e.g. "sign of the sum when the
-signs differ").  The pattern is what lets the app, after a wrong answer, show an explanation card for that
-idea and then ask another question on the *same* pattern (see practice.py).
-
-Every wrong option carries the misconception that produces it, so the card can say *why* the student
-probably chose it.
-
-RTL note: in an Arabic sentence "-5" is drawn as "5-".  Everything mathematical is therefore wrapped in
-left-to-right isolates (L / N / E below) and negatives use the real minus sign U+2212.
-"""
 from __future__ import annotations
 
 import random
@@ -25,9 +7,7 @@ from typing import Callable, Optional
 LRI, PDI, MINUS = "\u2066", "\u2069", "\u2212"
 
 
-# ============================================================ display helpers
 def n(x: int) -> str:
-    """Integer as text with a real minus sign."""
     return str(x).replace("-", MINUS)
 
 
@@ -36,12 +16,10 @@ def par(x: int) -> str:
 
 
 def L(s) -> str:
-    """Isolate a piece of maths so it is drawn left-to-right inside an Arabic sentence."""
     return f"{LRI}{s}{PDI}"
 
 
 def M(s: str) -> str:
-    """A maths fragment written with ASCII '-' -> isolated LTR text with real minus signs."""
     return L(s.replace("-", MINUS))
 
 
@@ -68,7 +46,6 @@ _AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩٫٬", "0123456789.,")
 
 
 def norm(s) -> str:
-    """Canonical form used to compare answers (typed or chosen)."""
     s = str(s)
     for ch in (LRI, PDI, "\u200e", "\u200f", " ", "\u00a0", "\t"):
         s = s.replace(ch, "")
@@ -95,7 +72,6 @@ def _tf(statement, truth, why_wrong, explain, hint) -> dict:
                 explanation=explain, hint=hint, type="tf")
 
 
-# ================================================================== registry
 @dataclass(frozen=True)
 class Template:
     fn: Callable[[random.Random], dict]
@@ -114,11 +90,8 @@ def tpl(skill: str, level: int, pattern: str):
     return deco
 
 
-# ========================================================== pattern cards
-# One card per idea: title, the rule, and a worked example that is NOT one of the generated questions.
-# Every equation is wrapped with M(...) so the RTL page does not flip it around the "=".
 PATTERNS: dict[str, dict[str, str]] = {
-    # ---- lesson 1: integers & absolute value
+
     "av_meaning": dict(
         title="تمثيل المواقف بأعداد صحيحة",
         rule="الزيادة والربح والإيداع والارتفاع فوق الصفر تُمثَّل بعدد موجب، والنقص والخسارة والسحب والعمق تحت الصفر تُمثَّل بعدد سالب.",
@@ -151,7 +124,7 @@ PATTERNS: dict[str, dict[str, str]] = {
         title="العدد الذي قيمته المطلقة معلومة",
         rule="عددان لهما القيمة المطلقة نفسها: العدد ومعكوسه، لأن كليهما يبعد المسافة نفسها عن الصفر.",
         example=f"إذا كانت {M('|x| = 4')} فإن {M('x = 4')} أو {M('x = -4')}."),
-    # ---- lesson 2: comparing & ordering
+
     "ci_sign": dict(
         title="المقارنة حسب الإشارة",
         rule="أي عدد موجب أكبر من أي عدد سالب. والصفر أكبر من كل عدد سالب وأصغر من كل عدد موجب.",
@@ -168,7 +141,7 @@ PATTERNS: dict[str, dict[str, str]] = {
         title="الأعداد الواقعة بين عددين",
         rule="الأعداد الصحيحة بين عددين هي التي تقع بينهما على خط الأعداد دون العددين نفسيهما.",
         example=f"الأعداد الصحيحة بين {M('-3')} و {M('2')} هي {M('-2, -1, 0, 1')}."),
-    # ---- lesson 3: adding
+
     "ai_same": dict(
         title="جمع عددين لهما الإشارة نفسها",
         rule="نجمع القيمتين المطلقتين ونضع الإشارة نفسها.",
@@ -197,7 +170,7 @@ PATTERNS: dict[str, dict[str, str]] = {
         title="إيجاد العدد المجهول في الجمع",
         rule="لإيجاد العدد المجهول نضيف معكوس العدد المعلوم إلى الطرفين.",
         example=f"إذا كان {M('x + (-3) = 4')} فإن {M('x = 4 + 3 = 7')}."),
-    # ---- lesson 4: subtracting
+
     "si_rule": dict(
         title="الطرح هو جمع المعكوس",
         rule="نثبّت العدد الأول، نحوّل الطرح إلى جمع، ونعكس إشارة العدد الثاني: a − b = a + (−b).",
@@ -218,7 +191,7 @@ PATTERNS: dict[str, dict[str, str]] = {
         title="الفرق بين قيمتين",
         rule="الفرق = القيمة الأكبر − القيمة الأصغر. لإيجاد الفرق بين درجتي حرارة أو ارتفاعين نطرح الأدنى من الأعلى، وطرح السالب يصبح جمعاً.",
         example=f"الفرق بين 10 درجات و {M('-4')} درجات هو {M('10 - (-4) = 14')} درجة."),
-    # ---- lesson 5: multiplying & dividing
+
     "md_sign": dict(
         title="قاعدة الإشارات",
         rule="في الضرب والقسمة: إشارتان متشابهتان ← ناتج موجب. إشارتان مختلفتان ← ناتج سالب.",
@@ -250,9 +223,6 @@ PATTERNS: dict[str, dict[str, str]] = {
 }
 
 
-# =====================================================================================
-# LESSON 1  -  absolute_value   (integers, number line, opposite, absolute value, distance)
-# =====================================================================================
 S1 = "absolute_value"
 
 
@@ -447,15 +417,11 @@ def _av3_city(r):
               f"{M(f'|{-a}| = {a}')} أكبر من {M(f'|{b}| = {b}')}، فالأولى أبعد عن الصفر.", "قارن القيمتين المطلقتين.")
 
 
-# =====================================================================================
-# LESSON 2  -  comparing_integers   (comparing, ordering, integers between two numbers)
-# =====================================================================================
 S2 = "comparing_integers"
 SYMS = [(">", "أكبر من"), ("<", "أصغر من"), ("=", "يساوي")]
 
 
 def _symbol_q(a, b, why_map, explain, hint):
-    """Ask for the right comparison symbol between a and b."""
     correct = ">" if a > b else "<" if a < b else "="
     wrong = [(s, why_map.get(s, "خطأ في المقارنة")) for s, _ in SYMS if s != correct]
     return _q(f"اختر الرمز المناسب:  {M(f'{n(a)}  ▢  {n(b)}')}", correct, wrong, explain, hint)
@@ -559,7 +525,7 @@ def _ci2_context(r):
 @tpl(S2, 2, "ci_between")
 def _ci2_between(r):
     b = r.randint(6, 20)
-    a = r.randint(1, b - 4)          # -b < ... < -a
+    a = r.randint(1, b - 4)
     inside = r.randint(-b + 1, -a - 1)
     wrong = [(-b - 1, "اختار عدداً خارج الفترة (أصغر من الحد الأدنى)"), (-a + 1, "اختار عدداً خارج الفترة (أكبر من الحد الأعلى)"), (-b, "اختار أحد العددين نفسه")]
     return _q(f"أي عدد يقع بين {N(-b)} و {N(-a)}؟", inside, wrong,
@@ -572,7 +538,7 @@ def _ci3_desc(r):
     correct = sorted(nums, reverse=True)
     pos = [x for x in correct if x >= 0]
     neg = [x for x in correct if x < 0]
-    mis = pos + sorted(neg)                      # negatives ordered by their digits
+    mis = pos + sorted(neg)
     byabs = sorted(nums, key=abs, reverse=True)
     lst = lambda xs: ", ".join(n(x) for x in xs)
     return _q("رتّب الأعداد تنازلياً (من الأكبر إلى الأصغر):  " + M(lst(nums)), lst(correct),
@@ -586,7 +552,7 @@ def _ci3_asc(r):
     correct = sorted(nums)
     pos = [x for x in correct if x >= 0]
     neg = [x for x in correct if x < 0]
-    mis = sorted(neg, reverse=True) + pos        # negatives ordered by their digits
+    mis = sorted(neg, reverse=True) + pos
     lst = lambda xs: ", ".join(n(x) for x in xs)
     return _q("رتّب الأعداد تصاعدياً (من الأصغر إلى الأكبر):  " + M(lst(nums)), lst(correct),
               [(lst(sorted(nums, reverse=True)), "رتّبها تنازلياً بدل تصاعدياً"), (lst(mis), "رتّب السالبة كما لو كانت موجبة"), (lst(sorted(nums, key=abs)), "رتّبها حسب القيمة المطلقة")],
@@ -635,14 +601,10 @@ def _ci3_temps(r):
               f"من الأبرد إلى الأدفأ يعني تصاعدياً: {M(lst(correct))}.", "الأبرد هو الأصغر.")
 
 
-# =====================================================================================
-# LESSON 3  -  adding_integers
-# =====================================================================================
 S3 = "adding_integers"
 
 
 def _sum_wrongs_diff(p, q_):
-    """p > 0 and -q_ < 0 : common wrong sums for p + (-q_)."""
     t = p - q_
     return [(p + q_, "جمع القيمتين المطلقتين وتجاهل الإشارة"), (-t, "وضع إشارة العدد الأصغر بدل الأكبر"), (-(p + q_), "جمع القيمتين المطلقتين مع إشارة سالبة")]
 
@@ -820,9 +782,6 @@ def _ai3_lift(r):
               f"{M(f'{-a} + {b} = {t}')}.", "الصعود يزيد العدد.")
 
 
-# =====================================================================================
-# LESSON 4  -  subtracting_integers
-# =====================================================================================
 S4 = "subtracting_integers"
 
 
@@ -963,7 +922,7 @@ def _si3_subtract_from(r):
     a, b = r.randint(2, 15), r.randint(2, 15)
     while a == b:
         b = r.randint(2, 15)
-    # "subtract x from y"  =  y - x
+
     return _q(f"اطرح {N(-a)} من {N(-b)}. (اكتب الجواب)", -b + a,
               [(-a + b, "عكس ترتيب الطرح"), (-(a + b), "لم يقلب إشارة العدد المطروح"), (a + b, "جمع القيمتين المطلقتين")],
               f"اطرح x من y تعني {M('y - x')}: {M(f'{-b} - ({-a}) = {-b} + {a} = {a - b}')}.", "اطرح ... من ... : العدد بعد «من» يُكتب أولاً.", "input")
@@ -986,9 +945,6 @@ def _si3_multi(r):
               f"{M(f'{a} - ({-b}) - {c} = {a} + {b} - {c} = {t}')}.", "حوّل كل طرح إلى جمع.")
 
 
-# =====================================================================================
-# LESSON 5  -  mult_div_integers
-# =====================================================================================
 S5 = "mult_div_integers"
 
 
@@ -1173,14 +1129,13 @@ def _md3_tf_three(r):
                f"ثلاثة عوامل سالبة (عدد فردي) فالناتج سالب: {N(t)}.", "عدّ العوامل السالبة.")
 
 
-# =====================================================================================
-# public API
-# =====================================================================================
-GENERATORS = {sk: (lambda d, r, _sk=sk: _pick(_sk, d, r)) for sk in REGISTRY}   # old-style access, kept for compatibility
+from app.engine import bank_fractions
+
+
+GENERATORS = {sk: (lambda d, r, _sk=sk: _pick(_sk, d, r)) for sk in REGISTRY}
 
 
 def _finish(t: Template, rng: random.Random) -> dict | None:
-    """Run one template and clean the result (unique options, misconception lookup table, metadata)."""
     raw = t.fn(rng)
     correct = raw["correct_answer"]
     seen, dist = {norm(correct)}, []
@@ -1212,7 +1167,7 @@ def _pick(skill_id, difficulty, rng, avoid=None, pattern=None):
     pool = list(levels.get(difficulty, []))
     if pattern:
         same = [t for t in pool if t.pattern == pattern]
-        if not same:                                   # the idea lives on another level: use the nearest one
+        if not same:
             for lvl in sorted(levels, key=lambda l: abs(l - difficulty)):
                 same = [t for t in levels[lvl] if t.pattern == pattern]
                 if same:
@@ -1230,11 +1185,6 @@ def _pick(skill_id, difficulty, rng, avoid=None, pattern=None):
 
 
 def generate_offline(skill_id, difficulty, rng=None, avoid=None, pattern=None):
-    """
-    One fresh question for (skill, difficulty).
-      avoid   : question texts asked recently (not repeated when possible)
-      pattern : ask about this specific idea (used for the follow-up after a mistake)
-    """
     return _pick(skill_id, difficulty, rng or random.Random(), avoid, pattern)
 
 
@@ -1251,33 +1201,20 @@ def template_count() -> int:
     return sum(len(ts) for lv in REGISTRY.values() for ts in lv.values())
 
 
-# =====================================================================================
-# Deep Cascading Backtracking — pattern-level dependency graph
-# =====================================================================================
-# PATTERNS above are already the app's real "micro-skill" granularity: each one is a
-# single, specific idea with its own rule/example (see PATTERNS) and its own set of
-# question templates. This maps each pattern to the ONE pattern it most depends on --
-# sometimes inside the same skill (e.g. av_abs needs av_line first), sometimes across
-# a skill boundary (e.g. md_sign needs si_rule from the previous lesson). Two patterns
-# have no entry: they are true bedrock (av_meaning, av_line).
-#
-# This is what lets the remediation flow in practice.py drill down MORE than one level
-# when a student is still wrong after the first easier question -- a real stack-based
-# "Deep Cascading Backtracking", not just a single step down.
 PATTERN_PARENTS: dict[str, str] = {
-    # ---- lesson 1: absolute value (av_meaning / av_line are bedrock, no entry)
+
     "av_opposite": "av_line",
     "av_abs": "av_line",
     "av_abs_compare": "av_abs",
     "av_abs_expr": "av_abs",
     "av_distance": "av_abs",
     "av_solve_abs": "av_abs",
-    # ---- lesson 2: comparing & ordering (anchored back into lesson 1's number line)
+
     "ci_sign": "av_line",
     "ci_neg": "ci_sign",
     "ci_order": "ci_neg",
     "ci_between": "ci_order",
-    # ---- lesson 3: adding integers
+
     "ai_same": "ci_sign",
     "ai_zero": "ai_same",
     "ai_diff": "ai_zero",
@@ -1285,13 +1222,13 @@ PATTERN_PARENTS: dict[str, str] = {
     "ai_context": "ai_diff",
     "ai_multi": "ai_diff",
     "ai_missing": "ai_diff",
-    # ---- lesson 4: subtracting integers (built on signed addition)
+
     "si_rule": "ai_diff",
     "si_neg": "si_rule",
     "si_pos": "si_rule",
     "si_order": "si_rule",
     "si_diff": "si_order",
-    # ---- lesson 5: multiplying & dividing integers
+
     "md_sign": "si_rule",
     "md_mult": "md_sign",
     "md_div": "md_mult",
@@ -1302,13 +1239,14 @@ PATTERN_PARENTS: dict[str, str] = {
 }
 
 
+PATTERN_PARENTS.update(bank_fractions.PARENTS)
+
+
 def pattern_title(pattern: str) -> str:
-    """Student-facing Arabic name of a pattern, for breadcrumb messages."""
     return PATTERNS.get(pattern, {}).get("title", pattern)
 
 
 def pattern_parent(pattern: str) -> Optional[str]:
-    """The single pattern this one most depends on, or None at bedrock."""
     return PATTERN_PARENTS.get(pattern)
 
 
@@ -1318,8 +1256,4 @@ _PATTERN_OWNER: dict[str, str] = {
 
 
 def skill_of_pattern(pattern: str) -> Optional[str]:
-    """Which skill's bank a pattern belongs to. PATTERN_PARENTS entries are allowed
-    to point at a pattern owned by an earlier skill (that IS the cross-skill jump
-    the deep drill-down relies on), so callers must not assume the owning skill
-    stays the same as the pattern they started from."""
     return _PATTERN_OWNER.get(pattern)

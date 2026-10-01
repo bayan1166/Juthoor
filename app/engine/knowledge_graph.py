@@ -1,6 +1,3 @@
-"""
-Juthoor knowledge graph: 6th-grade Integers & Operations (Jordan Curriculum)
-"""
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
@@ -14,17 +11,17 @@ class Skill:
     name_ar: str
     description: str
     prerequisites: tuple[str, ...]
-    ladder: tuple[str, str, str]      
-    typical_errors: tuple[str, ...]   
-    intervention: str                 
-    x: float                          
+    ladder: tuple[str, str, str]
+    typical_errors: tuple[str, ...]
+    intervention: str
+    x: float
 
 DIFFICULTY_LABELS = {1: "لغز تسخين", 2: "تحدي الجذور", 3: "لغز العباقرة"}
 
 SKILLS: dict[str, Skill] = {
     s.id: s
     for s in [
-        # ------------------------------------------------------------ الدرس 1
+
         Skill(
             id="absolute_value",
             name="Absolute Value & Integers",
@@ -43,7 +40,7 @@ SKILLS: dict[str, Skill] = {
             intervention="استخدم خط الأعداد الأرضي، اطلب من الطالب المشي خطوات للأمام (موجب) وللخلف (سالب).",
             x=-1.0,
         ),
-        # ------------------------------------------------------------ الدرس 2
+
         Skill(
             id="comparing_integers",
             name="Comparing & Ordering",
@@ -62,7 +59,7 @@ SKILLS: dict[str, Skill] = {
             intervention="ارسم ميزان حرارة، وضح أن الدرجة -2 أدفأ (أعلى) من الدرجة -10.",
             x=0.0,
         ),
-        # ------------------------------------------------------------ الدرس 3
+
         Skill(
             id="adding_integers",
             name="Adding Integers",
@@ -81,7 +78,7 @@ SKILLS: dict[str, Skill] = {
             intervention="استخدم قطع العد (حمراء وزرقاء) لتشكيل الأزواج الصفرية.",
             x=1.0,
         ),
-        # ------------------------------------------------------------ الدرس 4
+
         Skill(
             id="subtracting_integers",
             name="Subtracting Integers",
@@ -100,7 +97,7 @@ SKILLS: dict[str, Skill] = {
             intervention="علم الطالب قاعدة (ثبّت، اعكس، اعكس) لتحويل الطرح إلى جمع المعكوس.",
             x=2.0,
         ),
-        # ------------------------------------------------------------ الدرس 5
+
         Skill(
             id="mult_div_integers",
             name="Multiplying & Dividing Integers",
@@ -118,6 +115,82 @@ SKILLS: dict[str, Skill] = {
             ),
             intervention="اربط ضرب سالب في سالب بمفهوم لغوي: (نفي النفي إثبات).",
             x=3.0,
+        ),
+
+        Skill(
+            id="fractions_addsub",
+            name="Adding & Subtracting Fractions",
+            name_ar="جمع الكسور وطرحها",
+            description="جمع الكسور وطرحها بمقام واحد وبمقامين مختلفين باستخدام المقام المشترك.",
+            prerequisites=("mult_div_integers",),
+            ladder=(
+                "جمع وطرح كسرين لهما المقام نفسه.",
+                "جمع وطرح كسرين أحد مقاميهما من مضاعفات الآخر.",
+                "جمع وطرح كسور بمقامين مختلفين في مسألة حياتية.",
+            ),
+            typical_errors=(
+                "يجمع البسطين والمقامين معاً",
+                "يطرح البسطين دون توحيد المقامين",
+            ),
+            intervention="استخدم شرائح الكسور الورقية لإظهار أن الأجزاء يجب أن تكون متساوية الحجم قبل الجمع.",
+            x=4.0,
+        ),
+
+        Skill(
+            id="mixed_addsub",
+            name="Adding & Subtracting Mixed Numbers",
+            name_ar="جمع الأعداد الكسرية وطرحها",
+            description="التحويل بين العدد الكسري والكسر غير الفعلي، وجمع الأعداد الكسرية وطرحها مع الاستبدال والاستلاف.",
+            prerequisites=("fractions_addsub",),
+            ladder=(
+                "تحويل عدد كسري إلى كسر غير فعلي والعكس.",
+                "جمع عددين كسريين مع الاستبدال وطرحهما مع الاستلاف.",
+                "حل مسألة حياتية بأعداد كسرية بمقامين مختلفين.",
+            ),
+            typical_errors=(
+                "ينسى تحويل الكسر غير الفعلي إلى عدد كسري عند الجمع",
+                "يطرح الكسر الأصغر من الأكبر بدل الاستلاف",
+            ),
+            intervention="اعرض العدد الكسري على شكل أشرطة كاملة وقطع، ودرّب الطالب على استلاف شريط كامل وتجزئته.",
+            x=5.0,
+        ),
+
+        Skill(
+            id="mixed_mult",
+            name="Multiplying Mixed Numbers",
+            name_ar="ضرب الأعداد الكسرية",
+            description="ضرب الكسور والأعداد الكسرية بعد تحويلها إلى كسور غير فعلية مع التبسيط قبل الضرب.",
+            prerequisites=("mixed_addsub",),
+            ladder=(
+                "ضرب كسر في كسر وعدد صحيح في كسر.",
+                "ضرب عدد كسري في عدد صحيح مع التبسيط.",
+                "ضرب عددين كسريين في مسألة مساحة.",
+            ),
+            typical_errors=(
+                "يضرب الأجزاء الصحيحة وحدها والكسور وحدها",
+                "يوحّد المقامات قبل الضرب دون حاجة",
+            ),
+            intervention="ارسم مستطيلاً مقسماً لإظهار أن ضرب الكسور هو أخذ جزء من جزء.",
+            x=6.0,
+        ),
+
+        Skill(
+            id="mixed_div",
+            name="Dividing Mixed Numbers",
+            name_ar="قسمة الأعداد الكسرية",
+            description="قسمة الكسور والأعداد الكسرية بالضرب في مقلوب المقسوم عليه.",
+            prerequisites=("mixed_mult",),
+            ladder=(
+                "إيجاد مقلوب الكسر وقسمة كسر على كسر.",
+                "قسمة عدد صحيح على كسر وكسر على عدد صحيح.",
+                "قسمة عددين كسريين في مسألة حياتية.",
+            ),
+            typical_errors=(
+                "يقلب الكسر الأول بدل الثاني",
+                "يضرب بدل أن يقسم",
+            ),
+            intervention="اسأل: كم قطعة من الربع تلزم لملء الواحد؟ لإظهار أن القسمة على كسر تُكبّر الناتج.",
+            x=7.0,
         ),
     ]
 }
@@ -158,12 +231,6 @@ def ordered_skills() -> list[str]:
 
 
 def nearest_prerequisite_with_bank(skill_id: str, has_bank) -> Optional[str]:
-    """
-    Walk up the prerequisite graph from `skill_id` and return the first ancestor
-    for which `has_bank(ancestor_id)` is true (used by the deep drill-down to
-    cross from one skill into the previous one once a pattern chain bottoms out).
-    `has_bank` is injected so this module never has to import offline_bank.
-    """
     for pre in prerequisites(skill_id):
         if has_bank(pre):
             return pre

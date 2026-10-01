@@ -1,23 +1,17 @@
-"""Start the whole MVP with one command (Windows / macOS / Linux):
-
-    python run_demo.py            # API on :8000, UI on :8501
-    python run_demo.py --reset    # delete the local SQLite demo database first
-
-Uses DATABASE_URL from .env if set; otherwise a local SQLite file (no Docker needed).
-Creates tables, seeds the shop and the demo accounts (safe to re-run), then launches
-uvicorn and Streamlit. Press Ctrl+C to stop both.
-"""
+import argparse
 import os
 import subprocess
 import sys
+import threading
 import time
+import webbrowser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SQLITE_FILE = ROOT / "juthoor_demo.db"
 
 
-def _env_has_database_url() -> bool:
+def has_database_url() -> bool:
     if os.environ.get("DATABASE_URL"):
         return True
     env_file = ROOT / ".env"
@@ -29,34 +23,39 @@ def _env_has_database_url() -> bool:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--reset", action="store_true")
+    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--full", action="store_true")
+    args = parser.parse_args()
+
     env = dict(os.environ)
-    if not _env_has_database_url():
+    env.setdefault("DEMO_MODE", "1")
+    env.setdefault("JUDGE_MODE", "0" if args.full else "1")
+    env.setdefault("PUBLIC_URL", f"http://localhost:{args.port}")
+    if not has_database_url():
         env["DATABASE_URL"] = f"sqlite:///{SQLITE_FILE.as_posix()}"
-        if "--reset" in sys.argv and SQLITE_FILE.exists():
+        if args.reset and SQLITE_FILE.exists():
             SQLITE_FILE.unlink()
-        print(f"[juthoor] using SQLite: {SQLITE_FILE}")
-    env.setdefault("JUTHOOR_API_URL", "http://localhost:8000")
 
-    py = sys.executable
-    for script in ("scripts/init_db.py", "scripts/seed_shop.py", "scripts/seed_demo.py"):
-        print(f"[juthoor] {script}")
-        subprocess.run([py, script], cwd=ROOT, env=env, check=True)
+    python = sys.executable
+    steps = ["scripts/init_db.py", "scripts/seed_shop.py", "scripts/seed_demo.py"]
+    if args.reset:
+        print("RESET: every table in the configured database will be wiped and recreated.")
+        steps.insert(0, "scripts/reset_db.py")
+    for script in steps:
+        subprocess.run([python, script], cwd=ROOT, env=env, check=True)
 
-    api = subprocess.Popen([py, "-m", "uvicorn", "app.main:app", "--port", "8000"], cwd=ROOT, env=env)
-    time.sleep(2)
-    ui = subprocess.Popen([py, "-m", "streamlit", "run", "web/streamlit_app.py", "--server.port", "8501"],
-                          cwd=ROOT, env=env)
-    print("[juthoor] API  http://localhost:8000/docs")
-    print("[juthoor] UI   http://localhost:8501   (password for demo accounts: demo1234)")
+    url = f"http://localhost:{args.port}/app/"
+    print(f"Juthoor is running at {url}")
+    print("Demo accounts use the password demo1234 (teacher@demo.jo, parent@demo.jo, student1@demo.jo ...)")
+    if not args.no_browser:
+        threading.Thread(target=lambda: (time.sleep(2.0), webbrowser.open(url)), daemon=True).start()
     try:
-        while api.poll() is None and ui.poll() is None:
-            time.sleep(1)
+        subprocess.run([python, "-m", "uvicorn", "app.main:app", "--port", str(args.port)], cwd=ROOT, env=env)
     except KeyboardInterrupt:
         pass
-    finally:
-        for proc in (ui, api):
-            if proc.poll() is None:
-                proc.terminate()
 
 
 if __name__ == "__main__":

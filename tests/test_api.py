@@ -1,9 +1,8 @@
-"""End-to-end API tests (FastAPI TestClient + in-memory SQLite)."""
 import uuid
 
 from app.models.adaptive import DrillDownEvent, StudentAdaptiveState
 from app.models.org import Organization
-from tests.helpers import register
+from tests.helpers import register, set_plan
 
 
 def q_url(s):
@@ -24,17 +23,15 @@ def answer(client, s, selected):
     return client.post(a_url(s), json={"selected_answer": selected}, headers=s["headers"])
 
 
-WRONG = "zzz"  # never a valid answer for any question type
+WRONG = "zzz"
 
 
 def served_answer(db, s):
-    """The correct answer is not sent to the client anymore; read it from the server side."""
     db.expire_all()
     row = db.get(StudentAdaptiveState, uuid.UUID(s["id"]))
     return row.pending_question["correct_answer"]
 
 
-# ------------------------------------------------------------------ health / auth
 def test_health(client):
     body = client.get("/health").json()
     assert body["status"] == "ok" and body["ai_tutor"] == "offline_fallback"
@@ -90,7 +87,6 @@ def test_student_cannot_read_another_student(client, student):
     assert client.get(q_url(other), headers=student["headers"]).status_code == 403
 
 
-# ------------------------------------------------------------------ adaptive core
 def test_question_shape_and_no_answer_leak(client, student, db):
     for _ in range(15):
         q = get_question(client, student)
@@ -171,7 +167,7 @@ def test_empty_answer_rejected(client, student):
 
 
 def test_repeated_flow_is_stable(client, student, db):
-    """Judges will click through many times: 60 mixed answers must never error."""
+    set_plan(db, student["id"], "pro")
     normal = 0
     for i in range(60):
         q = get_question(client, student)
@@ -182,14 +178,14 @@ def test_repeated_flow_is_stable(client, student, db):
         if r.json()["round_over"]:
             assert client.post(f"/students/{student['id']}/adaptive/round", headers=student["headers"]).status_code == 200
     state = client.get(f"/students/{student['id']}/adaptive/state", headers=student["headers"]).json()
-    assert state["total_answered"] == normal  # remedial answers never reach the engine
+    assert state["total_answered"] == normal
 
 
 def test_api_backtracks_to_root_gap(client, student, db):
-    """Top skill, always wrong: the engine must walk back to the absolute_value root gap."""
     row = db.get(StudentAdaptiveState, uuid.UUID(student["id"]))
     row.current_skill = "mult_div_integers"
     db.commit()
+    set_plan(db, student["id"], "pro")
 
     engine_actions, found = [], None
     for _ in range(80):
@@ -218,10 +214,9 @@ def test_new_round_endpoint(client, student):
     assert r.status_code == 200 and r.json()["round_answered"] == 0
 
 
-# ------------------------------------------------------------------ curriculum / roster
 def test_curriculum_skills(client):
     skills = client.get("/curriculum/skills").json()
-    assert len(skills) == 5
+    assert len(skills) == 9
     assert skills[0]["skill_id"] == "absolute_value" and skills[0]["prerequisites"] == []
     assert all(s["ladder"] and s["intervention"] for s in skills)
 
@@ -229,10 +224,10 @@ def test_curriculum_skills(client):
 def test_parent_sees_only_their_children(client):
     parent = register(client, role="parent")
     kid = register(client, guardian_id=parent["id"])
-    register(client)  # unrelated student
+    register(client)
     roster = client.get("/me/students", headers=parent["headers"]).json()
     assert [r["student_id"] for r in roster] == [kid["id"]]
-    # and can open that child's dashboard
+
     assert client.get(f"/students/{kid['id']}/insights", headers=parent["headers"]).status_code == 200
 
 
@@ -241,7 +236,7 @@ def test_teacher_sees_their_org(client, db):
     db.commit()
     teacher = register(client, role="teacher", org_slug="demo")
     pupil = register(client, org_slug="demo")
-    register(client)  # no org
+    register(client)
     roster = client.get("/me/students", headers=teacher["headers"]).json()
     assert [r["student_id"] for r in roster] == [pupil["id"]]
 
@@ -250,7 +245,6 @@ def test_student_cannot_list_students(client, student):
     assert client.get("/me/students", headers=student["headers"]).status_code == 403
 
 
-# ------------------------------------------------------------------ chat (offline)
 def test_chat_works_without_groq_or_vector_store(client, student):
     base = f"/students/{student['id']}/chat"
     start = client.post(f"{base}/start", json={"skill_context": "adding_integers"}, headers=student["headers"])
@@ -278,9 +272,9 @@ def test_demo_seed_script_runs(db, session_factory, monkeypatch):
     import scripts.seed_demo as seed
     monkeypatch.setattr(seed, "SessionLocal", session_factory)
     seed.main()
-    seed.main()  # idempotent
+    seed.main()
     from app.models.org import User
-    assert db.query(User).count() == 5
+    assert db.query(User).count() == 8
 
 
 def test_tutor_detected_gap_becomes_next_question(client, student, db):
@@ -315,7 +309,7 @@ def test_avatar_requires_ownership(client, student, db):
     assert cfg["clothing"]
     wearing = {**cfg, paid.cat: paid.id}
     assert client.put(f"{base}/avatar", json=wearing, headers=student["headers"]).status_code == 403
-    # earn enough coins, buy, then it can be worn
+
     from app.models.economy import Currency, TxnReason
     from app.services.economy_service import apply_txn, get_or_create_wallet
     wallet = get_or_create_wallet(db, uuid.UUID(student["id"]))

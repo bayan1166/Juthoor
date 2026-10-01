@@ -1,8 +1,2 @@
-# Vector-store dependencies for the Socratic tutor's RAG grounding.
-# The tutor still works without them (falls back to an offline reply); install these
-# only if you want retrieval-augmented replies. Skip on Python 3.13 -- these wheels
-# don't publish for it yet.
-#     pip install -r requirements-optional.txt
-#     python scripts/ingest_curriculum.py
 chromadb==0.5.5
 sentence-transformers==3.1.1

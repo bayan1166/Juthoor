@@ -5,11 +5,6 @@ _collection = None
 
 
 def get_collection():
-    """Lazily open the Chroma collection.
-
-    chromadb is imported here, not at module import time, so the API (auth, practice,
-    dashboard) still boots even if chromadb / sentence-transformers are missing or broken.
-    """
     global _client, _collection
     if _collection is not None:
         return _collection

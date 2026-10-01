@@ -1,18 +1,18 @@
-"""Test setup: in-memory SQLite, no Postgres/Chroma/Groq needed.
-
-Run from the repo root:  pip install -r requirements-dev.txt && pytest -q
-"""
 import os
 import sys
 import types
 
 os.environ["DATABASE_URL"] = "sqlite://"
-os.environ["GROQ_API_KEY"] = ""  # force the tutor's offline fallback path
+os.environ["GROQ_API_KEY"] = ""
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["DEMO_MODE"] = ""
+os.environ["STRIPE_SECRET_KEY"] = ""
+os.environ["RATE_LIMIT_ENABLED"] = "0"
+os.environ["JUDGE_MODE"] = "0"
 
-# chromadb is heavy; if it isn't installed, stub it so importing the app works.
-# (The chat code already treats a failing vector store as "no context".)
+
 try:
-    import chromadb  # noqa: F401
+    import chromadb
 except Exception:
     stub = types.ModuleType("chromadb")
     stub.utils = types.ModuleType("chromadb.utils")
@@ -27,7 +27,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app import models  # noqa: F401  (registers all tables)
+from app import models
 from app.database import Base, get_db
 from app.main import app
 from tests.helpers import register

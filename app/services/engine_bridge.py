@@ -80,7 +80,6 @@ def _save_state(db: Session, student_id: uuid.UUID, state: ae.StudentState) -> N
 
 
 class EngineError(Exception):
-    """Raised for client-side problems (e.g. answering with no active question)."""
 
     def __init__(self, code: str, status_code: int = 409):
         super().__init__(code)
@@ -106,8 +105,6 @@ def _store(db: Session, student_id: uuid.UUID, sess, row) -> None:
 
 
 def next_question(db: Session, student_id: uuid.UUID) -> dict:
-    """Serve the next question. Answers are later graded against what is stored here,
-    never against anything the client sends (see submit_answer)."""
     import random
     from app.services import session_core as sc
     sess, row = _session(db, student_id)
@@ -121,7 +118,7 @@ def submit_answer(db: Session, student_id: uuid.UUID, selected: str, is_remedial
     from app.services import session_core as sc
     sess, row = _session(db, student_id)
     if not sess.pending:
-        # No question outstanding: also blocks replaying an answer to farm coins.
+
         raise EngineError("no_active_question", 409)
     pending = dict(sess.pending)
     prev_gaps = set(sess.state.gaps)
@@ -194,11 +191,6 @@ def state_overview(db: Session, student_id: uuid.UUID) -> dict:
 
 
 def trigger_manual_drill_down(db: Session, student_id: uuid.UUID, from_skill: str, misconception: str) -> dict | None:
-    """The Socratic tutor detected that `from_skill` (a prerequisite) is the real blocker.
-
-    Start a guided stepping-stone plan on that skill. The student's next question comes
-    from it (via session_core.serve); the adaptive engine's diagnosis is left untouched.
-    """
     from app.engine import config as ecfg
     from app.engine import offline_bank as ob
     from app.engine import practice as pr
@@ -207,7 +199,7 @@ def trigger_manual_drill_down(db: Session, student_id: uuid.UUID, from_skill: st
     patterns = ob.patterns_of(from_skill)
     if not patterns:
         return None
-    _load_state(db, student_id)  # make sure the state row exists
+    _load_state(db, student_id)
     row = db.get(StudentAdaptiveState, student_id)
     plan = {
         "stage": pr.EASIER, "skill": from_skill, "difficulty": ecfg.PROBE_DIFFICULTY,
@@ -215,7 +207,7 @@ def trigger_manual_drill_down(db: Session, student_id: uuid.UUID, from_skill: st
         "breadcrumb": f"المعلم الذكي لاحظ أن الصعوبة تبدأ من «{kg.SKILLS[from_skill].name_ar}»، لنثبّت هذا الأساس أولاً.",
     }
     row.remediation_plan = plan
-    row.pending_question = None  # the next fetched question is the stepping stone
+    row.pending_question = None
     db.add(DrillDownEvent(student_id=student_id, from_skill=row.current_skill, to_skill=from_skill,
                           to_pattern=patterns[0], depth=1, direction="descend", triggered_by="rag_tutor"))
     db.commit()

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -19,9 +20,16 @@ class ChatMessageRequest(BaseModel):
 
 class ChatMessageResponse(BaseModel):
     reply: str
-    gap_detected: bool
+    gap_detected: bool = False
     gap_skill: str | None = None
     drill_down_triggered: bool = False
     next_skill: str | None = None
     next_difficulty: int | None = None
     breadcrumb: str = ""
+    remaining_today: int | None = None
+
+
+class ChatHistoryItem(BaseModel):
+    role: str
+    content: str
+    created_at: datetime

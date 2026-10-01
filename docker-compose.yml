@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   db:
     image: postgres:16
@@ -18,9 +17,12 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg2://juthoor:juthoor@db:5432/juthoor
+      UPLOAD_DIR: /srv/uploads
     ports:
       - "8000:8000"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - juthoor_uploads:/srv/uploads
 
 volumes:
   juthoor_db_data:
+  juthoor_uploads:

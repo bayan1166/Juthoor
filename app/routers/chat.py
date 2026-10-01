@@ -5,51 +5,73 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import get_current_user, require_plan, require_student_access
-from app.models.org import PlanTierUser
-from app.models.chat import ChatMessage, ChatRole, ChatSession
+from app.deps import get_current_user, require_self
 from app.engine import knowledge_graph as kg
+from app.models.chat import ChatMessage, ChatRole, ChatSession
 from app.models.org import User
-from app.schemas.chat import ChatMessageRequest, ChatMessageResponse, ChatStartRequest, ChatStartResponse
-from app.services import engine_bridge
+from app.schemas.chat import (
+    ChatHistoryItem, ChatMessageRequest, ChatMessageResponse, ChatStartRequest, ChatStartResponse,
+)
+from app.services.rag import guardrail
+from app.services import engine_bridge, plans
 from app.services.rag.socratic import generate_turn
 
 router = APIRouter(prefix="/students/{student_id}/chat", tags=["chat"])
+
+OPENING = "أهلاً بك. اسألني عن أي فكرة في الدرس، أو اكتب لي مسألة لأحلّها معك خطوة بخطوة."
+
+
+def _own_session(db: Session, student_id: uuid.UUID, session_id: uuid.UUID) -> ChatSession:
+    session = db.get(ChatSession, session_id)
+    if session is None or session.student_id != student_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "session_not_found")
+    return session
 
 
 @router.post("/start", response_model=ChatStartResponse)
 def start_chat(student_id: uuid.UUID, payload: ChatStartRequest, db: Session = Depends(get_db),
                user: User = Depends(get_current_user)):
-    require_student_access(student_id, user, db)
+    require_self(student_id, user)
     if payload.skill_context not in kg.SKILLS:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "unknown_skill_context")
     session = ChatSession(student_id=student_id, skill_context=payload.skill_context)
     db.add(session)
     db.flush()
-    opening = "أهلاً! خبريني وين وصلت بهالمسألة، ووين حسيتي إنك تعلّقتي؟"
-    db.add(ChatMessage(session_id=session.id, role=ChatRole.tutor, content=opening))
+    db.add(ChatMessage(session_id=session.id, role=ChatRole.tutor, content=OPENING))
     db.commit()
-    return ChatStartResponse(session_id=session.id, opening_message=opening)
+    return ChatStartResponse(session_id=session.id, opening_message=OPENING)
+
+
+@router.get("/sessions/{session_id}/messages", response_model=list[ChatHistoryItem])
+def session_messages(student_id: uuid.UUID, session_id: uuid.UUID, db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user)):
+    require_self(student_id, user)
+    session = _own_session(db, student_id, session_id)
+    rows = db.scalars(
+        select(ChatMessage).where(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at)
+    ).all()
+    return [ChatHistoryItem(role=r.role.value, content=r.content, created_at=r.created_at) for r in rows]
 
 
 @router.post("/message", response_model=ChatMessageResponse)
 def send_message(student_id: uuid.UUID, payload: ChatMessageRequest, db: Session = Depends(get_db),
-                  user: User = Depends(require_plan(PlanTierUser.pro))):
-    require_student_access(student_id, user, db)
-    if not payload.message.strip():
+                 user: User = Depends(get_current_user)):
+    require_self(student_id, user)
+    text = payload.message.strip()
+    if not text:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "empty_message")
-    session = db.get(ChatSession, payload.session_id)
-    if session is None or session.student_id != student_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "session_not_found")
+    session = _own_session(db, student_id, payload.session_id)
+    if guardrail.is_off_topic(text):
+        return ChatMessageResponse(reply=guardrail.FALLBACK, remaining_today=plans.snapshot(db, user)["remaining"]["tutor"])
+    plans.require_quota(db, user, "tutor")
 
-    history_rows = db.scalars(
+    rows = db.scalars(
         select(ChatMessage).where(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at)
     ).all()
-    history = [{"role": r.role.value, "content": r.content} for r in history_rows]
+    history = [{"role": r.role.value, "content": r.content} for r in rows]
 
-    db.add(ChatMessage(session_id=session.id, role=ChatRole.student, content=payload.message))
-
-    turn = generate_turn(session.skill_context, history, payload.message)
+    db.add(ChatMessage(session_id=session.id, role=ChatRole.student, content=text))
+    turn = generate_turn(session.skill_context, history, text)
 
     drill_triggered = False
     next_skill = next_difficulty = None
@@ -72,5 +94,5 @@ def send_message(student_id: uuid.UUID, payload: ChatMessageRequest, db: Session
     return ChatMessageResponse(
         reply=turn.reply, gap_detected=turn.gap_detected, gap_skill=turn.gap_skill or None,
         drill_down_triggered=drill_triggered, next_skill=next_skill, next_difficulty=next_difficulty,
-        breadcrumb=breadcrumb,
+        breadcrumb=breadcrumb, remaining_today=plans.snapshot(db, user)["remaining"]["tutor"],
     )

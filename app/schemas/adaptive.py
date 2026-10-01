@@ -5,8 +5,6 @@ from pydantic import BaseModel, Field
 
 
 class QuestionOut(BaseModel):
-    """What the student sees. The correct answer, distractor misconceptions and the
-    explanation are deliberately NOT sent: they come back only after answering (DecisionOut)."""
     question: str
     hint: str
     skill: str
@@ -16,16 +14,16 @@ class QuestionOut(BaseModel):
     remedial: str | None = None
     banner: str = ""
     guided: bool = False
-    type: str = "mcq"             # mcq | tf | input
-    options: list[str] = []       # shuffled choices for mcq, ["صح","خطأ"] for tf, [] for input
+    type: str = "mcq"
+    options: list[str] = []
     skill_name: str = ""
 
 
 class AnswerRequest(BaseModel):
     selected_answer: str = Field(min_length=1, max_length=200)
     is_remedial: bool = False
-    # Kept only so older clients don't break. They are IGNORED: the server grades
-    # against the question it actually served (StudentAdaptiveState.pending_question).
+
+
     skill_id: str | None = None
     difficulty: int | None = None
     pattern: str | None = None
@@ -47,9 +45,11 @@ class DecisionOut(BaseModel):
     misconception: str = ""
     explanation: str = ""
     new_gaps: list[str] = []
-    remedial: str | None = None          # the answered question was a remedial one (same_pattern | easier)
-    next_stage: str | None = None        # the NEXT question will be remedial (same_pattern | easier) or normal (None)
-    mistake_card: dict | None = None     # title / rule / example / why / chosen / correct / solution
+    remedial: str | None = None
+    next_stage: str | None = None
+    mistake_card: dict | None = None
+    gap_locked: bool = False
+    remaining_questions: int | None = None
 
 
 class SkillStatusOut(BaseModel):

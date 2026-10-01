@@ -1,4 +1,3 @@
-"""Small SVG geometry helpers shared by the logo and the curriculum tree."""
 from __future__ import annotations
 
 import math
@@ -24,10 +23,6 @@ def bez_tan(p0: Point, p1: Point, p2: Point, p3: Point, t: float) -> Point:
 
 def tapered(p0: Point, p1: Point, p2: Point, p3: Point, w0: float, w1: float,
             n: int = 36, ease: float = 1.0, shift: float = 0.0) -> str:
-    """
-    Filled outline of a cubic curve whose thickness goes w0 -> w1.
-    `shift` slides the ribbon sideways (used for highlight strips).
-    """
     left, right = [], []
     for i in range(n + 1):
         t = i / n
@@ -49,7 +44,6 @@ def stroke_d(p0: Point, p1: Point, p2: Point, p3: Point) -> str:
 
 
 def leaf_d(length: float, width: float) -> str:
-    """Pointed leaf with its base at (0,0) and its tip at (0,-length)."""
     l, w = length, width / 2 * 1.33
     return (f"M0 0C{w:.1f} {-l * 0.2:.1f} {w:.1f} {-l * 0.68:.1f} 0 {-l:.1f}"
             f"C{-w:.1f} {-l * 0.68:.1f} {-w:.1f} {-l * 0.2:.1f} 0 0Z")
@@ -65,7 +59,6 @@ def leaf_veins(length: float, width: float) -> str:
 
 
 def angle_of(vx: float, vy: float) -> float:
-    """Rotation (deg) that turns an 'up' pointing leaf toward vector (vx, vy)."""
     return math.degrees(math.atan2(vx, -vy))
 
 

@@ -29,12 +29,12 @@ class StudentAdaptiveState(Base):
     round_answered: Mapped[int] = mapped_column(Integer, default=0)
     return_stack: Mapped[list] = mapped_column(JSON, default=list)
     remediation_plan: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    # The question last served to the student. Answers are graded against this,
-    # never against a correct_answer sent by the client.
+
+
     pending_question: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    # Engine breadcrumb ("why we moved you") shown as a banner on the next normal question.
+
     pending_banner: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Last questions served, so the student doesn't see the same wording twice in a row.
+
     recent_questions: Mapped[list] = mapped_column(JSON, default=list)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

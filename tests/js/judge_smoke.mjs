@@ -1,0 +1,46 @@
+import fs from 'node:fs';
+import { install, all, find, text, byClass, byTag, byText, tick, FEl } from './fakedom.js';
+const PY = JSON.parse(fs.readFileSync(new URL('./fixtures/py.json', import.meta.url), 'utf8'));
+let role = 'student';
+const ok = (json, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(json) });
+const users = {
+  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: 'basic', plan_source: 'own', plan_expires_at: null, trial_days_left: null },
+  teacher: { user_id: 'T1', handle: '7001', email: 't@x.jo', full_name: 'سارة', role: 'teacher', plan: 'school', plan_source: 'trial', plan_expires_at: null, trial_days_left: 13 },
+};
+const fetchMock = async (url) => {
+  const p = url.split('?')[0];
+  if (p === '/health') return ok({ status: 'ok', ai_tutor: 'offline_fallback', demo: true, judge: true });
+  if (p === '/auth/me') return role === 'none' ? ok({ detail: 'invalid_token' }, 401) : ok(users[role]);
+  if (p === '/curriculum/map') return ok(PY.map);
+  if (p === '/curriculum/skills') return ok(PY.skills);
+  if (p.endsWith('/adaptive/tree')) return ok(PY.tree_full);
+  if (p.endsWith('/adaptive/bootstrap')) return ok({ state: { current_skill: 'adding_integers', skills: [] }, wallet: { coins: 120, gems: 3 }, avatar: {}, avatar_svg: '<svg id="me"></svg>', drilldowns: [], drilldowns_hidden: 0, plan: { plan: 'basic', limits: { questions_per_day: 20 }, remaining: { questions: 18, tutor: 5 } } });
+  if (p === '/community/summary') return ok({ unread_messages: 2, pending_requests: 1 });
+  if (p === '/classrooms') return ok([]);
+  if (p === '/payments/plans') return ok(PY.plans);
+  return ok({ detail: 'no_mock' }, 404);
+};
+const { body } = install(fetchMock);
+const app = new FEl('div'); const splash = new FEl('div'); splash.attrs.id = 'splash';
+globalThis.__registerId('app', app); globalThis.__registerId('splash', splash); body.appendChild(app); body.appendChild(splash);
+localStorage.setItem('juthoor.token', 'tok');
+location.hash = '#/';
+const results = []; let failures = 0;
+const check = (n, c, x = '') => { results.push([c, n, x]); if (!c) failures += 1; };
+const main = await import('../../app/static/js/main.js');
+await tick(120);
+check('splash dismissed', splash.classList.contains('done'));
+const labels = byClass(app, 'nav-link').map((e) => e.textContent);
+check('student nav keeps only the learning flow', byClass(app, 'nav-link').length === 4 && ['الشجرة', 'التدريب', 'المعلم الذكي', 'صفوفي'].every((l) => labels.some((t) => t.includes(l))));
+check('shop, packages and community are not in the nav', !['المتجر', 'الباقات', 'المجتمع'].some((l) => labels.some((t) => t.includes(l))));
+check('no community dot or plans item in the rendered shell', !text(app).includes('الباقات والاشتراك'));
+check('teacher links reduce to the dashboard', main.linksFor('teacher').length === 1 && main.linksFor('parent').length === 1);
+check('routes stay registered so upsell links never dead-end', !!main.matchRoute('/plans', 'student') && !!main.matchRoute('/shop', 'student') && !!main.matchRoute('/community', 'student'));
+const avatarBtn = find(app, (e) => e.attrs && e.attrs['aria-label'] === 'الحساب');
+check('account button exists to open the menu', !!avatarBtn);
+avatarBtn.click();
+await tick(20);
+check('account menu opened and has no plans entry', byClass(app, 'menu').length === 1 && !text(app).includes('الباقات والاشتراك'));
+for (const [c, n, x] of results) console.log(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? '  -> ' + x : ''}`);
+console.log(`\n${results.length - failures}/${results.length} judge-mode checks passed`);
+process.exit(failures ? 1 : 0);

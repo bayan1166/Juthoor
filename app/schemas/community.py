@@ -1,19 +1,21 @@
 import uuid
-from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+from app.schemas.common import OptUtcDateTime, UtcDateTime
 
 
 class PublicUser(BaseModel):
     user_id: uuid.UUID
     handle: str | None = None
     full_name: str
-    email: str
     role: str
+    avatar_svg: str | None = None
 
 
 class SearchResult(PublicUser):
-    friendship_status: str | None = None    # None | pending_outgoing | pending_incoming | accepted | blocked
+    friendship_status: str | None = None
 
 
 class FriendshipOut(BaseModel):
@@ -21,7 +23,7 @@ class FriendshipOut(BaseModel):
     friend: PublicUser
     status: str
     is_incoming: bool
-    created_at: datetime
+    created_at: UtcDateTime
 
 
 class MessageIn(BaseModel):
@@ -33,4 +35,25 @@ class MessageOut(BaseModel):
     sender_id: uuid.UUID
     recipient_id: uuid.UUID
     body: str
-    created_at: datetime
+    created_at: UtcDateTime
+    read_at: OptUtcDateTime = None
+
+
+class ConversationOut(BaseModel):
+    friendship_id: uuid.UUID
+    friend: PublicUser
+    last_message: MessageOut | None = None
+    unread: int = 0
+
+
+class SummaryOut(BaseModel):
+    unread_messages: int
+    pending_requests: int
+
+
+class ReportIn(BaseModel):
+    user_id: uuid.UUID
+    message_id: uuid.UUID | None = None
+    reason: Literal["bullying", "inappropriate", "contact_info", "spam", "other"]
+    details: str = Field(default="", max_length=1000)
+    also_block: bool = False

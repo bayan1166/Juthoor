@@ -1,9 +1,3 @@
-"""
-Juthoor design tokens.
-
-Forest canopy, warm gold (bark / rims), emerald (growth) and Petra rose (roots).
-Everything visual in the app (logo, avatar, tree, CSS) reads from here.
-"""
 from __future__ import annotations
 
 PALETTE = {
@@ -26,11 +20,7 @@ PALETTE = {
     "mode":        "dark",
 }
 
-# Same roles, a daylight reading of the brand: warm parchment background,
-# the gold/emerald/rose accents darkened just enough to stay legible on a
-# light surface. Every CSS rule in app.py is written against these named
-# roles (never a raw hex), so switching PALETTE for LIGHT_PALETTE re-themes
-# the whole app with no other code changes.
+
 LIGHT_PALETTE = {
     "ink":         "#F6FBF5",
     "night":       "#EDF6EE",
@@ -62,18 +52,12 @@ def _hex_to_rgb(h: str) -> tuple[int, int, int]:
 
 
 def mix(c1: str, c2: str, t: float) -> str:
-    """Linear blend of two hex colours, t in [0, 1]."""
     t = max(0.0, min(1.0, t))
     a, b = _hex_to_rgb(c1), _hex_to_rgb(c2)
     return "#%02X%02X%02X" % tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
 
 
 def leaf_style(progress: float) -> dict:
-    """
-    Progress 0..1  ->  glass-clear leaf  ..  fully saturated emerald leaf.
-
-    Returns fill / stroke colours + opacities and the number colour that stays readable.
-    """
     p = max(0.0, min(1.0, progress))
     e = p ** 0.85
     fill = mix("#D9F7EC", PALETTE["emerald"], min(1.0, e * 1.25))

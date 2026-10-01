@@ -38,6 +38,7 @@ class StudentInsightsOut(BaseModel):
     struggle_alerts: list[StruggleAlert]
     remediation_progress: list[RemediationProgress]
     engagement: EngagementSummary
+    gap_report_locked: bool = False
 
 
 class CohortInsightsOut(BaseModel):

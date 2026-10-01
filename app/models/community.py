@@ -1,12 +1,3 @@
-"""Friendships + direct messages between users (all roles, opt-in).
-
-Design notes:
-  * Undirected friendship: only one row (requester, addressee) per pair. We enforce
-    that at read time by querying both directions and de-duplicating.
-  * A user can never friend themselves; UNIQUE prevents duplicates in either direction.
-  * Messages are polled (no websockets in this MVP); the UI loads the last 50 messages
-    for a conversation on demand.
-"""
 import enum
 import uuid
 from datetime import datetime
@@ -49,3 +40,4 @@ class DirectMessage(Base):
     recipient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
