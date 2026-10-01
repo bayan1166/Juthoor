@@ -28,6 +28,8 @@ def submit_attempt(db: Session, student_id: uuid.UUID, challenge_id: uuid.UUID,
         raise HTTPException(status.HTTP_404_NOT_FOUND, "challenge_not_found")
     if challenge.status != ChallengeStatus.live:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "challenge_not_live")
+    if total_count > challenge.question_count:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "total_count_exceeds_challenge_size")
 
     score = compute_score(correct_count, total_count, duration_seconds, challenge.time_limit_seconds)
     db.add(ChallengeAttempt(

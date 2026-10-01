@@ -5,8 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import get_current_user, require_student_access
+from app.deps import get_current_user, require_plan, require_student_access
+from app.models.org import PlanTierUser
 from app.models.chat import ChatMessage, ChatRole, ChatSession
+from app.engine import knowledge_graph as kg
 from app.models.org import User
 from app.schemas.chat import ChatMessageRequest, ChatMessageResponse, ChatStartRequest, ChatStartResponse
 from app.services import engine_bridge
@@ -19,6 +21,8 @@ router = APIRouter(prefix="/students/{student_id}/chat", tags=["chat"])
 def start_chat(student_id: uuid.UUID, payload: ChatStartRequest, db: Session = Depends(get_db),
                user: User = Depends(get_current_user)):
     require_student_access(student_id, user, db)
+    if payload.skill_context not in kg.SKILLS:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "unknown_skill_context")
     session = ChatSession(student_id=student_id, skill_context=payload.skill_context)
     db.add(session)
     db.flush()
@@ -30,8 +34,10 @@ def start_chat(student_id: uuid.UUID, payload: ChatStartRequest, db: Session = D
 
 @router.post("/message", response_model=ChatMessageResponse)
 def send_message(student_id: uuid.UUID, payload: ChatMessageRequest, db: Session = Depends(get_db),
-                  user: User = Depends(get_current_user)):
+                  user: User = Depends(require_plan(PlanTierUser.pro))):
     require_student_access(student_id, user, db)
+    if not payload.message.strip():
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "empty_message")
     session = db.get(ChatSession, payload.session_id)
     if session is None or session.student_id != student_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "session_not_found")

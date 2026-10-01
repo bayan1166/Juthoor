@@ -79,55 +79,93 @@ def _save_state(db: Session, student_id: uuid.UUID, state: ae.StudentState) -> N
             row_m.status = MasteryStatus.untouched
 
 
-def next_question(db: Session, student_id: uuid.UUID) -> dict:
+class EngineError(Exception):
+    """Raised for client-side problems (e.g. answering with no active question)."""
+
+    def __init__(self, code: str, status_code: int = 409):
+        super().__init__(code)
+        self.code = code
+        self.status_code = status_code
+
+
+def _session(db: Session, student_id: uuid.UUID):
+    from app.services import session_core as sc
     state = _load_state(db, student_id)
-    from app.engine import offline_bank as ob
+    row = db.get(StudentAdaptiveState, student_id)
+    sess = sc.Session(state=state, plan=row.remediation_plan, pending_banner=row.pending_banner,
+                      recent=list(row.recent_questions or []), pending=row.pending_question)
+    return sess, row
+
+
+def _store(db: Session, student_id: uuid.UUID, sess, row) -> None:
+    _save_state(db, student_id, sess.state)
+    row.remediation_plan = sess.plan
+    row.pending_banner = sess.pending_banner
+    row.recent_questions = list(sess.recent)
+    row.pending_question = sess.pending
+
+
+def next_question(db: Session, student_id: uuid.UUID) -> dict:
+    """Serve the next question. Answers are later graded against what is stored here,
+    never against anything the client sends (see submit_answer)."""
     import random
-    q = ob.generate_offline(state.current_skill, state.difficulty, random.Random())
+    from app.services import session_core as sc
+    sess, row = _session(db, student_id)
+    q = sc.serve(sess, random.Random())
+    _store(db, student_id, sess, row)
     db.commit()
     return q
 
 
-def submit_answer(db: Session, student_id: uuid.UUID, skill_id: str, difficulty: int,
-                   pattern: str, selected: str, correct: str, is_remedial: bool) -> dict:
-    from app.engine import practice
-    state = _load_state(db, student_id)
-    is_correct = practice.is_correct({"correct_answer": correct}, selected)
+def submit_answer(db: Session, student_id: uuid.UUID, selected: str, is_remedial: bool = False) -> dict:
+    from app.services import session_core as sc
+    sess, row = _session(db, student_id)
+    if not sess.pending:
+        # No question outstanding: also blocks replaying an answer to farm coins.
+        raise EngineError("no_active_question", 409)
+    pending = dict(sess.pending)
+    prev_gaps = set(sess.state.gaps)
+    result = sc.grade(sess, selected)
+    new_gaps = set(sess.state.gaps) - prev_gaps
+    _store(db, student_id, sess, row)
 
-    prev_gaps = set(state.gaps)
-    decision = ae.decide_next(state, is_correct)
-    new_gaps = set(state.gaps) - prev_gaps
-
-    _save_state(db, student_id, state)
     db.add(AttemptLog(
-        student_id=student_id, skill_id=skill_id, pattern=pattern, difficulty=difficulty,
-        is_correct=is_correct, selected_answer=str(selected), correct_answer=correct,
-        misconception="", source="offline", remedial_stage="remedial" if is_remedial else "",
-        action=decision.action,
+        student_id=student_id, skill_id=pending["skill"], pattern=pending.get("pattern", ""),
+        difficulty=pending["difficulty"], is_correct=result["is_correct"], selected_answer=str(selected),
+        correct_answer=pending["correct_answer"], misconception=result["misconception"],
+        source=pending.get("source", "offline"), remedial_stage=pending.get("remedial") or "",
+        action=result["action"],
     ))
+    for ev in result["events"]:
+        db.add(DrillDownEvent(student_id=student_id, from_skill=ev["from_skill"], from_pattern=pending.get("pattern", ""),
+                              to_skill=ev["to_skill"], to_pattern=ev["to_pattern"], depth=ev["depth"],
+                              direction=ev["direction"], triggered_by=ev["triggered_by"]))
 
-    if decision.action == "backtrack":
-        db.add(DrillDownEvent(student_id=student_id, from_skill=skill_id, to_skill=decision.next_skill,
-                               depth=1, direction="descend", triggered_by="engine"))
-    if decision.action == "return_up":
-        db.add(DrillDownEvent(student_id=student_id, from_skill=skill_id, to_skill=decision.next_skill,
-                               depth=1, direction="ascend", triggered_by="engine"))
-
-    reward = grant_reward(db, student_id, is_correct=is_correct, action=decision.action)
+    reward = grant_reward(db, student_id, is_correct=result["is_correct"], action=result["action"])
     db.commit()
+    result.pop("events")
+    result.pop("engine_action")
+    result.update(coins_awarded=reward.coins, gems_awarded=reward.gems, new_gaps=sorted(new_gaps))
+    return result
 
-    return {
-        "action": decision.action,
-        "next_skill": decision.next_skill,
-        "next_difficulty": decision.next_difficulty,
-        "reason": decision.reason,
-        "breadcrumb": getattr(decision, "breadcrumb", ""),
-        "gap_skill": decision.gap_skill,
-        "round_over": decision.round_over,
-        "coins_awarded": reward.coins,
-        "gems_awarded": reward.gems,
-        "new_gaps": list(new_gaps),
-    }
+
+def start_new_round(db: Session, student_id: uuid.UUID) -> dict:
+    from app.services import session_core as sc
+    sess, row = _session(db, student_id)
+    sc.new_round(sess)
+    _store(db, student_id, sess, row)
+    db.commit()
+    return state_overview(db, student_id)
+
+
+def drilldown_history(db: Session, student_id: uuid.UUID, limit: int = 30) -> list[dict]:
+    rows = db.scalars(select(DrillDownEvent).where(DrillDownEvent.student_id == student_id)
+                      .order_by(DrillDownEvent.created_at.desc()).limit(limit)).all()
+    return [{
+        "from_skill": r.from_skill, "from_name_ar": kg.SKILLS[r.from_skill].name_ar if r.from_skill in kg.SKILLS else r.from_skill,
+        "to_skill": r.to_skill, "to_name_ar": kg.SKILLS[r.to_skill].name_ar if r.to_skill in kg.SKILLS else r.to_skill,
+        "direction": r.direction, "triggered_by": r.triggered_by, "depth": r.depth, "created_at": r.created_at,
+    } for r in reversed(rows)]
 
 
 def state_overview(db: Session, student_id: uuid.UUID) -> dict:
@@ -148,33 +186,37 @@ def state_overview(db: Session, student_id: uuid.UUID) -> dict:
         "difficulty": state.difficulty,
         "total_answered": state.total_answered,
         "tree_health": round(ae.tree_health(state), 3),
+        "round_answered": state.round_answered,
+        "round_over": ae.round_over(state),
+        "in_remediation": bool(db.get(StudentAdaptiveState, student_id).remediation_plan),
         "skills": skills,
     }
 
 
 def trigger_manual_drill_down(db: Session, student_id: uuid.UUID, from_skill: str, misconception: str) -> dict | None:
-    from app.engine import practice as pr
-    state = _load_state(db, student_id)
-    plan_row = db.get(StudentAdaptiveState, student_id)
-    fake_q = {"skill": from_skill, "difficulty": state.difficulty, "pattern": kg.SKILLS[from_skill].ladder[0] and ""}
-    plan = pr.start({**fake_q, "pattern": (ob_patterns(from_skill) or "")}, selected=None)
-    plan["misconception"] = misconception
-    advanced = pr.advance(plan, answered_correctly=False)
-    if advanced is None:
-        return None
-    plan_row.remediation_plan = advanced
-    plan_row.current_skill = advanced["skill"]
-    plan_row.difficulty = advanced["difficulty"]
-    db.add(DrillDownEvent(
-        student_id=student_id, from_skill=from_skill, to_skill=advanced["skill"],
-        to_pattern=advanced.get("pattern", ""), depth=len(advanced.get("stack", [])) + 1,
-        direction="descend", triggered_by="rag_tutor",
-    ))
-    db.commit()
-    return advanced
+    """The Socratic tutor detected that `from_skill` (a prerequisite) is the real blocker.
 
-
-def ob_patterns(skill_id: str) -> str:
+    Start a guided stepping-stone plan on that skill. The student's next question comes
+    from it (via session_core.serve); the adaptive engine's diagnosis is left untouched.
+    """
+    from app.engine import config as ecfg
     from app.engine import offline_bank as ob
-    patterns = ob.patterns_of(skill_id)
-    return patterns[0] if patterns else ""
+    from app.engine import practice as pr
+    if from_skill not in kg.SKILLS or from_skill not in ob.REGISTRY:
+        return None
+    patterns = ob.patterns_of(from_skill)
+    if not patterns:
+        return None
+    _load_state(db, student_id)  # make sure the state row exists
+    row = db.get(StudentAdaptiveState, student_id)
+    plan = {
+        "stage": pr.EASIER, "skill": from_skill, "difficulty": ecfg.PROBE_DIFFICULTY,
+        "pattern": patterns[0], "stack": [], "misconception": misconception or None,
+        "breadcrumb": f"المعلم الذكي لاحظ أن الصعوبة تبدأ من «{kg.SKILLS[from_skill].name_ar}»، لنثبّت هذا الأساس أولاً.",
+    }
+    row.remediation_plan = plan
+    row.pending_question = None  # the next fetched question is the stepping stone
+    db.add(DrillDownEvent(student_id=student_id, from_skill=row.current_skill, to_skill=from_skill,
+                          to_pattern=patterns[0], depth=1, direction="descend", triggered_by="rag_tutor"))
+    db.commit()
+    return plan

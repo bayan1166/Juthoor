@@ -46,3 +46,10 @@ class CohortInsightsOut(BaseModel):
     student_count: int
     avg_tree_health: float
     top_struggle_skills: list[StruggleAlert]
+
+
+class RosterStudentOut(BaseModel):
+    student_id: uuid.UUID
+    full_name: str
+    email: str
+    grade_level: int

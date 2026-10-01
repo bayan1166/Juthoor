@@ -51,7 +51,7 @@ def _hoodie(u, color):
             f'<path d="M70 244L82 222H158L170 244Z" fill="{_dk(color, .12)}" stroke="{d}" stroke-width="1.6"/>')
 
 
-def _jacket_denim(u, color="#3E6DA8"):
+def _jacket_denim(u, color="#084814"):
     d, l = _dk(color, .3), _lt(color, .35)
     return (f'<path d="{BODY}" fill="{color}"/>'
             f'<path d="M100 178L120 238L140 178C130 187 110 187 100 178Z" fill="#F3F6FA"/>'
@@ -228,7 +228,7 @@ def _farmer(u):
 
 
 # ============================================================ HEADWEAR
-def _cap(u, color="#173763"):
+def _cap(u, color="#1E4F3A"):
     d = _dk(color, .3)
     return (f'<path d="M71 82C68 38 98 26 120 26C142 26 172 38 169 82C150 76 90 76 71 82Z" fill="{color}"/>'
             f'<path d="M120 26C112 44 110 62 112 77M120 26C128 44 130 62 128 77" fill="none" stroke="{d}" stroke-width="2"/>'
@@ -453,7 +453,7 @@ CLOTHING["jacket_leather"] = _jacket_leather
 _add(Item("jacket_denim", "clothing", "jackets", "جاكيت جينز", 35))
 _add(Item("jacket_bomber", "clothing", "jackets", "جاكيت بومبر", 40))
 _add(Item("jacket_leather", "clothing", "jackets", "جاكيت جلد", 50))
-PUFFER = {"navy": ("كحلي", "#1E3A6E"), "red": ("أحمر", "#C8202F"), "green": ("أخضر", "#2A7B57"), "yellow": ("أصفر", "#E9B824")}
+PUFFER = {"forest": ("أخضر غابة", "#1E4F3A"), "red": ("أحمر", "#C8202F"), "green": ("أخضر", "#2A7B57"), "yellow": ("أصفر", "#E9B824")}
 for k, (nm, col) in PUFFER.items():
     CLOTHING[f"puffer_{k}"] = (lambda u, c=col: _jacket_puffer(u, c))
     _add(Item(f"puffer_{k}", "clothing", "jackets", f"جاكيت شتوي {nm}", 45))
@@ -493,11 +493,11 @@ for jid, nm, fn, cap, price in JOBS:
 # ---- caps & winter hats
 HEADWEAR["none"] = lambda u: ""
 _add(Item("none", "top", "caps", "بدون غطاء رأس", 0))
-CAPS = {"hat": ("قبعة رياضية (كحلي)", "#173763", 30), "cap_red": ("قبعة رياضية حمراء", "#C8202F", 30), "cap_green": ("قبعة رياضية خضراء", "#2A7B57", 30)}
+CAPS = {"hat": ("قبعة رياضية (خضراء)", "#1E4F3A", 30), "cap_red": ("قبعة رياضية حمراء", "#C8202F", 30), "cap_green": ("قبعة رياضية خضراء", "#2A7B57", 30)}
 for cid, (nm, col, price) in CAPS.items():
     HEADWEAR[cid] = (lambda u, c=col: _cap(u, c))
     _add(Item(cid, "top", "caps", nm, price))
-WINTER = {"winterHat1": ("وردية", "#D98466"), "winter_navy": ("كحلية", "#1E3A6E"), "winter_red": ("حمراء", "#C8202F"), "winter_green": ("خضراء", "#2A7B57"),
+WINTER = {"winterHat1": ("وردية", "#D98466"), "winter_forest": ("خضراء غابة", "#1E4F3A"), "winter_red": ("حمراء", "#C8202F"), "winter_green": ("خضراء", "#2A7B57"),
           "winter_mustard": ("خردلية", "#E0A526"), "winter_gray": ("رمادية", "#8A94A6"), "winter_purple": ("بنفسجية", "#8B5CC7"), "winter_white": ("بيضاء", "#EEF2F7")}
 for wid, (nm, col) in WINTER.items():
     HEADWEAR[wid] = (lambda u, c=col: _beanie(u, c))
@@ -511,7 +511,7 @@ HAIR_COVER_FULL.update({"shemagh_red", "shemagh_black", "coin_scarf"})
 _add(Item("shemagh_red", "top", "heritage_head", "شماغ أحمر", 50))
 _add(Item("shemagh_black", "top", "heritage_head", "شماغ أسود", 50))
 _add(Item("coin_scarf", "top", "heritage_head", "حطة الليرات الذهبية", 70, gender="بنت"))
-HIJAB = {"white": ("أبيض", "#F4F1EA"), "black": ("أسود", "#23222B"), "navy": ("كحلي", "#22406E"), "rose": ("وردي", "#D98466"),
+HIJAB = {"white": ("أبيض", "#F4F1EA"), "black": ("أسود", "#23222B"), "forest": ("أخضر غابة", "#1E4F3A"), "rose": ("وردي", "#D98466"),
          "emerald": ("أخضر", "#1FA37A"), "lilac": ("بنفسجي فاتح", "#9C82C9"), "gray": ("رمادي", "#8F98A8"), "gold": ("ذهبي", "#D9B45A")}
 for k, (nm, col) in HIJAB.items():
     HEADWEAR[f"hijab_{k}"] = (lambda u, c=col: _hijab(u, c))

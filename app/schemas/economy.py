@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.economy import Currency
 
@@ -40,11 +40,11 @@ class GemConversionRequest(BaseModel):
 
 
 class AvatarConfigIn(BaseModel):
-    gender: str
-    skin: str
-    clothing: str
-    top: str
-    neck: str
-    accessories: str
-    hair: str
-    hair_color: str
+    gender: str = Field(max_length=10)
+    skin: str = Field(max_length=20)
+    clothing: str = Field(max_length=40)
+    top: str = Field(max_length=40)
+    neck: str = Field(max_length=40)
+    accessories: str = Field(max_length=40)
+    hair: str = Field(max_length=20)
+    hair_color: str = Field(max_length=20)

@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -50,9 +50,25 @@ def convert(student_id: uuid.UUID, payload: GemConversionRequest, db: Session = 
 def set_avatar(student_id: uuid.UUID, payload: AvatarConfigIn, db: Session = Depends(get_db),
                user: User = Depends(get_current_user)):
     require_student_access(student_id, user, db)
+    bad = economy_service.unowned_avatar_items(db, student_id, payload.model_dump())
+    if bad:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "item_not_owned:" + ",".join(bad))
     row = db.get(AvatarConfig, student_id) or AvatarConfig(student_id=student_id)
     for field, value in payload.model_dump().items():
         setattr(row, field, value)
     db.add(row)
     db.commit()
     return {"status": "saved"}
+
+
+@router.get("/avatar", response_model=AvatarConfigIn)
+def get_avatar(student_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    require_student_access(student_id, user, db)
+    row = db.get(AvatarConfig, student_id)
+    if row is None:
+        row = AvatarConfig(student_id=student_id)
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    return AvatarConfigIn(gender=row.gender, skin=row.skin, clothing=row.clothing, top=row.top,
+                          neck=row.neck, accessories=row.accessories, hair=row.hair, hair_color=row.hair_color)

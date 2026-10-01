@@ -54,6 +54,8 @@ CREATE TABLE users (
 	role userrole NOT NULL, 
 	guardian_id UUID, 
 	grade_level INTEGER NOT NULL, 
+	plan VARCHAR(10) NOT NULL DEFAULT 'basic', 
+	plan_expires_at TIMESTAMP WITHOUT TIME ZONE, 
 	locale VARCHAR(8) NOT NULL, 
 	is_active BOOLEAN NOT NULL, 
 	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, 
@@ -168,6 +170,9 @@ CREATE TABLE student_adaptive_states (
 	round_answered INTEGER NOT NULL, 
 	return_stack JSON NOT NULL, 
 	remediation_plan JSON, 
+	pending_question JSON, 
+	pending_banner TEXT, 
+	recent_questions JSON, 
 	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, 
 	PRIMARY KEY (student_id), 
 	FOREIGN KEY(student_id) REFERENCES users (id)

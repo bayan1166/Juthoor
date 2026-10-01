@@ -1,23 +1,54 @@
 import uuid
+from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.org import UserRole
+
+# Admin roles must be granted by an existing admin, never self-assigned at sign-up.
+SELF_REGISTER_ROLES = {UserRole.student, UserRole.parent, UserRole.teacher}
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
-    full_name: str
+    password: str = Field(min_length=6, max_length=128)
+    full_name: str = Field(min_length=1, max_length=150)
     role: UserRole = UserRole.student
     org_slug: str | None = None
     guardian_id: uuid.UUID | None = None
-    grade_level: int = 6
+    guardian_email: EmailStr | None = None   # friendlier alternative to guardian_id
+    grade_level: int = Field(default=6, ge=1, le=12)
+    gender: str | None = Field(default=None, max_length=10)
+
+    @field_validator("email")
+    @classmethod
+    def _lower_email(cls, v: str) -> str:
+        return v.lower()
+
+    @field_validator("full_name")
+    @classmethod
+    def _strip_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("full_name must not be blank")
+        return v
+
+    @field_validator("role")
+    @classmethod
+    def _no_admin_signup(cls, v: UserRole) -> UserRole:
+        if v not in SELF_REGISTER_ROLES:
+            raise ValueError("this role cannot be self-registered")
+        return v
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def _lower_email(cls, v: str) -> str:
+        return v.lower()
 
 
 class TokenResponse(BaseModel):
@@ -25,3 +56,30 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user_id: uuid.UUID
     role: UserRole
+
+
+class MeOut(BaseModel):
+    user_id: uuid.UUID
+    handle: str | None = None
+    email: str
+    full_name: str
+    role: UserRole
+    organization_id: uuid.UUID | None
+    organization_name: str | None = None
+    grade_level: int
+    plan: str = "basic"
+    plan_expires_at: datetime | None = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def _lower(cls, v: str) -> str:
+        return v.lower()
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=6, max_length=128)

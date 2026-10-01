@@ -1,0 +1,5 @@
+# Frontend (Streamlit) dependencies. The UI imports only app/engine from the backend,
+# which needs networkx.
+streamlit>=1.37,<2
+requests>=2.31
+networkx==3.3

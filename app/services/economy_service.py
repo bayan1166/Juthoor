@@ -107,3 +107,26 @@ def convert_coins_to_gems(db: Session, student_id: uuid.UUID, coins: int) -> Wal
     apply_txn(db, wallet, Currency.gems, gems, TxnReason.gem_conversion)
     db.commit()
     return wallet
+
+
+AVATAR_ITEM_FIELDS = ("clothing", "top", "neck", "accessories")
+
+
+def unowned_avatar_items(db: Session, student_id: uuid.UUID, config: dict) -> list[str]:
+    """Items in `config` the student is not allowed to wear: sold, not free, not owned,
+    and not bundled with something owned (a job outfit includes its cap)."""
+    from app.engine import avatar_items as ai
+    owned = {i.item_id for i in db.scalars(select(InventoryItem).where(InventoryItem.student_id == student_id))}
+    bundled = {iid for it in ai.CATALOG if it.id in owned for _, iid in it.bundle}
+    bad = []
+    for field_name in AVATAR_ITEM_FIELDS:
+        value = config.get(field_name)
+        item = db.get(ShopItem, value) if value else None
+        if item is None:                      # defaults such as "none"/"blank" are not sold
+            continue
+        if item.price_coins == 0 and item.price_gems == 0:
+            continue
+        if value in owned or value in bundled:
+            continue
+        bad.append(value)
+    return bad

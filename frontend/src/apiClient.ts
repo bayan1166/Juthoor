@@ -39,16 +39,17 @@ export interface TokenResponse {
 
 export interface QuestionOut {
   question: string;
-  correct_answer: string;
-  distractors: { text: string; misconception: string }[];
   hint: string;
-  explanation: string;
   skill: string;
   difficulty: number;
   pattern: string;
   source: string;
   banner: string;
   guided: boolean;
+  remedial: string | null;
+  type: "mcq" | "tf" | "input";
+  options: string[]; // shuffled choices, render these
+  skill_name: string;
 }
 
 export interface DecisionOut {
@@ -61,6 +62,20 @@ export interface DecisionOut {
   round_over: boolean;
   coins_awarded: number;
   gems_awarded: number;
+  is_correct: boolean;
+  correct_answer: string;
+  misconception: string;
+  explanation: string;
+  new_gaps: string[];
+  remedial: string | null;
+  next_stage: string | null;
+  mistake_card: Record<string, string> | null;
+}
+
+// The server grades against the question it served; only the chosen option is needed.
+export interface AnswerRequest {
+  selected_answer: string;
+  is_remedial?: boolean;
 }
 
 export interface WalletOut {
@@ -91,7 +106,7 @@ export const authApi = {
 export const adaptiveApi = {
   getQuestion: (studentId: string) =>
     request<QuestionOut>(`/students/${studentId}/adaptive/question`),
-  submitAnswer: (studentId: string, payload: Record<string, unknown>) =>
+  submitAnswer: (studentId: string, payload: AnswerRequest) =>
     request<DecisionOut>(`/students/${studentId}/adaptive/answer`, {
       method: "POST",
       body: JSON.stringify(payload),

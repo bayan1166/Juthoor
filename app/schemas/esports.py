@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class ChallengeOut(BaseModel):
@@ -15,9 +15,15 @@ class ChallengeOut(BaseModel):
 
 class ChallengeSubmitRequest(BaseModel):
     challenge_id: uuid.UUID
-    correct_count: int
-    total_count: int
-    duration_seconds: float
+    correct_count: int = Field(ge=0)
+    total_count: int = Field(ge=1)
+    duration_seconds: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _correct_not_above_total(self):
+        if self.correct_count > self.total_count:
+            raise ValueError("correct_count cannot exceed total_count")
+        return self
 
 
 class ChallengeSubmitResponse(BaseModel):

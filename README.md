@@ -35,8 +35,10 @@ scripts/
   init_db.py           create all tables (use Alembic migrations for real deployments)
   seed_shop.py         convert app.engine.avatar_items.CATALOG into ShopItem rows
   ingest_curriculum.py build the Chroma vector store from the knowledge graph
+  seed_demo.py         demo org, teacher, parent and students with history
 sql/schema.sql         raw PostgreSQL DDL generated from the SQLAlchemy models, for review
 frontend/src/          TypeScript API client + a React Socratic chat widget
+tests/                 pytest suite (in-memory SQLite)
 ```
 
 ## Running locally
@@ -47,9 +49,76 @@ pip install -r requirements.txt
 cp .env.example .env        # fill in DATABASE_URL, JWT_SECRET, GROQ_API_KEY
 python scripts/init_db.py
 python scripts/seed_shop.py
-python scripts/ingest_curriculum.py
-uvicorn app.main:app --reload
+python scripts/seed_demo.py         # optional: demo teacher/parent/students, password demo1234
+python scripts/ingest_curriculum.py # optional: without it the tutor still answers (no context)
+uvicorn app.main:app --reload       # API docs at http://localhost:8000/docs
 ```
+
+No Postgres/Docker available (e.g. on the demo laptop)? Set
+`DATABASE_URL=sqlite:///./juthoor.db` in `.env` and run the same commands.
+
+If you already had a database from before this change, drop and recreate it
+(`init_db.py` only creates missing tables; `student_adaptive_states` gained a
+`pending_question` column).
+
+## Tests
+
+```
+pip install -r requirements-dev.txt
+pytest -q
+```
+
+Runs against in-memory SQLite; no Postgres, Chroma, or Groq needed. Covers the
+backtracking engine (missing `mult_div_integers` repeatedly must walk back to the
+`absolute_value` root gap), auth validation, server-side grading, replay protection,
+role-based access, the roster endpoint, the offline chat path, and a 25-answer
+stability run.
+
+
+
+## Frontend (Streamlit)
+
+```
+pip install -r web/requirements.txt
+streamlit run web/streamlit_app.py   # http://localhost:8501, expects API on :8000
+```
+
+Or start both at once (SQLite fallback, no Docker needed):
+
+```
+python run_demo.py                    # demo accounts: password demo1234
+```
+
+RAG tutor (optional):
+
+```
+pip install -r requirements-optional.txt
+echo "GROQ_API_KEY=..." >> .env
+python scripts/ingest_curriculum.py
+```
+
+## Recent fixes
+
+- `GET /adaptive/question` returned 500 on every call (`source` missing). Fixed.
+- `requirements.txt`: added `email-validator` (app crashed on import) and pinned
+  `bcrypt==4.0.1` (passlib 1.7.4 fails on newer bcrypt, breaking register/login).
+- Answers are now graded **server-side** against the question actually served
+  (`pending_question`). The client only sends `selected_answer`; a forged
+  `correct_answer` is ignored and re-submitting the same answer returns 409.
+  The decision now includes `is_correct`, `correct_answer`, `misconception`
+  (diagnosed from the question's known traps) and `explanation`.
+- Questions include a shuffled `options` list ready to render.
+- Registration: admin roles can no longer be self-assigned; password >= 6 chars,
+  non-blank name, grade 1-12, `guardian_id` must be an existing parent, emails are
+  case-insensitive.
+- Chat no longer 500s when the vector store is empty or chromadb is missing
+  (chromadb is imported lazily); Groq replies are requested as JSON and parsed
+  tolerantly. Default model changed to `llama-3.3-70b-versatile`
+  (`llama-3.1-70b-versatile` was retired). `skill_context` and message are validated.
+- Esports submissions are validated (`0 <= correct <= total <= question_count`).
+- New: `GET /curriculum/skills` (knowledge graph + teaching content, public) and
+  `GET /me/students` (a parent's children / a teacher's organization).
+- SQLite supported as a no-Docker fallback; `.env.example` added.
 
 ## Key design decisions
 

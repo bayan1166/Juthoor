@@ -23,6 +23,14 @@ class UserRole(str, enum.Enum):
     platform_admin = "platform_admin"
 
 
+class PlanTierUser(str, enum.Enum):
+    """A user's subscription level. Independent from organization.plan_tier so a solo
+    student can upgrade without their school having to. Basic is free forever."""
+    basic = "basic"
+    pro = "pro"
+    max = "max"
+
+
 class Organization(Base):
     __tablename__ = "organizations"
 
@@ -48,6 +56,11 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.student)
     guardian_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     grade_level: Mapped[int] = mapped_column(default=6)
+    plan: Mapped[PlanTierUser] = mapped_column(Enum(PlanTierUser), default=PlanTierUser.basic, index=True)
+    plan_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Public handle (e.g. "7429"): the ONLY identifier other users can search by.
+    # Random 4+ digit code generated at signup, unique per user, immutable.
+    handle: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True, index=True)
     locale: Mapped[str] = mapped_column(String(8), default="ar")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

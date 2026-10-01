@@ -5,39 +5,39 @@ from app.config import settings
 from app.engine import knowledge_graph as kg
 from app.services.rag.retriever import retrieve
 
-SYSTEM_PROMPT = """\
-You are Juthoor's Socratic Math Tutor for a 6th-grade student aged 11-12, speaking Arabic.
+SYSTEM_PROMPT = """أنت المعلم الذكي في منصة "جذور" لتعليم الرياضيات لطلاب الصف السادس بالأردن.
 
-Non-negotiable rule: NEVER state the final numeric answer or the completed solution to the
-student's current problem, even if asked directly or pressured. Instead:
-- Ask one guiding question at a time that moves the student one step closer to the idea.
-- Reference the retrieved curriculum context below when it is relevant.
-- If the student is correct, confirm briefly and ask them to explain why, or extend the idea.
-- If the student repeats the same wrong reasoning twice, or their message reveals they do not
-  understand a PREREQUISITE skill (not just this one), set gap_detected to true and name the
-  exact skill_id from the provided skill list that seems to be the real blocker.
-- Keep replies to at most 3 short sentences. No LaTeX, no markdown, no emojis.
+مهمتك أن تعلّم فعلاً — لست مجرد مساعد يسأل أسئلة. تصرّف حسب ما يحتاجه الطالب:
 
-Return ONE JSON object and nothing else:
-{
-  "reply": "<socratic reply in Arabic>",
-  "gap_detected": <true or false>,
-  "gap_skill": "<skill_id from the list below, or empty string>",
-  "misconception": "<short description of the exact misconception, or empty string>"
-}
+1. إذا طلب الشرح (مثل: "اشرح لي"، "ما هو"، "كيف أحسب"، "فسّر"): اشرح الفكرة بوضوح في جملتين إلى أربع، ثم أعطِ مثالاً محلولاً بأرقام صغيرة.
+2. إذا أعطاك مسألة محدّدة (مثل: "ما ناتج 7 + (-3)"، "أوجد المسافة"): حلّها خطوة بخطوة بترقيم الخطوات، ثم أعطِ الجواب النهائي، ثم اسأله: "هل جربّت مسألة مشابهة؟"
+3. إذا قال إنه عالق أو مش فاهم: اسأله سؤالاً واحداً محدّداً لتعرف من أين تبدأ ("أي خطوة أول خطوة ما فهمتها؟"), ثم اشرح.
+4. إذا كان يعرف ما يفعل لكنه يراجع: شجّعه واسأله ماذا يريد أن يفعل تالياً.
+
+قواعد صارمة:
+- اكتب بالعربية الفصحى البسيطة، لا بالإنجليزية.
+- اجعل كل رد قصيراً وواضحاً.
+- لا تنتظر، لا تتهرّب، لا تُحيل الطالب إلى المعلم: علّمه الآن.
+- استخدم أرقاماً صغيرة في الأمثلة (أقل من 20).
+- إذا لاحظت أن سبب الصعوبة درس سابق في المنهج (مثلاً: لا يستطيع الجمع، فكيف يضرب؟)، حدّد "gap_detected": true و "gap_skill" بـ id الدرس المناسب من القائمة.
+
+أعِد JSON فقط بالشكل التالي، بدون أي نص خارج القوسين:
+{"reply": "ردّك بالعربية هنا", "gap_detected": true/false, "gap_skill": "skill_id أو null"}
 """
 
-USER_TEMPLATE = """\
-Known skill ids: {skill_ids}
-Current lesson context: {skill_name}
-Retrieved curriculum context:
+USER_TEMPLATE = """الدروس المتاحة (استخدم id من هنا فقط): {skill_ids}
+الدرس الحالي للطالب: {skill_name}
+
+مقتطفات من المنهج قد تساعدك:
 {context}
 
-Conversation so far:
+آخر رسائل في المحادثة:
 {history}
 
-Student's latest message: {message}
-"""
+رسالة الطالب الجديدة:
+{message}
+
+الآن ردّ على الطالب."""
 
 
 @dataclass
@@ -50,13 +50,20 @@ class SocraticTurn:
 
 
 def _client():
-    if not settings.groq_api_key:
-        return None
-    try:
-        from groq import Groq
-        return Groq(api_key=settings.groq_api_key)
-    except Exception:
-        return None
+    """Return (provider, sdk) or None. Prefers OpenAI (smarter), falls back to Groq."""
+    if settings.openai_api_key:
+        try:
+            from openai import OpenAI
+            return ("openai", OpenAI(api_key=settings.openai_api_key))
+        except Exception:
+            pass
+    if settings.groq_api_key:
+        try:
+            from groq import Groq
+            return ("groq", Groq(api_key=settings.groq_api_key))
+        except Exception:
+            pass
+    return None
 
 
 def _fallback_turn(retrieved_ids: list[str]) -> SocraticTurn:
@@ -66,9 +73,29 @@ def _fallback_turn(retrieved_ids: list[str]) -> SocraticTurn:
     )
 
 
+def _extract_json(raw: str) -> dict:
+    """Models sometimes wrap the JSON in prose or code fences; take the outermost {...}."""
+    raw = (raw or "").strip()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        start, end = raw.find("{"), raw.rfind("}")
+        if start == -1 or end <= start:
+            raise
+        return json.loads(raw[start:end + 1])
+
+
+def _safe_retrieve(message: str, skill_id: str | None) -> list[dict]:
+    # An empty/uningested vector store or a missing chromadb install must not 500 the chat.
+    try:
+        return retrieve(message, skill_id=skill_id, top_k=5)
+    except Exception:
+        return []
+
+
 def _parse(raw: str, retrieved_ids: list[str]) -> SocraticTurn | None:
     try:
-        data = json.loads(raw)
+        data = _extract_json(raw)
         reply = str(data["reply"]).strip()
         if not reply:
             return None
@@ -87,31 +114,28 @@ def _parse(raw: str, retrieved_ids: list[str]) -> SocraticTurn | None:
 
 
 def generate_turn(skill_context: str, history: list[dict], message: str) -> SocraticTurn:
-    chunks = retrieve(message, skill_id=skill_context or None, top_k=5)
+    chunks = _safe_retrieve(message, skill_context or None)
     retrieved_ids = [c["id"] for c in chunks]
     context_block = "\n".join(f"- {c['text']}" for c in chunks) or "- (no matching context)"
     history_block = "\n".join(f"{h['role']}: {h['content']}" for h in history[-8:]) or "(new conversation)"
     skill_name = kg.SKILLS[skill_context].name_ar if skill_context in kg.SKILLS else "غير محدد"
 
-    client = _client()
-    if client is not None:
+    picked = _client()
+    if picked is not None:
+        provider, client = picked
         try:
             user_prompt = USER_TEMPLATE.format(
                 skill_ids=", ".join(kg.SKILLS.keys()),
-                skill_name=skill_name,
-                context=context_block,
-                history=history_block,
-                message=message,
+                skill_name=skill_name, context=context_block,
+                history=history_block, message=message,
             )
+            model = settings.openai_chat_model if provider == "openai" else settings.groq_chat_model
             resp = client.chat.completions.create(
-                model=settings.groq_chat_model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.4,
-                max_tokens=400,
-                timeout=6,
+                model=model,
+                messages=[{"role": "system", "content": SYSTEM_PROMPT},
+                          {"role": "user", "content": user_prompt}],
+                temperature=0.4, response_format={"type": "json_object"},
+                max_tokens=400, timeout=6,
             )
             parsed = _parse(resp.choices[0].message.content, retrieved_ids)
             if parsed is not None:

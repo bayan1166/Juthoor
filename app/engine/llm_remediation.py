@@ -36,13 +36,27 @@ def _get_client():
         return _client
     _client_checked = True
 
-    if not config.LLM.get("enabled") or not os.environ.get("GROQ_API_KEY"):
+    if not config.LLM.get("enabled"):
         return None
     try:
-        from groq import Groq  # optional dependency -- see requirements-optional.txt
-        _client = Groq(api_key=os.environ["GROQ_API_KEY"])
+        from app.config import settings
+        oa_key = os.environ.get("OPENAI_API_KEY") or settings.openai_api_key
+        gq_key = os.environ.get("GROQ_API_KEY") or settings.groq_api_key
     except Exception:
-        _client = None
+        oa_key = os.environ.get("OPENAI_API_KEY", "")
+        gq_key = os.environ.get("GROQ_API_KEY", "")
+    if oa_key:
+        try:
+            from openai import OpenAI
+            _client = ("openai", OpenAI(api_key=oa_key))
+        except Exception:
+            _client = None
+    elif gq_key:
+        try:
+            from groq import Groq
+            _client = ("groq", Groq(api_key=gq_key))
+        except Exception:
+            _client = None
     return _client
 
 
@@ -86,24 +100,25 @@ def generate(skill_id: str, difficulty: int, rng: random.Random, avoid=None,
     first; always falls back to the offline bank on any failure so this call
     can never break the demo or leave the student without a question.
     """
-    client = _get_client()
-    if client is not None:
+    picked = _get_client()
+    if picked is not None:
+        provider, client = picked
         try:
+            from app.config import settings
+            model = settings.openai_chat_model if provider == "openai" else config.LLM["model"]
             messages = prompts.build_messages(
                 skill_id, difficulty, language=language,
                 recent=list(avoid or []), misconception=misconception,
             )
             resp = client.chat.completions.create(
-                model=config.LLM["model"],
-                messages=messages,
-                temperature=0.6,
-                max_tokens=500,
+                model=model, messages=messages, temperature=0.6, max_tokens=500,
                 timeout=config.LLM["timeout_seconds"],
+                response_format={"type": "json_object"},
             )
             parsed = _parse(resp.choices[0].message.content, skill_id, difficulty, pattern or "llm_dynamic")
             if parsed is not None:
                 return parsed
         except Exception:
-            pass  # network error, timeout, rate limit, bad JSON -- fall through, never raise
+            pass  # network / timeout / rate limit / bad JSON -- silently fall through to offline
 
     return ob.generate_offline(skill_id, difficulty, rng, avoid, pattern)

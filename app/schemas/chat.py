@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ChatStartRequest(BaseModel):
@@ -14,7 +14,7 @@ class ChatStartResponse(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     session_id: uuid.UUID
-    message: str
+    message: str = Field(min_length=1, max_length=1000)
 
 
 class ChatMessageResponse(BaseModel):

@@ -1,29 +1,29 @@
 """
 Juthoor design tokens.
 
-Night-sky navy, brushed gold (bark / rims), emerald (growth) and Petra rose (roots).
+Forest canopy, warm gold (bark / rims), emerald (growth) and Petra rose (roots).
 Everything visual in the app (logo, avatar, tree, CSS) reads from here.
 """
 from __future__ import annotations
 
 PALETTE = {
-    "ink": "#081428",        # sky top
-    "night": "#0A1A33",      # page background
-    "deep": "#10284A",       # cards
-    "lift": "#173763",       # raised surfaces / hover
-    "teal": "#1C5B63",       # horizon glow
-    "gold": "#E6BE6A",
-    "gold_deep": "#B8862F",
-    "gold_pale": "#FFE8AE",
-    "emerald": "#1FC98A",
-    "emerald_deep": "#0E9A68",
-    "mint": "#B9F3D9",
-    "rose": "#D98466",       # Petra sandstone
-    "rose_deep": "#9C4A38",
-    "umber": "#24140F",
-    "text": "#EAF1F7",
-    "muted": "#9DB2C8",
-    "mode": "dark",
+    "ink":         "#040D07",
+    "night":       "#07160E",
+    "deep":        "#0F2318",
+    "lift":        "#173525",
+    "teal":        "#1D5140",
+    "gold":        "#F0C674",
+    "gold_deep":   "#B98A2C",
+    "gold_pale":   "#FFE3A6",
+    "emerald":     "#3DDC91",
+    "emerald_deep":"#1E9E63",
+    "mint":        "#B7F5D5",
+    "rose":        "#E88B70",
+    "rose_deep":   "#A8452B",
+    "umber":       "#0D1A11",
+    "text":        "#EAF6EE",
+    "muted":       "#8FB09B",
+    "mode":        "dark",
 }
 
 # Same roles, a daylight reading of the brand: warm parchment background,
@@ -32,23 +32,23 @@ PALETTE = {
 # roles (never a raw hex), so switching PALETTE for LIGHT_PALETTE re-themes
 # the whole app with no other code changes.
 LIGHT_PALETTE = {
-    "ink": "#FBF7EE",         # sky top
-    "night": "#F6F1E4",       # page background (warm parchment, not stark white)
-    "deep": "#FFFFFF",        # cards
-    "lift": "#F0E9D8",        # raised surfaces / hover
-    "teal": "#CFE7E3",        # horizon glow
-    "gold": "#A9761F",
-    "gold_deep": "#7C5716",
-    "gold_pale": "#5C4014",
-    "emerald": "#158A5D",
-    "emerald_deep": "#0E6B47",
-    "mint": "#0E6B47",
-    "rose": "#B0492F",
-    "rose_deep": "#8A3623",
-    "umber": "#F3E7DD",
-    "text": "#241A0F",
-    "muted": "#6B5D45",
-    "mode": "light",
+    "ink":         "#F6FBF5",
+    "night":       "#EDF6EE",
+    "deep":        "#FFFFFF",
+    "lift":        "#DDEEE0",
+    "teal":        "#CFE7E0",
+    "gold":        "#8C6620",
+    "gold_deep":   "#5F4515",
+    "gold_pale":   "#3E2E10",
+    "emerald":     "#1F8F5F",
+    "emerald_deep":"#116E44",
+    "mint":        "#116E44",
+    "rose":        "#B34F35",
+    "rose_deep":   "#83382A",
+    "umber":       "#E5F1E5",
+    "text":        "#0F2118",
+    "muted":       "#4C6F58",
+    "mode":        "light",
 }
 
 
