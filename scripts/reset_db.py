@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import text
 
 from app import models as _models
-from app.database import Base, engine
+from app.database import Base, engine, ensure_schema
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
             conn.execute(text("CREATE SCHEMA public"))
         else:
             Base.metadata.drop_all(bind=conn)
-    Base.metadata.create_all(bind=engine)
+    ensure_schema()
     print("database reset: all tables recreated")
 
 

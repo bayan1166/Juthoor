@@ -1,5 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime  # noqa: F401
+
+from app.schemas.common import OptUtcDateTime, UtcDateTime  # noqa: F401
 from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -69,7 +71,7 @@ class MeOut(BaseModel):
     grade_level: int
     plan: str = "basic"
     plan_source: str = "own"
-    plan_expires_at: datetime | None = None
+    plan_expires_at: OptUtcDateTime = None
     trial_days_left: int | None = None
 
 

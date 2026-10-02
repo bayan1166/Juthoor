@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from app.engine import adaptive_engine as ae
+from app.engine import diagnosis as dx
 from app.engine import knowledge_graph as kg
 from app.engine import offline_bank as ob
 from app.engine import practice as pr
@@ -69,22 +70,51 @@ def grade(sess: Session, selected: str) -> dict:
     kind = pending.get("remedial")
     events: list[dict] = []
     decision = None
+    diagnosis = None
 
     if kind is None:
         decision = ae.decide_next(sess.state, ok)
         sess.plan = None if ok else pr.start(pending, selected)
         sess.pending_banner = decision.breadcrumb or None
+        diagnosis = decision.diagnosis
         if decision.action in ("backtrack", "return_up"):
             events.append({"from_skill": pending["skill"], "to_skill": decision.next_skill,
                            "direction": "descend" if decision.action == "backtrack" else "ascend",
                            "triggered_by": "engine", "depth": 1, "to_pattern": ""})
     else:
         old = sess.plan
+        ae.record_probe(sess.state, pending["skill"], ok)
         sess.plan = pr.advance(old, ok) if old else None
+        if not ok and old:
+            origin = ae.investigation_origin(sess.state, old["stack"][0]["skill"] if old["stack"] else old["skill"])
+            found = ae.diagnose_root(sess.state, origin)
+            if found and found["root"] not in sess.state.gaps:
+                decision = ae.declare_root(sess.state, found)
+                diagnosis = decision.diagnosis
+                sess.plan = None
+                sess.pending_banner = decision.breadcrumb or None
         if old and sess.plan and len(sess.plan["stack"]) > len(old["stack"]):
             events.append({"from_skill": old["skill"], "to_skill": sess.plan["skill"],
                            "direction": "descend", "triggered_by": "practice",
                            "depth": len(sess.plan["stack"]), "to_pattern": sess.plan["pattern"]})
+
+    evidence_status = None
+    if not ok and diagnosis is None:
+        origin = pending["skill"]
+        if kind is not None and old:
+            origin = old["stack"][0]["skill"] if old["stack"] else old["skill"]
+        origin = ae.investigation_origin(sess.state, origin)
+        verdict = ae.assess_root(sess.state, origin)
+        lead = verdict.get("leading_candidate")
+        evidence_status = {
+            "status": verdict["status"], "reason": verdict.get("reason"), "origin": origin,
+            "leading_candidate": lead, "message": verdict["explanation"],
+        }
+        engine_free = kind is not None or (decision is not None and decision.action == "retry")
+        if (engine_free and verdict["status"] == dx.INSUFFICIENT and verdict.get("reason") == "root_needs_confirmation"
+                and lead and lead not in sess.state.gaps and lead in ob.REGISTRY):
+            sess.plan = pr.confirm(sess.plan or (old if kind is not None else None), lead, pending)
+            evidence_status["confirming"] = lead
 
     card = None if ok else pr.mistake_card(pending, selected)
     sess.pending = None
@@ -106,6 +136,8 @@ def grade(sess: Session, selected: str) -> dict:
         "mistake_card": card,
         "events": events,
         "engine_action": decision.action if decision else None,
+        "diagnosis": diagnosis,
+        "evidence_status": evidence_status,
     }
 
 

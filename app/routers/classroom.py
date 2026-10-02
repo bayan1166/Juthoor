@@ -15,7 +15,7 @@ from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user
 from app.engine import knowledge_graph as kg
-from app.models.adaptive import AttemptLog
+from app.models.adaptive import AttemptLog, DiagnosisEvent
 from app.models.classroom import (
     Assignment, Classroom, ClassroomMember, Quiz, QuizAttempt, QuizQuestion, Submission, new_join_code,
 )
@@ -651,7 +651,19 @@ def assign_remediation(classroom_id: uuid.UUID, payload: RemediationCreate, db: 
     if payload.student_ids is not None:
         wanted = set(payload.student_ids)
         ids = [i for i in ids if i in wanted]
+    if ids:
+        existing = list(db.scalars(select(Assignment).where(
+            Assignment.classroom_id == room.id, Assignment.kind == "remediation",
+            Assignment.skill_id == payload.skill_id)))
+        latest = dict(db.execute(
+            select(DiagnosisEvent.student_id, func.max(DiagnosisEvent.created_at))
+            .where(DiagnosisEvent.student_id.in_(ids), DiagnosisEvent.root_skill == payload.skill_id)
+            .group_by(DiagnosisEvent.student_id)).all())
+        covered = remediation.already_covered(ids, payload.skill_id, existing, latest)
+        ids = [i for i in ids if i not in covered]
     if not ids:
+        # Nobody has this gap, or everyone who has it was already assigned remediation for it
+        # since their latest diagnosis (no duplicate assignments for the same evidence).
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "no_students_with_gap")
     spec = remediation.build_remediation(payload.skill_id, datetime.utcnow(), payload.due_days)
     tip = spec.pop("tip")

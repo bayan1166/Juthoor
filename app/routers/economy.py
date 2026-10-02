@@ -32,7 +32,7 @@ def get_wallet(student_id: uuid.UUID, db: Session = Depends(get_db), user: User 
     require_student_access(student_id, user, db)
     wallet = economy_service.get_or_create_wallet(db, student_id)
     db.commit()
-    return wallet
+    return WalletOut.model_validate(wallet)
 
 
 @router.get("/shop", response_model=list[ShopItemOut])
@@ -98,14 +98,15 @@ def purchase(student_id: uuid.UUID, payload: PurchaseRequest, db: Session = Depe
     require_self(student_id, user)
     success, message = economy_service.purchase_item(db, student_id, payload.item_id, payload.currency)
     wallet = economy_service.get_or_create_wallet(db, student_id)
-    return PurchaseResult(success=success, message=message, wallet=wallet)
+    db.commit()
+    return PurchaseResult(success=success, message=message, wallet=WalletOut.model_validate(wallet))
 
 
 @router.post("/convert", response_model=WalletOut)
 def convert(student_id: uuid.UUID, payload: GemConversionRequest, db: Session = Depends(get_db),
             user: User = Depends(get_current_user)):
     require_self(student_id, user)
-    return economy_service.convert_coins_to_gems(db, student_id, payload.coins)
+    return WalletOut.model_validate(economy_service.convert_coins_to_gems(db, student_id, payload.coins))
 
 
 @router.put("/avatar")

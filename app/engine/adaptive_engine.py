@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, field, fields
 from typing import Optional
 
 from app.engine import config
+from app.engine import diagnosis as dx
 from app.engine import knowledge_graph as kg
 
 _SET_FIELDS = ("mastered", "inferred", "gaps", "parked")
@@ -59,6 +60,7 @@ class Decision:
     gap_skill: Optional[str] = None
     round_over: bool = False
     breadcrumb: str = ""
+    diagnosis: Optional[dict] = None
 
 
 STUDENT_MESSAGES = {
@@ -68,6 +70,7 @@ STUDENT_MESSAGES = {
     "advance": "A new branch is growing. Here's something fresh.",
     "backtrack": "Let's dig down and check the roots underneath this.",
     "return_up": "That root is firm now. Back up to where we were.",
+    "retry": "One more like this, so we can be sure where the difficulty is.",
     "remediate": "Let's slow down and rebuild this root together.",
     "park": "We'll save this root for your teacher. Let's grow another branch.",
     "complete": "Your tree is in full bloom for now.",
@@ -86,7 +89,14 @@ def _breadcrumb_return_up(firmed_up: str, going_back_to: str) -> str:
 
 
 def _breadcrumb_remediate(root_gap: str) -> str:
-    return f"«{_name(root_gap)}» هو الجذر الحقيقي للمشكلة. {kg.SKILLS[root_gap].intervention}"
+    return f"الأرجح أن «{_name(root_gap)}» هو الجذر وراء التعثّر. {kg.SKILLS[root_gap].intervention}"
+
+
+def _breadcrumb_root(origin: str, root: str, confidence: str) -> str:
+    if origin == root:
+        return f"بناءً على إجاباتك، الأرجح أن الصعوبة في «{_name(root)}» نفسه (الثقة: {confidence}). {kg.SKILLS[root].intervention}"
+    return (f"بناءً على إجاباتك، الأرجح أن تعثّرك في «{_name(origin)}» يعود إلى «{_name(root)}» (الثقة: {confidence}). "
+            f"سنعالج «{_name(root)}» أولاً ثم نعود. {kg.SKILLS[root].intervention}")
 
 
 def _breadcrumb_park(parked_gap: str, moving_to: str) -> str:
@@ -107,6 +117,156 @@ def bkt_update(p_known: float, is_correct: bool) -> float:
         den = num + (1 - p_known) * (1 - p["p_guess"])
     posterior = num / den
     return posterior + (1 - posterior) * p["p_learn"]
+
+
+def errors(state: StudentState, skill: str) -> int:
+    return max(0, state.attempts.get(skill, 0) - state.correct.get(skill, 0))
+
+
+def record_probe(state: StudentState, skill: str, is_correct: bool) -> None:
+    state.attempts[skill] = state.attempts.get(skill, 0) + 1
+    if is_correct:
+        state.correct[skill] = state.correct.get(skill, 0) + 1
+    state.p_mastery[skill] = bkt_update(state.mastery(skill), is_correct)
+
+
+CONFIDENCE_AR = {dx.HIGH: "مرتفعة", dx.MEDIUM: "متوسطة", dx.LOW: "أولية"}
+
+
+def believed_mastered(state: StudentState, skill: str) -> bool:
+    """Mastered (or inferred) and not contradicted by fresh errors.
+
+    Two fresh wrong answers drop the BKT estimate of a mastered skill below
+    CONTEST_THRESHOLD (0.85 -> 0.53 -> 0.30), which re-opens it as a candidate root.
+    One slip does not.
+    """
+    if not state.is_mastered(skill):
+        return False
+    return state.attempts.get(skill, 0) == 0 or state.mastery(skill) >= config.CONTEST_THRESHOLD
+
+
+def evidence_of(state: StudentState) -> dict[str, dx.SkillEvidence]:
+    return {
+        s: dx.SkillEvidence(attempts=state.attempts.get(s, 0), correct=state.correct.get(s, 0),
+                            mastered=believed_mastered(state, s))
+        for s in kg.SKILLS
+    }
+
+
+def _counts(wrong: int, right: int) -> str:
+    return f"{wrong} خاطئة و{right} صحيحة"
+
+
+def explain_ar(verdict: dict) -> str:
+    """One-paragraph Arabic explanation of a diagnosis verdict, built only from its evidence."""
+    status = verdict.get("status")
+    if status == dx.UNKNOWN_SKILL:
+        return "هذا الدرس غير موجود في شجرة المنهج، فلا يمكن تشخيصه."
+    if status == dx.NO_DIFFICULTY:
+        return "لا توجد أدلة على تعثّر في هذا المسار."
+    rows = {c["skill"]: c for c in verdict.get("candidates", [])}
+    lead = verdict.get("leading_candidate")
+    if status == dx.INSUFFICIENT:
+        reason = verdict.get("reason")
+        if reason == "mixed_evidence":
+            o = max(verdict["observed"], key=lambda r: (r["wrong"] - r["right"], r["wrong"]))
+            return (f"رصدنا خطأ في «{_name(o['skill'])}» ({_counts(o['wrong'], o['right'])})، لكن إجاباتك الصحيحة عليه "
+                    "ما زالت تعادل الخاطئة أو تزيد، فلا نعدّه تعثّراً مستمراً بعد. نجمع أدلة أكثر.")
+        if reason == "too_few_errors":
+            return (f"الأدلة غير كافية بعد: {verdict['chain_errors']} خطأ في المسار، ونحتاج {verdict['min_chain_errors']} "
+                    "على الأقل حتى لا نعدّ الزلّة فجوة. نجمع أدلة أكثر.")
+        if reason == "root_needs_confirmation" and lead:
+            c = rows[lead]
+            return (f"المرشح الأقوى حتى الآن «{_name(lead)}» ({_counts(c['wrong'], c['right'])})، "
+                    "لكن سؤالاً واحداً لا يكفي للحكم. نطرح سؤال تأكيد قبل تسمية الجذر.")
+        blocked = [p for c in rows.values() if c["verdict"] == "prerequisite_unverified" for p in c["because"]]
+        if blocked:
+            return f"نتائج «{_name(blocked[0])}» غير حاسمة بعد، فلا يمكن استبعاده سبباً. نفحصه أولاً."
+        return "الأدلة غير كافية بعد لتسمية جذر."
+    root = verdict["root"]
+    c = rows[root]
+    parts = [f"اخترنا «{_name(root)}» لأن الإجابات عليه {_counts(c['wrong'], c['right'])}"]
+    pres = verdict.get("prerequisites_checked", [])
+    if pres:
+        solid = "، ".join(f"«{_name(p['skill'])}» ({_counts(p['wrong'], p['right'])})" for p in pres)
+        parts.append(f"وأساسه السابق ثابت: {solid}")
+    else:
+        parts.append("وهو درس أساسي لا متطلبات قبله")
+    above = [s for s in verdict.get("path", []) if s != root and rows.get(s)]
+    if above:
+        parts.append("والتعثّر في " + "، ".join(f"«{_name(s)}»" for s in above) + " يُفسَّر به لأنه متطلب سابق")
+    if verdict.get("competing"):
+        parts.append("وتوجد فجوة محتملة أخرى في «" + "»، «".join(_name(s) for s in verdict["competing"]) + "» لذا خُفّضت الثقة")
+    return "، ".join(parts) + "."
+
+
+def assess_root(state: StudentState, origin: str) -> dict:
+    """Full verdict, including 'insufficient_evidence', with an Arabic explanation."""
+    verdict = dx.diagnose(kg.PREREQ_GRAPH, origin, evidence_of(state),
+                          min_chain_errors=config.MIN_CHAIN_EVIDENCE, min_root_errors=config.MIN_ROOT_EVIDENCE)
+    verdict["explanation"] = explain_ar(verdict)
+    return verdict
+
+
+def diagnose_root(state: StudentState, origin: str) -> Optional[dict]:
+    """Return a named root-gap diagnosis, or None while the evidence is insufficient."""
+    verdict = assess_root(state, origin)
+    if verdict["status"] != dx.ROOT_IDENTIFIED:
+        return None
+    root = verdict["root"]
+    path = verdict["path"]
+    shown = list(path) + [p for p in kg.prerequisites(root) if p not in path]
+    roles = {s: ("prerequisite" if s not in path else "root" if s == root else "origin" if s == origin else "path")
+             for s in shown}
+    return {
+        "root": root,
+        "origin": origin,
+        "path": path,
+        "confidence": CONFIDENCE_AR[verdict["confidence_level"]],
+        "confidence_level": verdict["confidence_level"],
+        "confidence_basis": verdict["confidence_basis"],
+        "p_gap": round(1 - state.mastery(root), 2),
+        "evidence": [
+            {"skill": s, "wrong": errors(state, s), "right": state.correct.get(s, 0), "role": roles[s]}
+            for s in shown if state.attempts.get(s, 0) > 0
+        ],
+        "candidates": verdict["candidates"],
+        "competing": verdict["competing"],
+        "explanation": verdict["explanation"],
+        "intervention": kg.SKILLS[root].intervention,
+    }
+
+
+def investigation_origin(state: StudentState, local: str) -> str:
+    """The lesson where the visible difficulty started for the current investigation.
+
+    The return stack records, bottom first, every lesson the learner was moved away from while the
+    engine descended toward prerequisites. The origin is the earliest of those for which `local`
+    (the skill being probed now) is the same skill or one of its prerequisites; otherwise `local`.
+    Diagnosing from this origin makes the reported path run from the struggling lesson down to
+    the root (e.g. multiplying -> subtracting -> adding -> comparing -> absolute value).
+    """
+    if local not in kg.SKILLS:
+        return local
+    for skill in state.return_stack:
+        if skill in kg.SKILLS and (skill == local or local in kg.ancestors(skill)):
+            return skill
+    return local
+
+
+def declare_root(state: StudentState, diagnosis: dict) -> Decision:
+    root, origin = diagnosis["root"], diagnosis["origin"]
+    state.gaps.add(root)
+    # Fresh direct evidence outranks an earlier (possibly inferred) mastery flag.
+    state.mastered.discard(root)
+    state.inferred.discard(root)
+    if origin != root and origin not in state.return_stack:
+        state.return_stack.append(origin)
+    decision = _move(state, root, config.MIN_DIFFICULTY, "remediate",
+                     f"Evidence points to '{root}' as the root gap behind '{origin}'.",
+                     gap=root, breadcrumb=_breadcrumb_root(origin, root, diagnosis["confidence"]))
+    decision.diagnosis = diagnosis
+    return decision
 
 
 def _move(state: StudentState, skill: str, difficulty: int, action: str,
@@ -178,10 +338,29 @@ def _handle_correct(state: StudentState) -> Decision:
     return _route_after_mastery(state, skill)
 
 
+def _name_new_root(state: StudentState, skill: str, diagnosis: dict) -> Decision:
+    if diagnosis["root"] != skill:
+        return declare_root(state, diagnosis)
+    state.gaps.add(skill)
+    state.mastered.discard(skill)
+    state.inferred.discard(skill)
+    state.consec_wrong = 0
+    state.difficulty = config.MIN_DIFFICULTY
+    return Decision("remediate", skill, config.MIN_DIFFICULTY,
+                    f"Evidence points to '{skill}' as a root gap.", gap_skill=skill,
+                    breadcrumb=_breadcrumb_root(diagnosis["origin"], skill, diagnosis["confidence"]),
+                    diagnosis=diagnosis)
+
+
 def _handle_incorrect(state: StudentState) -> Decision:
     state.consec_wrong += 1
     skill, diff = state.current_skill, state.difficulty
 
+    # Evidence first: once the accumulated evidence names a root that is not yet recorded, name it
+    # now instead of only stepping the difficulty down (the verdict and the decision must agree).
+    diagnosis = diagnose_root(state, investigation_origin(state, skill))
+    if diagnosis is not None and diagnosis["root"] not in state.gaps:
+        return _name_new_root(state, skill, diagnosis)
 
     if diff > config.MIN_DIFFICULTY and state.consec_wrong == 1:
         state.difficulty -= 1
@@ -198,7 +377,16 @@ def _handle_incorrect(state: StudentState) -> Decision:
                      breadcrumb=_breadcrumb_backtrack(skill, target))
 
 
-    state.gaps.add(skill)
+    if diagnosis is None:
+        state.difficulty = config.MIN_DIFFICULTY
+        return Decision("retry", skill, config.MIN_DIFFICULTY,
+                        "Not enough evidence yet to name a root gap; gathering more.")
+    if diagnosis["root"] != skill:
+        # The already-recorded root lies elsewhere: go back to remediating it, without recording
+        # the same diagnosis a second time.
+        decision = declare_root(state, diagnosis)
+        decision.diagnosis = None
+        return decision
     if state.consec_wrong >= 3:
         state.parked.add(skill)
         blocked = kg.descendants(skill)
@@ -213,7 +401,7 @@ def _handle_incorrect(state: StudentState) -> Decision:
                      breadcrumb=_breadcrumb_park(skill, nxt))
     state.difficulty = config.MIN_DIFFICULTY
     return Decision("remediate", skill, config.MIN_DIFFICULTY,
-                    f"Prerequisites are solid, so '{skill}' is a root gap.", gap_skill=skill,
+                    f"'{skill}' is already the named root gap; continuing remediation.", gap_skill=skill,
                     breadcrumb=_breadcrumb_remediate(skill))
 
 

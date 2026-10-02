@@ -27,6 +27,34 @@ function kpi(label, value, suffix = '') {
   return h('div', { class: 'card kpi' }, v, h('span', { class: 'l' }, label));
 }
 
+const STAGE = {
+  pending: 'لم يبدأ العلاج بعد',
+  remediating: 'العلاج جارٍ',
+  resolved: 'أُغلقت الفجوة',
+};
+
+function tally(t) {
+  return `${t.right} صحيحة و${t.wrong} خاطئة`;
+}
+
+export function diagnosisCard(report) {
+  const list = report.diagnoses || [];
+  if (!list.length) return h('div', { class: 'card' }, h('h3', null, 'سجل التشخيص'), h('p', { class: 'muted' }, 'لم يُسمَّ جذر بعد: النظام لا يحكم قبل توفر أدلة كافية.'));
+  return h('div', { class: 'card', 'data-testid': 'teacher-diagnoses' }, h('h3', null, 'سجل التشخيص'),
+    list.slice(0, 3).map((dg) => h('div', { class: 'diag', style: { marginBottom: '10px' } },
+      h('div', { class: 'diag-path' }, (dg.path || []).map((p, i) => [i ? h('span', { class: 'diag-arrow' }, ico('chevl')) : null,
+        h('span', { class: ['chip', p.skill === dg.root_skill ? 'red' : ''] }, p.name_ar)])),
+      h('div', { class: 'small' }, h('b', null, 'التعثّر الظاهر في: '), dg.origin_name_ar),
+      h('div', { class: 'small' }, h('b', null, 'الجذر الأرجح: '), dg.root_name_ar, ` | الثقة: ${dg.confidence}`, ` | ${timeAgo(dg.created_at)}`),
+      dg.explanation ? h('div', { class: 'small' }, dg.explanation) : null,
+      (dg.evidence || []).length ? h('div', { class: 'small muted' }, 'الأدلة: ', dg.evidence.map((e) => `${e.name_ar}: ${e.wrong} خاطئة و${e.right} صحيحة`).join(' | ')) : null,
+      dg.intervention ? h('div', { class: 'small' }, h('b', null, 'التدخل المقترح: '), dg.intervention) : null,
+      h('div', { class: 'small' }, h('b', null, 'بعد التشخيص: '), STAGE[dg.outcome.stage] || dg.outcome.stage,
+        ` | على الجذر: ${tally(dg.outcome.root_after)}`,
+        dg.origin_skill !== dg.root_skill ? ` | إعادة المحاولة على «${dg.origin_name_ar}»: ${tally(dg.outcome.origin_retry)}` : ''))),
+    h('p', { class: 'small muted', style: { margin: 0 } }, 'التشخيص تقدير مبني على الأدلة وليس حكماً نهائياً. راجعه بملاحظتك الصفية.'));
+}
+
 export async function teacherView(ctx) {
   const me = store.me;
   const page = h('div', { class: 'page page-enter wide' });
@@ -168,6 +196,7 @@ export async function teacherView(ctx) {
           h('div', { class: 'card kpi' }, h('span', { class: 'v' }, `${tree.summary.mastered}/${tree.summary.live}`), h('span', { class: 'l' }, 'دروس متقنة'))),
         h('div', { class: 'card' }, h('h3', null, 'سلسلة الجذر'), chain,
           report.forecast ? h('div', { class: 'banner', style: { marginTop: '12px' } }, ico('clock'), h('div', null, `توقّع سدّ الفجوة في «${report.forecast.name_ar}»: ${report.forecast.remaining_correct === 0 ? 'اكتملت المتطلبات تقريباً' : report.forecast.days ? `نحو ${report.forecast.days} يوماً` : 'يحتاج الطالب لبدء التدريب'}.`)) : null),
+        diagnosisCard(report),
         h('div', { class: 'card' }, h('div', { class: 'small muted' }, `آخر نشاط: ${row.last_active ? timeAgo(row.last_active) : 'لم يبدأ بعد'}`), h('div', { class: 'small muted' }, `الدرس الحالي: ${row.current_skill || '-'}`), h('div', { class: 'small muted' }, `الواجبات المسلّمة: ${row.submissions_done} من ${row.assignments_total}`)),
         h('button', { class: 'btn btn-primary', onclick: () => {
           const host = h('div');

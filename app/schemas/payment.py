@@ -1,8 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import datetime  # noqa: F401
+
+from app.schemas.common import OptUtcDateTime, UtcDateTime  # noqa: F401
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CheckoutStartRequest(BaseModel):
@@ -23,8 +25,8 @@ class CheckoutStartResponse(BaseModel):
 
 class CheckoutConfirmRequest(BaseModel):
     session_id: uuid.UUID
-    card_last4: str
-    card_holder: str
+    card_last4: str = Field(max_length=8)
+    card_holder: str = Field(max_length=120)
 
 
 class StripeConfirmRequest(BaseModel):
@@ -39,4 +41,4 @@ class CheckoutStatusOut(BaseModel):
     amount_minor: int
     currency: str
     provider: str
-    created_at: datetime
+    created_at: UtcDateTime

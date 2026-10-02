@@ -35,7 +35,7 @@ const analytics = {
   skill_mastery: PY.skills.map((s) => ({ skill_id: s.skill_id, name_ar: s.name_ar, avg: 0.5 })),
   activity: Array.from({ length: 7 }, (_, i) => ({ date: `2026-09-${25 + i}`, answers: i * 4 })),
 };
-const report = { student: { user_id: 'S1', full_name: 'ليان', handle: '4821' }, state: { skills: skillsState, current_skill: 'adding_integers' }, drilldowns: [{ from_skill: 'a', from_name_ar: 'ضرب', to_skill: 'b', to_name_ar: 'جمع', direction: 'back', triggered_by: 'x', depth: 1, created_at: '2026-10-01T09:00:00Z' }], drilldowns_hidden: 2, gap_locked: true, forecast: { skill_id: 'b', name_ar: 'جمع', remaining_correct: 5, per_day: 2.5, days: 2 }, plan: planSnap() };
+const report = { student: { user_id: 'S1', full_name: 'ليان', handle: '4821' }, state: { skills: skillsState, current_skill: 'adding_integers' }, drilldowns: [{ from_skill: 'a', from_name_ar: 'ضرب', to_skill: 'b', to_name_ar: 'جمع', direction: 'back', triggered_by: 'x', depth: 1, created_at: '2026-10-01T09:00:00Z' }], drilldowns_hidden: 2, gap_locked: true, forecast: { skill_id: 'b', name_ar: 'جمع', remaining_correct: 5, per_day: 2.5, days: 2 }, diagnoses: [{ diagnosis_id: 'D1', created_at: '2026-10-01T09:00:00Z', origin_skill: 'mult_div_integers', origin_name_ar: 'ضرب الأعداد الصحيحة', root_skill: 'adding_integers', root_name_ar: 'جمع الأعداد الصحيحة', path: [{ skill: 'mult_div_integers', name_ar: 'ضرب الأعداد الصحيحة' }, { skill: 'adding_integers', name_ar: 'جمع الأعداد الصحيحة' }], confidence: 'متوسطة', confidence_level: 'medium', explanation: 'اخترنا «جمع الأعداد الصحيحة» لأن الإجابات عليه 2 خاطئة و0 صحيحة.', evidence: [{ skill: 'adding_integers', name_ar: 'جمع الأعداد الصحيحة', wrong: 2, right: 0, role: 'root' }], intervention: 'استخدم قطع العد', outcome: { stage: 'remediating', root_status: 'gap', root_after: { right: 2, wrong: 1 }, origin_retry: { right: 0, wrong: 0 } } }], plan: planSnap() };
 const insights = { struggle_alerts: [{ skill_id: 'b', skill_name_ar: 'جمع', severity: 'high', p_mastery: 0.3, consecutive_misses: 3, drill_down_depth_avg: 1, predicted_root_cause_skill: 'a', recommended_action: 'راجع القاعدة' }], engagement: { active_days_last_30: 8, avg_session_minutes: 12, questions_answered_last_7: 31, current_streak: 3 } };
 
 const reportRow = { report_id: 'R1', reason: 'bullying', details: 'يشتمني في الدردشة', status: 'open', created_at: '2026-10-01T09:30:00Z', reporter: { user_id: 'U2', full_name: 'عمر', handle: '1002' }, reported: { user_id: 'U3', full_name: 'زياد', handle: '1003' }, has_message: true, resolution_note: '', resolved_at: null };
@@ -119,6 +119,7 @@ const { body } = install(fetchMock);
 const results = [];
 let failures = 0;
 const check = (name, cond, extra = '') => { results.push([cond, name, extra]); if (!cond) failures += 1; };
+const byLabelOf = (root, label) => find(root, (e) => e.attrs && e.attrs['aria-label'] === label);
 const mkctx = (params = {}, query = {}) => {
   const root = new FEl('div');
   body.appendChild(root);
@@ -391,6 +392,8 @@ await run('teacher', async () => {
   check('table rows clickable', rows.length === 2);
   rows[0].click(); await tick(40);
   check('student drawer opens', byClass(body, 'drawer').length === 1 && text(byClass(body, 'drawer')[0]).includes('سلسلة الجذر'));
+  const drawerText = text(byClass(body, 'drawer')[0]);
+  check('teacher sees the diagnosis record with evidence, confidence, intervention and outcome', drawerText.includes('سجل التشخيص') && drawerText.includes('الثقة: متوسطة') && drawerText.includes('التدخل المقترح') && drawerText.includes('العلاج جارٍ') && drawerText.includes('2 صحيحة و1 خاطئة'));
   byText(body, 'button', 'عرض الشجرة كاملة')[0].click();
   check('tree modal opens', byClass(body, 'modal').length >= 1 && byClass(body, 'stage').length >= 1);
   byText(ctx.root, 'button', 'الواجبات')[0].click(); await tick(40);
@@ -458,11 +461,13 @@ await run('practice scan', async () => {
   check('basic plan scan ends at a hidden root', text(ctx.root).includes('جذر مخفي'));
   check('locked scan offers the upgrade link', byText(ctx.root, 'a', 'اكشف الجذر').length >= 1);
   ctx.destroy();
-  routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'backtrack', next_skill: 'absolute_value', next_difficulty: 1, reason: 'r', breadcrumb: 'نرجع إلى الأساس', gap_skill: 'absolute_value', round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: false, correct_answer: '3', misconception: '', explanation: '', new_gaps: ['absolute_value'], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 16 })]);
+  routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'remediate', next_skill: 'absolute_value', next_difficulty: 1, reason: 'r', breadcrumb: 'الأرجح أن «القيمة المطلقة» هو الجذر', gap_skill: 'absolute_value', round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: false, correct_answer: '3', misconception: '', explanation: '', new_gaps: ['absolute_value'], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 16, diagnosis: { root: 'absolute_value', origin: 'adding_integers', path: ['adding_integers', 'comparing_integers', 'absolute_value'], confidence: 'متوسطة', p_gap: 0.77, evidence: [{ skill: 'adding_integers', wrong: 1, right: 0 }, { skill: 'absolute_value', wrong: 2, right: 0 }] } })]);
   const full = mkctx(); await practiceView(full);
   byClass(full.root, 'opt')[1].click(); await tick(60);
   await tick(2600);
-  check('pro plan scan lands on the named root', text(full.root).includes('وجدنا الجذر') && text(full.root).includes('رصدنا جذر التعثّر'));
+  check('pro plan scan lands on the likely root with hedged wording', text(full.root).includes('الجذر الأرجح') && !text(full.root).includes('هو الجذر الحقيقي'));
+  check('pro plan shows the diagnosis card with confidence and evidence', text(full.root).includes('نتيجة التشخيص') && text(full.root).includes('الثقة متوسطة') && text(full.root).includes('الأدلة') && text(full.root).includes('2 خاطئة'));
+  check('diagnosis card states it is an estimate', text(full.root).includes('تقدير'));
   check('no upsell link when the root is found', byText(full.root, 'a', 'اكشف الجذر').length === 0);
   routes.shift();
   full.destroy();
@@ -474,27 +479,91 @@ await run('practice scan', async () => {
   calm.destroy();
 });
 
-await run('scan chain accumulates', async () => {
+await run('real engine flow replay', async () => {
   state.role = 'student'; await st.loadMe();
+  const flow = JSON.parse(fs.readFileSync(new URL('./fixtures/omar_flow.json', import.meta.url), 'utf8'));
   const { practiceView } = await import('../../app/static/js/views/practice.js');
-  const steps = [['mult_div_integers', 'subtracting_integers'], ['subtracting_integers', 'adding_integers'], ['adding_integers', 'comparing_integers']];
-  let i = 0;
-  state.qSkill = () => steps[Math.min(i, steps.length - 1)][0];
-  const answerFor = () => ok({ action: 'backtrack', next_skill: steps[Math.min(i, steps.length - 1)][1], next_difficulty: 1, reason: 'r', breadcrumb: 'نرجع', gap_skill: null, round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: false, correct_answer: '3', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 10 });
-  routes.unshift(['POST', /\/adaptive\/answer/, answerFor]);
+  let index = 0;
+  routes.unshift(['GET', /\/adaptive\/question/, () => ok({ ...flow[Math.min(index, flow.length - 1)].question, banner: flow[Math.min(index, flow.length - 1)].question.banner || '' })]);
+  routes.unshift(['POST', /\/adaptive\/answer/, () => ok(flow[Math.min(index, flow.length - 1)].result)]);
   const ctx = mkctx(); await practiceView(ctx);
-  const captions = [];
-  for (let n = 0; n < 3; n += 1) {
-    byClass(ctx.root, 'opt')[1].click(); await tick(60);
-    await tick(2900);
-    captions.push(text(byClass(ctx.root, 'scan-cap')[0] || { textContent: '' }));
-    i += 1;
-    byText(ctx.root, 'button', 'السؤال التالي')[0].click(); await tick(30);
+  const seen = [];
+  for (let n = 0; n < flow.length; n += 1) {
+    index = n;
+    const step = flow[n];
+    if (step.question.type === 'input') {
+      type(byTag(ctx.root, 'input')[0], step.wrong);
+      byText(ctx.root, 'button', 'تأكيد الإجابة')[0].click();
+    } else {
+      const el = byClass(ctx.root, 'opt').find((o) => text(o).includes(step.wrong));
+      if (!el) throw new Error(`step ${n + 1}: option ${JSON.stringify(step.wrong)} not found in ${JSON.stringify(byClass(ctx.root, 'opt').map(text))}`);
+      el.click();
+    }
+    await tick(60);
+    const flowCard = byClass(ctx.root, 'flow')[0];
+    seen.push({ cards: byClass(ctx.root, 'scan-card').length, text: text(ctx.root), stage: flowCard ? flowCard.getAttribute('data-stage') : null });
+    if (n < flow.length - 1) {
+      index = n + 1;
+      byText(ctx.root, 'button', 'السؤال التالي')[0].click(); await tick(60);
+    }
   }
-  check('first wrong answer scans two leaves and ends on a probe, not a verdict', captions[0].includes('لنفحص') && !captions[0].includes('وجدنا الجذر'));
-  check('chain keeps growing across consecutive wrong answers', captions[2].includes('لنفحص') && captions[2].includes('مقارنة') );
-  routes.shift();
-  delete state.qSkill;
+  await tick(5200);
+  const finalText = text(ctx.root);
+  const diagnosis = flow[flow.length - 1].result.diagnosis;
+  check('replayed flow covers mcq, tf and input question types', new Set(flow.map((f) => f.question.type)).size === 3);
+  check('the scan starts at the very first wrong answer', seen[0].cards === 1);
+  check('no diagnosis card before the evidence threshold', seen.slice(0, -1).every((s) => !s.text.includes('نتيجة التشخيص')));
+  check('the final recorded answer carries a real engine diagnosis', diagnosis.root === 'adding_integers' && diagnosis.origin === 'mult_div_integers' && diagnosis.path.length === 3);
+  check('UI shows the diagnosis card built from the real payload', finalText.includes('نتيجة التشخيص') && finalText.includes('جمع الأعداد الصحيحة') && finalText.includes('ضرب'));
+  check('UI shows the confidence label from the engine', finalText.includes(`الثقة ${diagnosis.confidence}`));
+  check('UI lists the evidence counts from the engine', diagnosis.evidence.every((e) => finalText.includes(`${e.wrong} خاطئة`)));
+  check('before the root is named, each wrong answer explains what evidence is still missing', seen.slice(0, -1).every((s) => s.text.includes('نجمع الأدلة')));
+  check('a confirmation probe is announced before blaming the root', seen.some((s) => s.text.includes('سؤال تأكيد')));
+  check('UI shows why this lesson was chosen and the remediation plan', finalText.includes('لماذا هذا الدرس؟') && finalText.includes('الخطة العلاجية'));
+  check('wrong answers in the realistic replay are misconception-linked, never nonsense', flow.every((f) => f.result.misconception));
+  check('workflow stepper shows evidence gathering before the root is named', seen.slice(0, -1).every((s) => s.stage === 'gathering_evidence'));
+  check('workflow stepper moves to the named root on the diagnosis answer', seen[seen.length - 1].stage === 'root_identified' && finalText.includes('مسار التشخيص'));
+  routes.shift(); routes.shift();
+  ctx.destroy();
+});
+
+await run('real engine recovery replay (remediation -> retry -> mastery)', async () => {
+  state.role = 'student'; await st.loadMe();
+  const flow = JSON.parse(fs.readFileSync(new URL('./fixtures/omar_recovery.json', import.meta.url), 'utf8'));
+  const { practiceView } = await import('../../app/static/js/views/practice.js');
+  let index = 0;
+  routes.unshift(['POST', /\/adaptive\/round/, () => ok({ student_id: 'S1', current_skill: 'adding_integers', difficulty: 1, total_answered: 0, tree_health: 0.3, skills: [] })]);
+  routes.unshift(['GET', /\/adaptive\/question/, () => ok({ ...flow[Math.min(index, flow.length - 1)].question, banner: flow[Math.min(index, flow.length - 1)].question.banner || '' })]);
+  routes.unshift(['POST', /\/adaptive\/answer/, () => ok(flow[Math.min(index, flow.length - 1)].result)]);
+  const ctx = mkctx(); await practiceView(ctx);
+  const stages = [];
+  for (let n = 0; n < flow.length; n += 1) {
+    index = n;
+    const step = flow[n];
+    if (step.question.type === 'input') {
+      type(byTag(ctx.root, 'input')[0], step.answer);
+      byText(ctx.root, 'button', 'تأكيد الإجابة')[0].click();
+    } else {
+      const el = byClass(ctx.root, 'opt').find((o) => text(o).includes(step.answer));
+      if (!el) throw new Error(`recovery step ${n + 1}: option ${JSON.stringify(step.answer)} not found`);
+      el.click();
+    }
+    await tick(60);
+    const card = byClass(ctx.root, 'flow')[0];
+    const stage = card ? card.getAttribute('data-stage') : null;
+    if (!stages.length || stages[stages.length - 1] !== stage) stages.push(stage);
+    if (n < flow.length - 1) {
+      index = n + 1;
+      const next = byText(ctx.root, 'button', 'السؤال التالي')[0] || byText(ctx.root, 'button', 'جولة جديدة')[0];
+      next.click(); await tick(60);
+    }
+  }
+  const finalText = text(ctx.root);
+  check('every recovery answer is correct and graded by the real engine', flow.every((f) => f.result.is_correct));
+  check('stepper goes remediation -> retry -> resolved', JSON.stringify(stages) === JSON.stringify(['remediation', 'retry', 'resolved']), JSON.stringify(stages));
+  check('the original lesson is retried after the root is firm', flow.some((f) => f.result.action === 'return_up') && flow.some((f) => f.question.skill === 'mult_div_integers'));
+  check('final stepper text reports the closed gap for root and original lesson', finalText.includes('أُغلقت الفجوة') && finalText.includes('جمع الأعداد الصحيحة') && finalText.includes('ضرب'));
+  routes.shift(); routes.shift(); routes.shift();
   ctx.destroy();
 });
 
@@ -589,6 +658,63 @@ await run('block + report', async () => {
   check('chat filter messages are specific', link.message.includes('الروابط') && contact.message.includes('أرقام الهاتف') && link.message !== contact.message);
   check('rate limit messages are friendly', api.toError(429, { detail: 'rate_limited' }).message.includes('طلبات كثيرة') && api.toError(429, { detail: 'too_many_attempts' }).message.includes('انتظر'));
   check('new error codes are all mapped', ['unblock_first', 'no_students_with_gap', 'not_assigned', 'report_not_found', 'cannot_block_self', 'cannot_report_self', 'not_blocked', 'message_not_found'].every((c) => !api.toError(400, { detail: c }).message.includes('غير متوقع')));
+});
+
+await run('judge hint + input validation + diagnosis card', async () => {
+  state.role = 'student'; await st.loadMe();
+  const { practiceView } = await import('../../app/static/js/views/practice.js');
+  const before = st.store.health;
+  st.store.health = { ...before, judge: true };
+  const first = mkctx(); await practiceView(first);
+  check('judge hint is shown in judge mode', byClass(first.root, 'judge-hint').length === 1 && text(first.root).includes('أجب إجابات خاطئة'));
+  byLabelOf(first.root, 'إغلاق التلميح').click();
+  check('judge hint can be dismissed', byClass(first.root, 'judge-hint').length === 0);
+  first.destroy();
+  const again = mkctx(); await practiceView(again);
+  check('dismissed hint stays dismissed', byClass(again.root, 'judge-hint').length === 0);
+  again.destroy();
+  st.store.health = { ...before, judge: false };
+
+  routes.unshift(['GET', /\/adaptive\/question/, () => ok({ question: 'أوجد ناتج الجمع: 1/2 + 1/3', hint: 'ت', skill: 'fractions_addsub', difficulty: 1, pattern: 'fa_unlike', source: 'offline', remedial: null, banner: null, guided: false, type: 'input', options: [], skill_name: 'x' })]);
+  const ctx = mkctx(); await practiceView(ctx);
+  const input = byTag(ctx.root, 'input')[0];
+  check('fraction questions show a fraction placeholder', !!input && input.attrs.placeholder.includes('3/4'));
+  check('input length is capped', input.attrs.maxlength === '20');
+  const sent = () => calls.filter((c) => c.url.includes('/adaptive/answer')).length;
+  const baseline = sent();
+  const sendBtn = byText(ctx.root, 'button', 'تأكيد الإجابة')[0];
+  type(input, 'abc'); sendBtn.click(); await tick(20);
+  check('letters are rejected before reaching the server', sent() === baseline);
+  type(input, '<script>1</script>'); sendBtn.click(); await tick(20);
+  check('markup is rejected before reaching the server', sent() === baseline);
+  type(input, ''); sendBtn.click(); await tick(20);
+  check('empty answer is rejected before reaching the server', sent() === baseline);
+  routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'continue', next_skill: 'fractions_addsub', next_difficulty: 1, reason: 'r', breadcrumb: null, gap_skill: null, round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: true, correct_answer: '5/6', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 10 })]);
+  type(input, '5/6'); sendBtn.click(); await tick(40);
+  check('a valid fraction is sent', sent() === baseline + 1);
+  routes.shift(); routes.shift();
+  ctx.destroy();
+});
+
+await run('tutor source badge + judge chips', async () => {
+  state.role = 'student'; await st.loadMe();
+  const { tutorView } = await import('../../app/static/js/views/tutor.js');
+  const before = st.store.health;
+  st.store.health = { ...before, judge: true };
+  const ctx = mkctx(); await tutorView(ctx); await tick(40);
+  check('judge chips include a fraction and an off-topic probe', text(ctx.root).includes('جرّب: 1/2 + 1/3') && text(ctx.root).includes('جرّب سؤالاً خارج المنهج'));
+  const reply = (source, body) => routes.unshift(['POST', /\/chat\/message/, () => ok({ reply: body, gap_detected: false, gap_skill: null, drill_down_triggered: false, next_skill: null, next_difficulty: null, breadcrumb: '', remaining_today: 3, source })]);
+  const ask = async (msg) => { byTag(ctx.root, 'textarea')[0].value = msg; byClass(ctx.root, 'send')[0].click(); await tick(40); };
+  reply('solver', 'الناتج 5/6'); await ask('1/2 + 1/3'); routes.shift();
+  check('solver reply carries the verified badge', byClass(ctx.root, 'src-badge').some((b) => text(b).includes('حل محسوب آلياً')));
+  reply('guardrail', 'عذراً، أنا مبرمج حصرياً لمساعدتك في المنهج التعليمي وتطوير مستواك الأكاديمي.'); await ask('ما هي عاصمة فرنسا'); routes.shift();
+  const badges = byClass(ctx.root, 'src-badge');
+  check('off-topic reply is labelled as never sent to a model', badges.some((b) => b.attrs['data-source'] === 'guardrail' && text(b).includes('لم يُرسل لأي نموذج')));
+  check('exact fallback sentence is shown', text(ctx.root).includes('عذراً، أنا مبرمج حصرياً لمساعدتك في المنهج التعليمي وتطوير مستواك الأكاديمي.'));
+  reply('mystery', 'x'); await ask('سؤال'); routes.shift();
+  check('unknown source shows no badge and does not crash', byClass(ctx.root, 'src-badge').length === badges.length);
+  ctx.destroy();
+  st.store.health = before;
 });
 
 const loadedViews = fs.readdirSync(new URL('../../app/static/js/views', import.meta.url)).length;

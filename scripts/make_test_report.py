@@ -30,6 +30,8 @@ def main():
     py = sorted((ROOT / "tests").glob("test_*.py"))
     rows = [(p.name, count_tests(p)) for p in py]
     code_py, out_py = run([sys.executable, "-m", "pytest", "-q"])
+    if "No module named pytest" in out_py:
+        out_py = "pytest is not installed in this environment, backend tests were not run"
     js_rows = []
     for name in ("smoke.mjs", "main_smoke.mjs", "judge_smoke.mjs"):
         code, out = run(["node", name], cwd=ROOT / "tests" / "js")

@@ -1,5 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime  # noqa: F401
+
+from app.schemas.common import OptUtcDateTime, UtcDateTime  # noqa: F401
 
 from pydantic import BaseModel, Field
 
@@ -50,6 +52,9 @@ class DecisionOut(BaseModel):
     mistake_card: dict | None = None
     gap_locked: bool = False
     remaining_questions: int | None = None
+    diagnosis: dict | None = None
+    evidence_status: dict | None = None
+    workflow: dict | None = None
 
 
 class SkillStatusOut(BaseModel):
@@ -71,6 +76,7 @@ class StudentStateOut(BaseModel):
     round_over: bool = False
     in_remediation: bool = False
     skills: list[SkillStatusOut]
+    workflow: dict | None = None
 
 
 class DrillDownOut(BaseModel):
@@ -81,4 +87,4 @@ class DrillDownOut(BaseModel):
     direction: str
     triggered_by: str
     depth: int
-    created_at: datetime
+    created_at: UtcDateTime

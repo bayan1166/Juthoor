@@ -1,7 +1,7 @@
 import random
 from datetime import datetime
 
-from app.services import chat_safety, ratelimit_core, remediation, secrets_check
+from app.services import breaker, chat_safety, ratelimit_core, remediation, secrets_check
 
 
 class Clock:
@@ -96,3 +96,29 @@ def test_remediation_targets_only_students_with_the_gap():
     assert built["kind"] == "remediation" and built["title"].startswith("تقوية")
     assert built["due_at"] == datetime(2026, 10, 4, 9, 0) and built["tip"]
     assert "الباقة" not in built["description"]
+
+
+def test_breaker_opens_after_repeated_failures_and_recovers():
+    clock = Clock()
+    gate = breaker.Breaker(threshold=2, cooldown=60, clock=clock)
+    assert gate.allow()
+    gate.failure()
+    assert gate.allow()
+    gate.failure()
+    assert gate.is_open() and not gate.allow()
+    clock.now += 59
+    assert not gate.allow()
+    clock.now += 2
+    assert gate.allow()
+    gate.success()
+    gate.failure()
+    assert gate.allow()
+
+
+def test_llm_question_generation_is_off_unless_explicitly_enabled():
+    from app.config import settings
+    from app.engine import llm_remediation
+    assert settings.llm_questions_enabled is False
+    llm_remediation._client_checked = False
+    llm_remediation._client = None
+    assert llm_remediation._get_client() is None

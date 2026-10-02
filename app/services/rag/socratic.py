@@ -1,7 +1,9 @@
 import json
+from dataclasses import replace
 
 from app.config import settings
 from app.engine import knowledge_graph as kg
+from app.services.breaker import Breaker
 from app.services.rag import guardrail, offline_tutor
 from app.services.rag.retriever import retrieve
 from app.services.rag.turn import SocraticTurn
@@ -88,6 +90,7 @@ def _parse(raw: str, retrieved_ids: list[str]) -> SocraticTurn | None:
             gap_skill=gap_skill,
             misconception=str(data.get("misconception") or "").strip(),
             retrieved_ids=retrieved_ids,
+            source="llm_rag" if retrieved_ids else "llm",
         )
     except (KeyError, TypeError, ValueError, json.JSONDecodeError, AttributeError):
         return None
@@ -107,21 +110,37 @@ def _llm_turn(picked, skill_context: str, history: list[dict], message: str, chu
     resp = client.chat.completions.create(
         model=model,
         messages=[{"role": "system", "content": SYSTEM_PROMPT}, *turns, {"role": "user", "content": final}],
-        temperature=0.3, response_format={"type": "json_object"}, max_tokens=700, timeout=12,
+        temperature=0.3, response_format={"type": "json_object"}, max_tokens=700, timeout=settings.llm_timeout_seconds,
     )
     return _parse(resp.choices[0].message.content, [c["id"] for c in chunks])
 
 
+BREAKER = Breaker(threshold=2, cooldown=60.0)
+
+
+def _offline_source(message: str) -> str:
+    try:
+        if offline_tutor.solve_fraction(message) or offline_tutor.solve_lines(message):
+            return "solver"
+        if offline_tutor.parse_int_answer(message) is not None or offline_tutor.parse_fraction_answer(message) is not None:
+            return "solver"
+    except Exception:
+        pass
+    return "tutor"
+
+
 def generate_turn(skill_context: str, history: list[dict], message: str) -> SocraticTurn:
     if guardrail.is_off_topic(message):
-        return SocraticTurn(reply=guardrail.FALLBACK, gap_detected=False, gap_skill="", misconception="", retrieved_ids=[])
+        return SocraticTurn(reply=guardrail.FALLBACK, gap_detected=False, gap_skill="", misconception="", retrieved_ids=[], source="guardrail")
     picked = _client()
-    if picked is not None:
+    if picked is not None and BREAKER.allow():
         try:
             chunks = _safe_retrieve(message, skill_context or None)
             turn = _llm_turn(picked, skill_context, history, message, chunks)
             if turn is not None:
+                BREAKER.success()
                 return turn
+            BREAKER.failure()
         except Exception:
-            pass
-    return offline_tutor.offline_turn(skill_context, history, message)
+            BREAKER.failure()
+    return replace(offline_tutor.offline_turn(skill_context, history, message), source=_offline_source(message))

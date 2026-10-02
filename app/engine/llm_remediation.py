@@ -22,6 +22,12 @@ def _get_client():
     if not config.LLM.get("enabled"):
         return None
     try:
+        from app.config import settings as _settings
+        if not _settings.llm_questions_enabled or _settings.judge_mode:
+            return None
+    except Exception:
+        return None
+    try:
         from app.config import settings
         oa_key = os.environ.get("OPENAI_API_KEY") or settings.openai_api_key
         gq_key = os.environ.get("GROQ_API_KEY") or settings.groq_api_key

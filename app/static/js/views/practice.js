@@ -6,6 +6,51 @@ import { renderTreeStage } from '../tree.js';
 
 const LEVELS = ['', 'سهل', 'متوسط', 'متقدم'];
 
+const FLOW = [
+  ['practising', 'تدريب'],
+  ['gathering_evidence', 'جمع الأدلة'],
+  ['root_identified', 'الجذر الأرجح'],
+  ['remediation', 'علاج موجّه'],
+  ['retry', 'إعادة المحاولة'],
+  ['resolved', 'تحديث الإتقان'],
+];
+
+export function flowDetail(w) {
+  const q = (s) => `«${s}»`;
+  if (w.locked) return 'رصد النظام جذراً وراء التعثّر، ويظهر اسمه وأدلته كاملة في باقة برو.';
+  switch (w.stage) {
+    case 'gathering_evidence':
+      return w.message || `نجمع الأدلة حول ${q(w.current_name_ar)} ومتطلباته السابقة قبل أي حكم.`;
+    case 'root_identified':
+      return `الجذر الأرجح وراء التعثّر في ${q(w.origin_name_ar)}: ${q(w.root_name_ar)} (الثقة: ${w.confidence}).`;
+    case 'remediation':
+      return w.origin === w.root
+        ? `علاج موجّه على ${q(w.root_name_ar)} (الثقة: ${w.confidence}).`
+        : `علاج موجّه على ${q(w.root_name_ar)} قبل العودة إلى ${q(w.origin_name_ar)} (الثقة: ${w.confidence}).`;
+    case 'retry':
+      return `أصبح ${q(w.root_name_ar)} متيناً. الآن إعادة المحاولة في الدرس الأصلي ${q(w.origin_name_ar)}.`;
+    case 'resolved':
+      return w.origin === w.root
+        ? `أُغلقت الفجوة: ${q(w.root_name_ar)} متقن الآن.`
+        : `أُغلقت الفجوة: ${q(w.root_name_ar)} ثم ${q(w.origin_name_ar)} متقنان الآن.`;
+    default:
+      return `الدرس الحالي: ${q(w.current_name_ar)}. عند التعثّر يبدأ النظام بجمع الأدلة وفحص المتطلبات السابقة.`;
+  }
+}
+
+export function flowCard(w) {
+  const at = Math.max(0, FLOW.findIndex(([k]) => k === w.stage));
+  const steps = FLOW.map(([, label], i) => h('span', { class: ['flow-step', i < at ? 'done' : '', i === at ? 'now' : ''] },
+    h('span', { class: 'n' }, String(i + 1)), label));
+  return h('div', { class: 'card flow', 'data-testid': 'workflow', 'data-stage': w.stage },
+    h('div', { class: 'row' }, ico('target'), h('b', null, 'مسار التشخيص')),
+    h('div', { class: 'flow-steps' }, steps),
+    h('div', { class: 'small' }, flowDetail(w)));
+}
+
+const ANSWER_OK = /^[\s0-9\u0660-\u0669\u06F0-\u06F9+\-\u2212\u2013/.\u066B\u066C,]+$/;
+let judgeHintClosed = false;
+
 export async function practiceView(ctx) {
   const uid = store.me.user_id;
   const page = h('div', { class: 'page page-enter', style: { maxWidth: '860px' } });
@@ -13,8 +58,21 @@ export async function practiceView(ctx) {
   const area = h('div', { class: 'col' });
   page.appendChild(h('div', { class: 'page-head' },
     h('div', null, h('h1', null, 'التدريب'), h('p', { class: 'muted' }, 'أسئلة تتكيّف مع مستواك وتتتبّع جذر أي تعثّر.')), quotaEl));
+  if (store.health && store.health.judge && !judgeHintClosed) {
+    const hint = h('div', { class: 'banner judge-hint' }, ico('target'),
+      h('div', { class: 'grow' }, h('b', null, 'تلميح للتجربة: '), 'أجب إجابات خاطئة عمداً (من 5 إلى 7 أسئلة مع حساب عمر) وراقب: النظام يجمع الأدلة وينزل في المتطلبات السابقة ويطرح سؤال تأكيد، ثم يسمّي الجذر الأرجح مع الأدلة والثقة والخطة العلاجية. بعدها أجب صحيحاً لترى العلاج ثم العودة إلى الدرس الأصلي.'),
+      h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'إغلاق التلميح', onclick: () => { judgeHintClosed = true; hint.remove(); } }, ico('x')));
+    page.appendChild(hint);
+  }
+  const flowEl = h('div');
+  page.appendChild(flowEl);
   page.appendChild(area);
   ctx.root.appendChild(page);
+
+  function paintFlow(w) {
+    if (!w || !w.stage) return;
+    mount(flowEl, flowCard(w));
+  }
 
   let q = null;
   let locked = false;
@@ -111,12 +169,17 @@ export async function practiceView(ctx) {
     }
     const opts = h('div', { class: 'opts' });
     if (q.type === 'input') {
-      const input = h('input', { class: 'input', style: { fontSize: '1.2rem' }, dir: 'ltr', autocomplete: 'off', placeholder: 'اكتب إجابتك', 'aria-label': 'إجابتك' });
+      const input = h('input', { class: 'input', style: { fontSize: '1.2rem' }, dir: 'ltr', autocomplete: 'off', maxlength: '20', placeholder: /^(fa|ma|mm|dv)_/.test(q.pattern || '') ? 'اكتب الجواب، مثل 3/4' : 'اكتب إجابتك', 'aria-label': 'إجابتك' });
       const send = h('button', { class: 'btn btn-primary', type: 'button' }, 'تأكيد الإجابة');
       const minus = h('button', { class: 'btn btn-ghost', type: 'button', title: 'إشارة السالب', onclick: () => { input.value += '\u2212'; input.focus(); } }, '\u2212');
       const go = () => {
         if (!input.value.trim()) {
           toast('اكتب إجابتك أولاً.', 'error');
+          return;
+        }
+        if (!ANSWER_OK.test(input.value.trim())) {
+          toast('اكتب الجواب بالأرقام فقط، مثل -3 أو 3/4.', 'error');
+          input.focus();
           return;
         }
         submit(input.value.trim(), null);
@@ -174,37 +237,38 @@ export async function practiceView(ctx) {
     const good = optEls.find((o) => o.text === d.correct_answer);
     if (good) good.el.classList.add('good');
     if (picked && !d.is_correct) picked.el.classList.add('bad');
+    paintFlow(d.workflow);
     paintFeedback(d);
   }
 
   function trackChain(d) {
-    const moved = !!d.next_skill && d.next_skill !== q.skill;
     if (d.is_correct) {
       chain = [];
       return;
     }
-    if (!chain.length || chain[chain.length - 1] !== q.skill) chain = [q.skill];
-    if (moved && chain[chain.length - 1] !== d.next_skill) chain.push(d.next_skill);
+    if (!chain.includes(q.skill)) chain.push(q.skill);
+    if ((d.action === 'backtrack' || d.remedial) && d.next_skill && !chain.includes(d.next_skill)) chain.push(d.next_skill);
   }
 
   function scanPlan(treeData, d) {
     const order = [];
     for (const u of treeData.units) for (const l of u.lessons) if (l.skill) order.push(l.skill);
-    const hasGaps = !!(d.new_gaps && d.new_gaps.length);
-    const path = chain.filter((id, i) => order.includes(id) && chain.indexOf(id) === i);
-    if (hasGaps) for (const id of d.new_gaps) if (order.includes(id) && !path.includes(id)) path.push(id);
+    const diagnosis = d.diagnosis && d.diagnosis.path && d.diagnosis.path.length ? d.diagnosis : null;
+    const raw = diagnosis ? diagnosis.path : chain;
+    const path = raw.filter((id, i) => order.includes(id) && raw.indexOf(id) === i);
     if (path.length < 2 && d.gap_locked) {
       const from = order.indexOf(q.skill);
       if (from < 1) return null;
-      return { path: order.slice(Math.max(0, from - 3), from + 1).reverse(), locked: true, found: false };
+      return { path: order.slice(Math.max(0, from - 3), from + 1).reverse(), locked: true, found: false, diagnosis: null };
     }
+    if (diagnosis && path.length === 1) return { path, locked: false, found: true, diagnosis };
     if (path.length < 2) return null;
-    return { path, locked: !!d.gap_locked && !hasGaps, found: hasGaps };
+    return { path, locked: !!d.gap_locked && !diagnosis, found: !!diagnosis, diagnosis };
   }
 
   function paintScan(box, d) {
     if (d.is_correct) return;
-    const moves = (d.new_gaps && d.new_gaps.length) || d.gap_locked || (d.next_skill && d.next_skill !== q.skill);
+    const moves = (d.diagnosis && d.diagnosis.root) || d.gap_locked || chain.length > 1;
     if (!moves) return;
     const caption = h('div', { class: 'scan-cap', 'aria-live': 'polite' }, 'نتتبّع مصدر الخطأ في شجرة المنهج…');
     const holder = h('div', { class: 'scan-stage' });
@@ -224,13 +288,38 @@ export async function practiceView(ctx) {
         scanStage.scan(plan.path, {
           lockedTail: plan.locked,
           onStep: (i, lesson, last) => {
-            if (i === 0) caption.textContent = `الخطأ ظهر في «${lesson.title}»، نرجع خطوة خطوة…`;
+            if (i === 0 && plan.path.length === 1) caption.textContent = `الدليل يشير إلى «${lesson.title}» نفسه.`;
+            else if (i === 0) caption.textContent = `الخطأ ظهر في «${lesson.title}»، نتتبّع الأسباب المحتملة…`;
             else if (!last) caption.textContent = `نفحص «${lesson.title}»…`;
             else if (plan.locked) caption.textContent = 'وصلنا إلى جذر مخفي في الباقة الأساسية. افتح باقة برو لتعرف الدرس بالضبط.';
-            else if (plan.found) caption.textContent = `وجدنا الجذر: «${lesson.title}». سنعالجه الآن.`;
+            else if (plan.found) caption.textContent = `الجذر الأرجح بحسب إجاباتك: «${lesson.title}».`;
             else caption.textContent = `ننزل إلى «${lesson.title}» لنفحص إن كان هو الأساس.`;
           },
         }).then(() => {
+          if (plan.found && !plan.locked && token === scanToken) {
+            const titleOf = {};
+            for (const u of treeData.units) for (const l of u.lessons) if (l.skill) titleOf[l.skill] = l.title;
+            const dg = plan.diagnosis;
+            const root = plan.path[plan.path.length - 1];
+            const origin = plan.path[0];
+            const crumbs = [];
+            plan.path.forEach((id, i) => {
+              if (i) crumbs.push(h('span', { class: 'diag-arrow' }, ico('chevl')));
+              crumbs.push(h('span', { class: ['chip', i === plan.path.length - 1 ? 'red' : ''] }, titleOf[id] || id));
+            });
+            const summary = origin === root
+              ? `الأرجح أن الصعوبة في «${titleOf[root] || root}» نفسه، والثقة ${dg.confidence}.`
+              : `الأرجح أن تعثّرك في «${titleOf[origin] || origin}» يعود إلى «${titleOf[root] || root}»، والثقة ${dg.confidence}.`;
+            const evidence = (dg.evidence || []).map((e) => `${titleOf[e.skill] || e.skill}: ${e.wrong} خاطئة و${e.right} صحيحة`).join(' | ');
+            card.appendChild(h('div', { class: 'diag', 'data-testid': 'diagnosis-card' },
+              h('b', null, 'نتيجة التشخيص (تقدير النظام)'),
+              h('div', { class: 'diag-path' }, crumbs),
+              h('p', { class: 'small', style: { margin: 0 } }, summary),
+              evidence ? h('p', { class: 'small muted', style: { margin: 0 } }, `الأدلة: ${evidence}`) : null,
+              dg.explanation ? h('p', { class: 'small', style: { margin: 0 } }, h('b', null, 'لماذا هذا الدرس؟ '), dg.explanation) : null,
+              dg.intervention ? h('p', { class: 'small', style: { margin: 0 } }, h('b', null, 'الخطة العلاجية: '), dg.intervention) : null,
+              h('p', { class: 'small muted', style: { margin: 0 } }, 'هذا تقدير مبني على إجاباتك وقد يتغيّر مع المزيد من الأدلة. سنركّز تدريبك على الجذر ثم نعود.')));
+          }
           if (plan.locked && token === scanToken) card.appendChild(h('div', { class: 'row end' }, h('a', { class: 'btn btn-primary btn-sm', href: '#/plans' }, 'اكشف الجذر')));
         });
       }, 450);
@@ -274,6 +363,10 @@ export async function practiceView(ctx) {
       box.appendChild(content);
     }
     paintScan(box, d);
+    if (!d.is_correct && !d.diagnosis && d.evidence_status && d.evidence_status.message) {
+      box.appendChild(h('div', { class: 'banner', 'data-testid': 'evidence-status' }, ico('search'),
+        h('div', null, h('b', null, 'نجمع الأدلة: '), d.evidence_status.message)));
+    }
     if (d.breadcrumb) box.appendChild(h('div', { class: 'banner' }, ico('flag'), h('div', null, d.breadcrumb)));
     if (d.new_gaps && d.new_gaps.length) {
       const labels = d.new_gaps.map((id) => names[id] || id).join('، ');
@@ -319,6 +412,7 @@ export async function practiceView(ctx) {
     names = {};
   }
   loadBoot().then(paintQuota).catch(() => null);
+  api.get(`/students/${uid}/adaptive/state`).then((st) => paintFlow(st && st.workflow)).catch(() => null);
   paintQuota();
   await loadQuestion();
 }

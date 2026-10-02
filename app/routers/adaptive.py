@@ -26,11 +26,18 @@ def _student(db: Session, student_id: uuid.UUID) -> User:
     return student
 
 
+def _mask_workflow(workflow: dict | None) -> dict | None:
+    if not workflow:
+        return workflow
+    hidden = {k: None for k in ("origin", "origin_name_ar", "root", "root_name_ar", "confidence")}
+    return {**workflow, **hidden, "locked": workflow["stage"] not in ("practising", "gathering_evidence")}
+
+
 def _mask_state(state: dict, full: bool) -> dict:
     if full:
         return state
     skills = [{**s, "status": "learning" if s["status"] == "gap" else s["status"]} for s in state["skills"]]
-    return {**state, "skills": skills}
+    return {**state, "skills": skills, "workflow": _mask_workflow(state.get("workflow"))}
 
 
 def _avatar_row(db: Session, student_id: uuid.UUID) -> AvatarConfig:
@@ -82,6 +89,12 @@ def submit_answer(student_id: uuid.UUID, payload: AnswerRequest, db: Session = D
         result["gap_locked"] = bool(result.get("new_gaps"))
         result["new_gaps"] = []
         result["gap_skill"] = None
+        result["diagnosis"] = None
+        result["workflow"] = _mask_workflow(result.get("workflow"))
+        if result.get("evidence_status"):
+            # Basic plan: say evidence is being gathered, without naming the suspected lesson.
+            result["evidence_status"] = {"status": result["evidence_status"]["status"],
+                                         "message": "نجمع أدلة من إجاباتك لنحدد مصدر الصعوبة."}
     result["remaining_questions"] = plans.snapshot(db, user)["remaining"]["questions"]
     return result
 
@@ -135,8 +148,20 @@ def report(student_id: uuid.UUID, db: Session = Depends(get_db), user: User = De
         "drilldowns_hidden": hidden,
         "gap_locked": locked,
         "forecast": _forecast(db, student_id, raw) if full else None,
+        "diagnoses": engine_bridge.diagnosis_history(db, student_id) if full else [],
         "plan": plans.snapshot(db, student),
     }
+
+
+@router.get("/diagnoses")
+def diagnoses(student_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Explainable diagnosis record: evidence, confidence, intervention and the outcome after it."""
+    require_student_access(student_id, user, db)
+    full = plans.has_full_gap_access(db, user, _student(db, student_id))
+    history = engine_bridge.diagnosis_history(db, student_id)
+    if not full:
+        return {"locked": bool(history), "diagnoses": []}
+    return {"locked": False, "diagnoses": history}
 
 
 @router.post("/round", response_model=StudentStateOut)

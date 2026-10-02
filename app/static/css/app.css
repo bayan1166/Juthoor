@@ -370,3 +370,17 @@ main.view{padding-top:var(--nav-h);min-height:100vh}
 .safety-note svg{width:16px;height:16px;flex:none}
 .analyzing{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);font-size:1rem}
 .analyzing .spin{width:22px;height:22px;flex:none;color:var(--g-600,#13895F)}
+.src-badge{display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:6px;border-top:1px dashed var(--line);font-size:.78rem;color:var(--muted)}
+.src-badge svg{width:14px;height:14px;flex:none}
+.src-badge[data-source=guardrail]{color:var(--danger)}
+.judge-hint{margin-bottom:14px}
+.diag{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--line)}
+.diag-path{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.diag-arrow{display:inline-flex}
+.diag-arrow svg{width:16px;height:16px;opacity:.6}
+.flow{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.flow-steps{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.flow-step{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:.8rem;font-weight:700;border:1px solid var(--line);background:var(--surface-2);opacity:.6}
+.flow-step.done{opacity:1;background:var(--g-100);color:var(--g-700);border-color:transparent}
+.flow-step.now{opacity:1;background:var(--g-600);color:#fff;border-color:transparent}
+.flow-step .n{display:inline-flex;width:18px;height:18px;border-radius:50%;align-items:center;justify-content:center;background:rgba(0,0,0,.08);font-size:.72rem}

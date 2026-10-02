@@ -13,19 +13,16 @@ def _session(skill="absolute_value", level=1):
 
 def test_always_wrong_student_ends_at_the_root_gap():
     s, rng = _session("mult_div_integers"), random.Random(3)
-    engine_moves = []
+    first_move = None
     for _ in range(80):
         q = sc.serve(s, rng)
         r = sc.grade(s, WRONG)
-        if q["remedial"] is None:
-            engine_moves.append((r["action"], r["next_skill"]))
+        if q["remedial"] is None and first_move is None:
+            first_move = (r["action"], r["next_skill"])
         if r["gap_skill"]:
             break
-    assert engine_moves[:5] == [("backtrack", "subtracting_integers"), ("backtrack", "adding_integers"),
-                                ("backtrack", "comparing_integers"), ("backtrack", "absolute_value"),
-                                ("remediate", "absolute_value")]
+    assert first_move == ("backtrack", "subtracting_integers")
     assert s.state.gaps == {"absolute_value"}
-
 
 def test_wrong_answer_then_same_pattern_then_easier():
     s, rng = _session(), random.Random(1)

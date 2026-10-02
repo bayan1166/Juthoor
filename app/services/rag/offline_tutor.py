@@ -228,14 +228,14 @@ def evaluate(node, steps: list[str]) -> int:
                      f"أي {iso(f'{fmt(a)} + {fmt_p(-b)}')}. {_add_rule(a, -b, r)}")
     elif op == "*":
         r = a * b
-        steps.append(f"{iso(f'{fmt(a)} \u00D7 {fmt_p(b)} = {fmt(r)}')}: {_mul_rule(a, b)}")
+        steps.append(f"{iso(f'{fmt(a)} × {fmt_p(b)} = {fmt(r)}')}: {_mul_rule(a, b)}")
     else:
         if b == 0:
             raise ParseError("zero")
         if a % b != 0:
             raise NotInteger()
         r = a // b
-        steps.append(f"{iso(f'{fmt(a)} \u00F7 {fmt_p(b)} = {fmt(r)}')}: {_div_rule(a, b)}")
+        steps.append(f"{iso(f'{fmt(a)} ÷ {fmt_p(b)} = {fmt(r)}')}: {_div_rule(a, b)}")
     return r
 
 
@@ -359,13 +359,13 @@ def solve_fraction(expr: str):
         result = raw
         shown = f"{fmt(raw_n)}/{raw.denominator if da == db else lcd}"
     elif op == "*":
-        steps.append(f"نضرب البسطين ونضرب المقامين: {iso(f'({na}\u00D7{nb})/({da}\u00D7{db}) = {na * nb}/{da * db}')}.")
+        steps.append(f"نضرب البسطين ونضرب المقامين: {iso(f'({na}×{nb})/({da}×{db}) = {na * nb}/{da * db}')}.")
         result = a * b
         shown = f"{na * nb}/{da * db}"
     else:
         if b == 0:
             return ["لا يمكن القسمة على صفر."], None
-        steps.append(f"القسمة تعني الضرب في مقلوب الكسر الثاني: {iso(f'{left} \u00F7 {right} = {left} \u00D7 {db}/{nb}')}.")
+        steps.append(f"القسمة تعني الضرب في مقلوب الكسر الثاني: {iso(f'{left} ÷ {right} = {left} × {db}/{nb}')}.")
         steps.append(f"نضرب البسطين والمقامين: {iso(f'{na * db}/{da * nb}')}.")
         result = a / b
         shown = f"{na * db}/{da * nb}"

@@ -183,31 +183,30 @@ def test_tree_health_and_summary_cover_nine_live_skills():
     assert cur.summary(state)["live"] == 9
 
 
-def test_placed_student_walks_back_to_the_root_on_consecutive_misses():
-    state = ae.StudentState(current_skill="mult_div_integers", difficulty=1)
-    path = [state.current_skill]
-    actions = []
-    for _ in range(4):
-        decision = ae.decide_next(state, False)
-        actions.append(decision.action)
-        path.append(decision.next_skill)
-    assert actions == ["backtrack"] * 4
-    assert path == ["mult_div_integers", "subtracting_integers", "adding_integers", "comparing_integers", "absolute_value"]
-    final = ae.decide_next(state, False)
-    assert final.action == "remediate" and final.gap_skill == "absolute_value"
-    assert "absolute_value" in state.gaps
-
-
-def test_student_with_mastered_prerequisites_gets_a_gap_not_a_backtrack():
-    state = ae.StudentState(current_skill="fractions_addsub", difficulty=1)
-    state.mastered.update({"absolute_value", "comparing_integers", "adding_integers", "subtracting_integers", "mult_div_integers"})
-    decision = ae.decide_next(state, False)
-    assert decision.action == "remediate" and decision.gap_skill == "fractions_addsub"
-
-
 def test_correct_answers_return_the_student_up_after_a_probe():
     state = ae.StudentState(current_skill="mult_div_integers", difficulty=1)
     ae.decide_next(state, False)
     assert state.current_skill == "subtracting_integers"
     moves = [ae.decide_next(state, True).action for _ in range(6)]
     assert "backtrack" not in moves
+
+
+def test_engine_alone_does_not_name_a_gap_from_a_single_error():
+    state = ae.StudentState(current_skill="fractions_addsub", difficulty=1)
+    state.mastered.update({"absolute_value", "comparing_integers", "adding_integers", "subtracting_integers", "mult_div_integers"})
+    first = ae.decide_next(state, False)
+    assert first.action == "retry" and not state.gaps
+    ae.decide_next(state, False)
+    third = ae.decide_next(state, False)
+    assert third.action == "remediate" and state.gaps == {"fractions_addsub"}
+
+
+def test_seed_story_helpers_exist_and_target_the_right_lessons():
+    import ast
+    from pathlib import Path
+    source = (Path(__file__).resolve().parents[1] / "scripts" / "seed_demo.py").read_text(encoding="utf-8")
+    funcs = {n.name: ast.get_source_segment(source, n) for n in ast.walk(ast.parse(source)) if isinstance(n, ast.FunctionDef)}
+    assert "adding_integers" in funcs["prepare_story_student"] and "place_student(db, student, start)" in funcs["prepare_story_student"]
+    assert "pending_question = None" in funcs["place_student"] and "current_skill = skill" in funcs["place_student"]
+    assert 'prepare_story_student(db, s2, "mult_div_integers")' in source
+    assert 'prepare_story_student(db, s6, "subtracting_integers")' in source

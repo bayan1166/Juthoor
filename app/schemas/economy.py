@@ -1,11 +1,14 @@
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.economy import Currency
 
 
 class WalletOut(BaseModel):
+    """Public view of a wallet. Built from the ORM row with WalletOut.model_validate(wallet)."""
+    model_config = ConfigDict(from_attributes=True)
+
     student_id: uuid.UUID
     coins: int
     gems: int

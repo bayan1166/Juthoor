@@ -70,6 +70,21 @@ def start(q: dict, selected=None) -> dict:
     }
 
 
+def confirm(plan: Optional[dict], skill: str, last: dict) -> dict:
+    """Plan one confirmation probe on the leading root candidate before naming it."""
+    pattern = last.get("pattern") if last.get("skill") == skill else None
+    if not pattern or ob.skill_of_pattern(pattern) not in (None, skill):
+        patterns = ob.patterns_of(skill)
+        pattern = patterns[0] if patterns else last.get("pattern", "")
+    return {
+        "stage": EASIER, "skill": skill, "difficulty": config.PROBE_DIFFICULTY, "pattern": pattern,
+        "stack": list(plan["stack"]) if plan else [],
+        "misconception": (plan or {}).get("misconception"),
+        "confirm": True,
+        "breadcrumb": f"سؤال تأكيد على «{kg.SKILLS[skill].name_ar}»: خطأ واحد لا يكفي لنحكم أنه الجذر.",
+    }
+
+
 def advance(plan: dict, answered_correctly: bool) -> Optional[dict]:
     if plan["stage"] == SAME:
         if answered_correctly:

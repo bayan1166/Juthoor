@@ -4,12 +4,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import models
-from app.database import Base, engine
+from app.database import ensure_schema
 
 
 def main():
-    Base.metadata.create_all(bind=engine)
-    print("tables created")
+    added = ensure_schema()
+    print("tables created" + (f"; upgraded columns: {', '.join(added)}" if added else ""))
 
 
 if __name__ == "__main__":

@@ -62,7 +62,7 @@ def send_message(student_id: uuid.UUID, payload: ChatMessageRequest, db: Session
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "empty_message")
     session = _own_session(db, student_id, payload.session_id)
     if guardrail.is_off_topic(text):
-        return ChatMessageResponse(reply=guardrail.FALLBACK, remaining_today=plans.snapshot(db, user)["remaining"]["tutor"])
+        return ChatMessageResponse(reply=guardrail.FALLBACK, remaining_today=plans.snapshot(db, user)["remaining"]["tutor"], source="guardrail")
     plans.require_quota(db, user, "tutor")
 
     rows = db.scalars(
@@ -95,4 +95,5 @@ def send_message(student_id: uuid.UUID, payload: ChatMessageRequest, db: Session
         reply=turn.reply, gap_detected=turn.gap_detected, gap_skill=turn.gap_skill or None,
         drill_down_triggered=drill_triggered, next_skill=next_skill, next_difficulty=next_difficulty,
         breadcrumb=breadcrumb, remaining_today=plans.snapshot(db, user)["remaining"]["tutor"],
+        source=turn.source,
     )

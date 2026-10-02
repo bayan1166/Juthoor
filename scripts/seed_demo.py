@@ -19,7 +19,7 @@ from app.models.economy import AvatarConfig
 from app.models.org import Organization, PlanTierUser, User, UserRole
 from app.models.safety import UserReport
 from app.security import hash_password, verify_password
-from app.services import engine_bridge, identity, quiz_scoring, remediation
+from app.services import engine_bridge, identity, quiz_scoring
 from app.services.economy_service import get_or_create_wallet
 
 PASSWORD = "demo1234"
@@ -85,8 +85,11 @@ def make_user(db, org, email, name, role, plan="basic", guardian=None, gender="�
 
 
 def answer(db, student, correct):
+    """Answer through the real engine. Wrong answers are realistic: the first answer the question
+    bank links to a named misconception (e.g. 28 for -4 x 7, "ignored the sign rule")."""
     q = engine_bridge.next_question(db, student.id)
-    result = engine_bridge.submit_answer(db, student.id, q["correct_answer"] if correct else "zzz")
+    mistake = next(iter(q.get("traps") or {}), None) or "0"
+    result = engine_bridge.submit_answer(db, student.id, q["correct_answer"] if correct else mistake)
     if result["round_over"]:
         engine_bridge.start_new_round(db, student.id)
     return result
@@ -95,6 +98,27 @@ def answer(db, student, correct):
 def play(db, student, pattern):
     for ok in pattern:
         answer(db, student, ok)
+
+
+def place_student(db, student, skill):
+    row = db.get(StudentAdaptiveState, student.id)
+    row.current_skill = skill
+    row.difficulty = 1
+    row.consec_wrong = 0
+    row.round_answered = 0
+    row.return_stack = []
+    row.remediation_plan = None
+    row.pending_question = None
+    row.pending_banner = None
+    db.commit()
+
+
+def prepare_story_student(db, student, start="mult_div_integers", limit=60):
+    for _ in range(limit):
+        if db.get(StudentAdaptiveState, student.id).current_skill == "adding_integers":
+            break
+        answer(db, student, True)
+    place_student(db, student, start)
 
 
 def miss_until_gap(db, student, limit=120):
@@ -158,12 +182,12 @@ def main():
         s6 = make_user(db, org, "student6@demo.jo", "زياد", UserRole.student, skin="edb98a")
         db.commit()
 
-        db.get(StudentAdaptiveState, s1.id).current_skill = "mult_div_integers"
-        db.get(StudentAdaptiveState, s6.id).current_skill = "adding_integers"
-        db.get(StudentAdaptiveState, s2.id).current_skill = "mult_div_integers"
         db.commit()
+        prepare_story_student(db, s1, "mult_div_integers")
         miss_until_gap(db, s1)
+        prepare_story_student(db, s2, "mult_div_integers")
         play(db, s4, [True, True, False, True, True, True, False, True])
+        prepare_story_student(db, s6, "subtracting_integers")
         miss_until_gap(db, s6)
         for student in (s1, s2, s4, s6):
             spread_activity(db, student, rng)
@@ -188,16 +212,8 @@ def main():
         )
         db.add_all([hw1, hw2])
         db.flush()
-        overviews = {m.id: engine_bridge.state_overview(db, m.id) for m in (s1, s2, s4, s5, s6)}
-        by_gap = {}
-        for student_id, overview in overviews.items():
-            for skill in overview["skills"]:
-                if skill["status"] == "gap":
-                    by_gap.setdefault(skill["skill_id"], []).append(student_id)
-        for skill_id, ids in by_gap.items():
-            spec = remediation.build_remediation(skill_id, now)
-            spec.pop("tip")
-            db.add(Assignment(classroom_id=room.id, target_ids=[str(i) for i in ids], **spec))
+        # No remediation assignment is pre-seeded: the teacher creates it live with one click
+        # (POST /classrooms/{id}/remediation), which refuses duplicates for the same evidence.
         db.flush()
         db.add(Submission(
             assignment_id=hw1.id, student_id=s1.id, text="المسألة الأولى: 5 + (-2) = 3 لأن الإشارتين مختلفتان.",

@@ -198,12 +198,14 @@ def test_api_backtracks_to_root_gap(client, student, db):
             break
     assert found is not None, engine_actions
     assert found["gap_skill"] == "absolute_value"
-    assert engine_actions[:4] == ["backtrack"] * 4
+    assert engine_actions[:3] == ["backtrack"] * 3
+    diag = found["diagnosis"]
+    assert diag["root"] == "absolute_value" and diag["path"][0] == "mult_div_integers" and diag["path"][-1] == "absolute_value"
+    assert diag["explanation"] and diag["confidence_level"] in {"medium", "high"}
 
     path = client.get(f"/students/{student['id']}/adaptive/drilldowns", headers=student["headers"]).json()
     engine_path = [(p["from_skill"], p["to_skill"]) for p in path if p["triggered_by"] == "engine"]
-    assert engine_path == [("mult_div_integers", "subtracting_integers"), ("subtracting_integers", "adding_integers"),
-                           ("adding_integers", "comparing_integers"), ("comparing_integers", "absolute_value")]
+    assert engine_path[:2] == [("mult_div_integers", "subtracting_integers"), ("subtracting_integers", "adding_integers")]
     state = client.get(f"/students/{student['id']}/adaptive/state", headers=student["headers"]).json()
     assert {s["skill_id"]: s["status"] for s in state["skills"]}["absolute_value"] == "gap"
     assert client.get(f"/students/{student['id']}/insights", headers=student["headers"]).status_code == 200

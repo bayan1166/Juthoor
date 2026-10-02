@@ -597,4 +597,5 @@ def test_off_topic_tutor_message_gets_fixed_fallback_without_using_quota(client)
         assert again.status_code == 200 and again.json()["reply"] == FALLBACK and again.json()["remaining_today"] == remaining
     ontopic = client.post(f"/students/{sid}/chat/message", json={"session_id": chat["session_id"], "message": "5 + (-2)"}, headers=user["headers"])
     assert ontopic.status_code == 200 and ontopic.json()["reply"] != FALLBACK
+    assert ontopic.json()["source"] == "solver" and first.json()["source"] == "guardrail"
     assert before["user_id"] == sid

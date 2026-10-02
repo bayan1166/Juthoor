@@ -1,5 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime  # noqa: F401
+
+from app.schemas.common import OptUtcDateTime, UtcDateTime  # noqa: F401
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -44,4 +46,4 @@ class LeaderboardEntryOut(BaseModel):
 class LeaderboardOut(BaseModel):
     challenge_id: uuid.UUID
     entries: list[LeaderboardEntryOut]
-    generated_at: datetime
+    generated_at: UtcDateTime

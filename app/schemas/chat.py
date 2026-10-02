@@ -1,5 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime  # noqa: F401
+
+from app.schemas.common import OptUtcDateTime, UtcDateTime  # noqa: F401
 
 from pydantic import BaseModel, Field
 
@@ -27,9 +29,10 @@ class ChatMessageResponse(BaseModel):
     next_difficulty: int | None = None
     breadcrumb: str = ""
     remaining_today: int | None = None
+    source: str = "tutor"
 
 
 class ChatHistoryItem(BaseModel):
     role: str
     content: str
-    created_at: datetime
+    created_at: UtcDateTime

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.economy import Currency, InventoryItem, ShopItem, TxnReason, Wallet, WalletTransaction
+from app.services.shop_catalog import ensure_shop_catalog
 
 COINS_PER_CORRECT = 4
 COINS_MASTERY_BONUS = 40
@@ -60,6 +61,7 @@ def grant_reward(db: Session, student_id: uuid.UUID, is_correct: bool, action: s
 
 
 def list_shop(db: Session, student_id: uuid.UUID, category: str | None = None) -> list[dict]:
+    ensure_shop_catalog(db)
     query = select(ShopItem)
     if category:
         query = query.where(ShopItem.category == category)
@@ -73,6 +75,7 @@ def list_shop(db: Session, student_id: uuid.UUID, category: str | None = None) -
 
 
 def purchase_item(db: Session, student_id: uuid.UUID, item_id: str, currency: Currency) -> tuple[bool, str]:
+    ensure_shop_catalog(db)
     item = db.get(ShopItem, item_id)
     if item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "item_not_found")
@@ -114,6 +117,7 @@ AVATAR_ITEM_FIELDS = ("clothing", "top", "neck", "accessories")
 
 def unowned_avatar_items(db: Session, student_id: uuid.UUID, config: dict) -> list[str]:
     from app.engine import avatar_items as ai
+    ensure_shop_catalog(db)
     owned = {i.item_id for i in db.scalars(select(InventoryItem).where(InventoryItem.student_id == student_id))}
     bundled = {iid for it in ai.CATALOG if it.id in owned for _, iid in it.bundle}
     bad = []

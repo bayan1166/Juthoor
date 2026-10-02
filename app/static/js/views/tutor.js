@@ -4,6 +4,19 @@ import { store, loadBoot, patchBoot } from '../store.js';
 import { leafAvatarSvg } from '../icons.js';
 import { skillList, upsellCard, handleError } from './shared.js';
 
+const SOURCES = {
+  solver: ['check', 'حل محسوب آلياً ومتحقَّق منه'],
+  llm_rag: ['book', 'نموذج لغوي مدعوم بمقاطع من المنهج'],
+  llm: ['spark', 'نموذج لغوي'],
+  guardrail: ['shield', 'خارج المنهج: لم يُرسل لأي نموذج'],
+  tutor: ['book', 'معلم المنهج المحلي'],
+};
+
+const JUDGE_QUICK = [
+  ['جرّب: 1/2 + 1/3', '1/2 + 1/3'],
+  ['جرّب سؤالاً خارج المنهج', 'ما هي عاصمة فرنسا'],
+];
+
 const QUICK = [
   ['اشرح لي الدرس', 'اشرح لي هذا الدرس'],
   ['حلّ مسألة معي', 'اعطني مسألة لأحلها'],
@@ -44,9 +57,10 @@ export async function tutorView(ctx) {
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  function bubble(role, text) {
+  function bubble(role, text, source) {
     const mine = role === 'student';
     const body = h('div', { class: ['bubble', mine ? 'mine' : 'theirs'] }, text);
+    if (!mine && source && SOURCES[source]) body.appendChild(h('div', { class: 'src-badge', 'data-source': source }, ico(SOURCES[source][0]), SOURCES[source][1]));
     const row = h('div', { class: ['row-msg', mine ? 'mine' : ''] });
     if (mine) {
       const av = h('span', { class: 'avatar sm' });
@@ -127,7 +141,7 @@ export async function tutorView(ctx) {
     try {
       const res = await api.post(`/students/${uid}/chat/message`, { session_id: sessionId, message: value });
       wait.remove();
-      bubble('tutor', res.reply);
+      bubble('tutor', res.reply, res.source);
       if (res.drill_down_triggered) note(`أضفنا لك أسئلة تأسيسية في صفحة التدريب${res.breadcrumb ? `: ${res.breadcrumb}` : '.'}`, true);
       if (store.boot && res.remaining_today !== null && res.remaining_today !== undefined) {
         patchBoot({ plan: { ...store.boot.plan, remaining: { ...store.boot.plan.remaining, tutor: res.remaining_today } } });
@@ -146,7 +160,7 @@ export async function tutorView(ctx) {
     }
   }
 
-  QUICK.forEach(([label, text]) => chipsRow.appendChild(h('button', { type: 'button', onclick: () => send(text) }, label)));
+  (store.health && store.health.judge ? [...QUICK, ...JUDGE_QUICK] : QUICK).forEach(([label, text]) => chipsRow.appendChild(h('button', { type: 'button', onclick: () => send(text) }, label)));
   sendBtn.addEventListener('click', () => send(input.value));
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {

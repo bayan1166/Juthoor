@@ -7,10 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from app import models as _models
 from app.config import settings
-from app.database import Base, engine
+from app.database import engine, ensure_schema
 from app.services.secrets_check import suggestion, weak_secret_reason
 from app.routers import (
     adaptive, auth, chat, classroom, community, curriculum, dashboard, economy, esports, payment,
@@ -26,7 +28,7 @@ async def lifespan(_app: FastAPI):
         reason = weak_secret_reason(settings.jwt_secret)
         if reason:
             raise RuntimeError(f"{reason}. Set a strong JWT_SECRET in .env, for example: {suggestion()}")
-    Base.metadata.create_all(bind=engine)
+    ensure_schema()
     yield
 
 
@@ -54,6 +56,12 @@ async def harden(request: Request, call_next):
     return response
 
 
+@app.exception_handler(OperationalError)
+async def database_down(request: Request, exc: OperationalError):
+    logger.error("database unavailable on %s %s: %s", request.method, request.url.path, exc.__class__.__name__)
+    return JSONResponse(status_code=503, content={"detail": "database_unavailable"})
+
+
 @app.exception_handler(Exception)
 async def unhandled(request: Request, exc: Exception):
     logger.exception("unhandled error on %s %s", request.method, request.url.path)
@@ -67,7 +75,15 @@ for module in (auth, adaptive, chat, curriculum, dashboard, economy, esports, co
 @app.get("/health")
 def health():
     tutor = "openai" if settings.openai_api_key else ("groq" if settings.groq_api_key else "offline_fallback")
-    return {"status": "ok", "ai_tutor": tutor, "demo": settings.demo_mode, "judge": settings.judge_mode}
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        database = "ok"
+    except Exception:
+        database = "unavailable"
+    return {"status": "ok" if database == "ok" else "degraded", "database": database,
+            "database_dialect": engine.dialect.name, "ai_tutor": tutor,
+            "demo": settings.demo_mode, "judge": settings.judge_mode}
 
 
 @app.get("/", include_in_schema=False)

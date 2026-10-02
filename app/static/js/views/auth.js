@@ -6,8 +6,8 @@ import { renderTreeStage, demoTreeData } from '../tree.js';
 import { withBusy } from './shared.js';
 
 const DEMOS = [
-  { label: 'طالبة (ليان - برو)', email: 'student1@demo.jo' },
   { label: 'طالب (عمر - ضمن صف)', email: 'student2@demo.jo', landing: '#/practice' },
+  { label: 'طالبة (ليان - برو)', email: 'student1@demo.jo' },
   { label: 'طالبة (مريم - أساسية)', email: 'student3@demo.jo' },
   { label: 'معلمة', email: 'teacher@demo.jo' },
   { label: 'ولي أمر', email: 'parent@demo.jo' },
@@ -134,9 +134,9 @@ export async function authView(ctx) {
   function demoRow() {
     if (!store.health.demo) return null;
     return h('div', { class: 'col', style: { marginTop: '16px', gap: '8px' } },
-      h('div', { class: 'small muted center' }, 'وضع العرض: اضغط للدخول بحساب تجريبي'),
+      h('div', { class: 'small muted center' }, 'وضع العرض: ابدأ بحساب عمر، يفتح صفحة التدريب مباشرة'),
       h('div', { class: 'row', style: { justifyContent: 'center', gap: '8px' } }, DEMOS.map((d) => h('button', {
-        class: 'chip', type: 'button', onclick: async (e) => {
+        class: d.landing ? 'chip green' : 'chip', type: 'button', onclick: async (e) => {
           const btn = e.currentTarget;
           await withBusy(btn, async () => {
             try {

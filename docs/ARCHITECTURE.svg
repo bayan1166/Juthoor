@@ -42,10 +42,10 @@
 <text x="34" y="485" font-size="12.5" fill="#2D4638">plans, quiz_scoring, chat_safety</text>
 <rect x="340" y="378" width="320" height="150" rx="12" fill="#FFFFFF" stroke="#13895F" stroke-width="2"/>
 <text x="354" y="404" font-size="15" font-weight="700" fill="#10231A">Learning engine (pure Python)</text>
-<text x="354" y="428" font-size="12.5" fill="#2D4638">knowledge_graph: 9-skill prerequisite DAG</text>
-<text x="354" y="447" font-size="12.5" fill="#2D4638">adaptive_engine: BKT + backtracking</text>
+<text x="354" y="428" font-size="12.5" fill="#2D4638">knowledge_graph: 9-skill DAG, validated</text>
+<text x="354" y="447" font-size="12.5" fill="#2D4638">adaptive_engine: BKT, probes, remediation</text>
 <text x="354" y="466" font-size="12.5" fill="#2D4638">offline_bank: 140 templates, 3 levels</text>
-<text x="354" y="485" font-size="12.5" fill="#2D4638">Unit 2 bank: 20,000 questions checked</text>
+<text x="354" y="485" font-size="12.5" fill="#2D4638">diagnosis: domain-agnostic root ranking</text>
 <rect x="680" y="378" width="300" height="150" rx="12" fill="#FFFFFF" stroke="#13895F" stroke-width="2"/>
 <text x="694" y="404" font-size="15" font-weight="700" fill="#10231A">AI tutor pipeline (services/rag)</text>
 <text x="694" y="428" font-size="12.5" fill="#2D4638">1 guardrail: off-topic gets fixed reply</text>
@@ -56,15 +56,15 @@
 <line x1="200" y1="528" x2="200" y2="580" stroke="#13895F" stroke-width="2.2" marker-end="url(#ah)"/>
 <line x1="500" y1="528" x2="500" y2="580" stroke="#13895F" stroke-width="2.2" marker-end="url(#ah)"/>
 <rect x="20" y="580" width="960" height="76" rx="12" fill="#FFFFFF" stroke="#13895F" stroke-width="2"/>
-<text x="34" y="606" font-size="15" font-weight="700" fill="#10231A">Persistence: SQLAlchemy ORM on PostgreSQL (SQLite fallback for the demo)</text>
-<text x="34" y="630" font-size="12.5" fill="#2D4638">users, adaptive state, skill mastery, attempt log, drill-down events, chat, classrooms, assignments, quizzes, reports</text>
+<text x="34" y="606" font-size="15" font-weight="700" fill="#10231A">Persistence: SQLAlchemy ORM on PostgreSQL (DATABASE_URL)</text>
+<text x="34" y="630" font-size="12.5" fill="#2D4638">users, adaptive state, skill mastery, attempt log, drill-downs, diagnosis events (evidence), classrooms, quizzes</text>
 <rect x="700" y="676" width="280" height="70" rx="12" fill="#EEF0EC" stroke="#9AA79F" stroke-width="2" stroke-dasharray="6 5"/>
 <text x="714" y="702" font-size="15" font-weight="700" fill="#5E7667">External, optional</text>
 <text x="714" y="726" font-size="12.5" fill="#2D4638">Used only when keys are configured</text>
 
 
 <text x="20" y="684" font-size="13" font-weight="700" fill="#10231A">Core workflow</text>
-<text x="20" y="706" font-size="12" fill="#2D4638">answer, then engine_bridge.submit_answer, then adaptive_engine.decide_next (BKT),</text>
-<text x="20" y="724" font-size="12" fill="#2D4638">backtrack to prerequisite, DrillDownEvent saved, UI animates the Root Scan on the tree.</text>
+<text x="20" y="706" font-size="12" fill="#2D4638">answer -> engine_bridge -> BKT update + prerequisite probes -> diagnosis (evidence, confidence) -></text>
+<text x="20" y="724" font-size="12" fill="#2D4638">DiagnosisEvent saved -> remediation on root -> retry original lesson -> teacher sees evidence + outcome.</text>
 <text x="20" y="742" font-size="11.5" fill="#7C877F">Dashed grey = implemented but outside the MVP demo scope, or optional.</text>
 </svg>

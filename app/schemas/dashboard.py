@@ -1,5 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime  # noqa: F401
+
+from app.schemas.common import OptUtcDateTime, UtcDateTime  # noqa: F401
 
 from pydantic import BaseModel
 
@@ -26,14 +28,14 @@ class RemediationProgress(BaseModel):
 
 class EngagementSummary(BaseModel):
     active_days_last_30: int
-    avg_session_minutes: float
+    avg_session_minutes: float | None = None
     questions_answered_last_7: int
     current_streak: int
 
 
 class StudentInsightsOut(BaseModel):
     student_id: uuid.UUID
-    generated_at: datetime
+    generated_at: UtcDateTime
     tree_health: float
     struggle_alerts: list[StruggleAlert]
     remediation_progress: list[RemediationProgress]
@@ -43,7 +45,7 @@ class StudentInsightsOut(BaseModel):
 
 class CohortInsightsOut(BaseModel):
     organization_id: uuid.UUID
-    generated_at: datetime
+    generated_at: UtcDateTime
     student_count: int
     avg_tree_health: float
     top_struggle_skills: list[StruggleAlert]

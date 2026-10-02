@@ -27,6 +27,13 @@
 5. أدخل الأرقام في `docs/pilot_results_template.csv` (استخدم رمزاً مثل S01 بدل الاسم).
 6. شغّل: `python scripts/pilot_summary.py docs/pilot_results_template.csv`
 
+## المقارنة العمياء بين المعلم والنظام (اختياري، 10 دقائق)
+
+1. قبل فتح تقرير جذور، يكتب المعلم لكل طالب (برمز مثل S01) الدرس السابق الذي يظنه سبب التعثر في عمود `teacher_root` في `docs/teacher_agreement_template.csv` (أو `none`).
+2. بعد ذلك فقط ينسخ جذر النظام لكل طالب من «سجل التشخيص» في لوحة المعلم إلى `juthoor_root`.
+3. `python scripts/agreement_summary.py docs/teacher_agreement_template.csv`
+4. النتيجة اتفاق خام على عينة صغيرة: إشارة أولية وليست دقة تشخيص.
+
 ## ما يجب جمعه
 
 - جدول الدرجات قبل وبعد (عدد صحيح من 10 لكل طالب).

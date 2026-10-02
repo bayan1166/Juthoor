@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.engine import knowledge_graph as kg
-from app.models.adaptive import AttemptLog, DrillDownEvent, MasteryStatus, SkillMastery
+from app.models.adaptive import AttemptLog, DiagnosisEvent, DrillDownEvent, MasteryStatus, SkillMastery
 from app.models.org import User
 
 SEVERITY_THRESHOLDS = {"high": 0.35, "medium": 0.55}
@@ -53,6 +53,13 @@ def struggle_alerts(db: Session, student_id: uuid.UUID) -> list[dict]:
     for e in events:
         depth_by_skill[e.from_skill].append(e.depth)
 
+    # The predicted cause comes from the persisted evidence-based diagnoses, never a guess.
+    diagnosed: dict[str, str] = {}
+    for ev in db.scalars(select(DiagnosisEvent).where(DiagnosisEvent.student_id == student_id)
+                         .order_by(DiagnosisEvent.created_at)):
+        diagnosed[ev.origin_skill] = ev.root_skill
+        diagnosed[ev.root_skill] = ev.root_skill
+
     alerts = []
     for m in masteries:
         misses = _consecutive_misses(db, student_id, m.skill_id)
@@ -61,8 +68,7 @@ def struggle_alerts(db: Session, student_id: uuid.UUID) -> list[dict]:
             continue
         depths = depth_by_skill.get(m.skill_id, [])
         avg_depth = sum(depths) / len(depths) if depths else 0.0
-        prereqs = kg.prerequisites(m.skill_id)
-        predicted_cause = min(prereqs, key=lambda p: p) if prereqs else None
+        predicted_cause = diagnosed.get(m.skill_id)
         skill = kg.SKILLS.get(m.skill_id)
         alerts.append({
             "skill_id": m.skill_id,
@@ -134,7 +140,7 @@ def engagement_summary(db: Session, student_id: uuid.UUID) -> dict:
 
     return {
         "active_days_last_30": int(active_days),
-        "avg_session_minutes": 8.5,
+        "avg_session_minutes": None,
         "questions_answered_last_7": int(questions_7),
         "current_streak": streak,
     }

@@ -50,3 +50,34 @@ def test_generate_turn_bypasses_every_model_for_off_topic(monkeypatch):
 def test_on_topic_still_reaches_the_tutor():
     turn = socratic.generate_turn("adding_integers", [], "5 + (-2)")
     assert turn.reply != FALLBACK and "3" in turn.reply
+
+
+def test_every_turn_reports_where_the_answer_came_from():
+    assert socratic.generate_turn("adding_integers", [], "ما هي عاصمة فرنسا").source == "guardrail"
+    assert socratic.generate_turn("adding_integers", [], "5 + (-2)").source == "solver"
+    assert socratic.generate_turn("fractions_addsub", [], "1/2 + 1/3").source == "solver"
+    assert socratic.generate_turn("adding_integers", [], "اشرح لي الدرس").source == "tutor"
+
+
+def test_llm_turns_are_labelled_with_and_without_curriculum_chunks():
+    raw = '{"reply": "الناتج 3", "gap_detected": false, "gap_skill": "", "misconception": ""}'
+    assert socratic._parse(raw, ["c1", "c2"]).source == "llm_rag"
+    assert socratic._parse(raw, []).source == "llm"
+    assert socratic._parse("not json", ["c1"]) is None
+
+
+def test_failing_llm_falls_back_to_the_offline_tutor_and_trips_the_breaker(monkeypatch):
+    calls = {"n": 0}
+
+    def exploding(*a, **k):
+        calls["n"] += 1
+        raise RuntimeError("provider down")
+    monkeypatch.setattr(socratic, "_client", lambda: ("groq", object()))
+    monkeypatch.setattr(socratic, "_safe_retrieve", lambda *a, **k: [])
+    monkeypatch.setattr(socratic, "_llm_turn", exploding)
+    socratic.BREAKER.success()
+    for _ in range(4):
+        turn = socratic.generate_turn("adding_integers", [], "5 + (-2)")
+        assert turn.source == "solver" and "3" in turn.reply
+    assert calls["n"] == 2
+    socratic.BREAKER.success()

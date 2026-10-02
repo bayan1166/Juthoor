@@ -8,3 +8,4 @@ class SocraticTurn:
     gap_skill: str
     misconception: str
     retrieved_ids: list[str] = field(default_factory=list)
+    source: str = "tutor"

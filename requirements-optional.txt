@@ -1,2 +1,7 @@
-chromadb==0.5.5
-sentence-transformers==3.1.1
+# Optional integrations. The core workflow (diagnosis, questions, grading, teacher view) never
+# needs these; each is imported lazily and the app falls back when it is missing or failing.
+openai>=1.55,<3          # LLM tutor wording, only if OPENAI_API_KEY is set
+groq>=0.13,<1            # LLM tutor wording, only if GROQ_API_KEY is set
+stripe>=10.12,<13        # real checkout, only if STRIPE_SECRET_KEY is set (mock otherwise)
+chromadb>=0.5.5          # vector store, only if ENABLE_VECTOR_STORE=1
+sentence-transformers>=3.1.1

@@ -1,42 +1,80 @@
-# تسليم المشروع
+# Handoff / تسليم
 
-## الحالة
-- الواجهة: تطبيق صفحة واحدة في `app/static` (شجرة المنهج، التدريب، المعلم الذكي، المتجر، المجتمع والدردشة، الصفوف والاختبارات، لوحة المعلم، متابعة ولي الأمر، الباقات والدفع).
-- الخادم: FastAPI على نفس المنفذ، المسارات بلا بادئة /api.
-- التشغيل: `python run_demo.py --reset`.
-- المنهج الحي: 9 من 18 درساً (الوحدة 1 الأعداد الصحيحة، والوحدة 2 الكسور كاملة). الوحدتان 3 و4 تظهران «قريباً».
-- مسح الجذر: بعد إجابة خاطئة تتحرك الشجرة ورقة ورقة نحو الجذر. في الباقة الأساسية يتوقف المسح عند جذر مخفي مع زر ترقية.
-- التكليف العلاجي: زر في لوحة المعلم ينشئ واجباً موجهاً للطلاب أصحاب الفجوة فقط (`POST /classrooms/{id}/remediation`).
-- مشاركة تقرير ولي الأمر على واتساب بنص ملخص يطابق ما تسمح به باقته.
-- السلامة: دردشة للأصدقاء فقط، منع الروابط وأرقام الهاتف بين الطلاب، حظر وإبلاغ، ومراجعة المعلم للبلاغات (يرى آخر 30 رسالة بين الطرفين فقط، وليس كل المحادثات، وهذا مقصود).
-- الأمان: قفل بعد 5 محاولات دخول فاشلة خلال 15 دقيقة، حدود طلبات للتسجيل والدخول واستعادة كلمة المرور والبحث والبلاغات، ورفض بدء الخادم بمفتاح JWT ضعيف خارج `DEMO_MODE`، ورؤوس أمان.
+README.md is the full reference. This file records the current state and exactly what has been
+verified, where, and by whom.
 
-## وضع التحكيم (JUDGE_MODE)
-- `run_demo.py` يشغّله افتراضياً: يخفي المتجر والمجتمع والباقات من القائمة (المسارات تبقى)، ويعطّل حدود الطلبات، ويرسل حساب عمر مباشرة إلى صفحة التدريب. `--full` يعطّله.
-- عمر يبدأ نظيفاً على درس ضرب الأعداد الصحيحة بلا تاريخ، لأن الرجوع للجذر لا يحدث إلا إذا كانت هناك مهارة سابقة غير متقنة. الطالب الجديد يبدأ من القيمة المطلقة (لا شيء قبلها)، والطالب المتقن للمتطلبات يحصل على فجوة في الدرس نفسه بدل الرجوع.
-- المعلم الذكي: حارس موضوع يرد بجملة ثابتة على الأسئلة خارج المنهج دون استهلاك الحصة.
-- مسح الجذر يتراكم عبر الإجابات الخاطئة المتتالية حتى يُرصد الجذر.
+## What the MVP is
+A prerequisite-aware adaptive learning and root-learning-gap diagnosis platform, demonstrated on one
+domain (9 live mathematics lessons). Core loop: difficulty → evidence → prerequisite probes →
+confirmation probe → named root with evidence + confidence level → targeted remediation → retry of the
+original lesson → mastery update → teacher sees the diagnosis and its outcome. The practice page shows
+the loop as a six-step stepper (مسار التشخيص).
 
-## ما اختُبر فعلاً
-- منطق بايثون النقي (المحرك، بنك الكسور، المعلم دون إنترنت، الحارس، حدود الطلبات، فلتر الدردشة، التكليف العلاجي، ملخص التجربة): 67 اختباراً من 67.
-- فحص هجومي: 2112 استدعاء للمعلم المحلي بمدخلات مشوهة وضخمة وعدائية دون خطأ.
-- فحص 20 ألف سؤال مولّد من بنك الكسور: صفر أخطاء (الناتج مبسّط، المشتتات مختلفة، لا مقام صفري).
-- اختبارات الواجهة على DOM مزيف مع API وهمي (`tests/js`): 146 فحصاً للشاشات، و20 للموجّه الرئيسي، و8 لوضع التحكيم.
+## Fixes for the five failures reported from the team machine (475 passed / 5 failed / 480)
+1. `test_api_backtracks_to_root_gap` — the diagnosis started from the lesson where the *current practice
+   plan* began (adding) instead of where the learner's difficulty began (multiplying). The engine now
+   diagnoses from `investigation_origin` (bottom of the return stack whose prerequisite chain contains the
+   probed skill) in both the engine and the practice-plan branches, so the path follows real graph edges
+   from multiplying down to the root. Side effect, intended and documented: errors on the whole chain now
+   count as evidence, so the root can be named on its second own miss (test_engine expectation updated
+   with the reason, and strengthened to assert the full path).
+2. `test_avatar_requires_ownership` — `PurchaseResult` was built from the ORM `Wallet`. `WalletOut` now
+   has `from_attributes=True` and the router converts with `WalletOut.model_validate(wallet)` (also for
+   `/wallet` and `/convert`); validation stays on.
+3. `test_student_buys_pro_with_mock_card` — `/auth/me` returned a naive datetime without zone. All API
+   datetimes are stored as naive UTC and now serialise as UTC with `Z` (`app/schemas/common.py`); aware
+   values are converted to UTC first, never relabelled.
+4. `test_avatar_options_previews_and_ownership` — the shop table is empty on any database where
+   `seed_shop.py` has not run (including the test DB), so the catalogue was empty *and* the ownership check
+   skipped unknown items. `ensure_shop_catalog` (app/services/shop_catalog.py) inserts missing catalogue
+   rows before shop reads, purchases and ownership checks.
+5. `test_one_click_remediation_targets_gap_students` — one-click remediation re-assigned the same gap to
+   students who had already been assigned it. Students already assigned remediation for that skill since
+   their latest diagnosis are excluded; when nobody qualifies the API returns `422 no_students_with_gap`.
+   The demo seed no longer pre-creates remediation assignments, so the teacher can create one live.
 
-## ما لم يُشغَّل
-- مسارات FastAPI واختبارات `tests/test_api.py` و`tests/test_features.py` (من أصل 134 دالة اختبار في المشروع) كُتبت وفُحصت ساكناً فقط، لأن FastAPI غير مثبّت في بيئة البناء. شغّلها أولاً بـ `pytest` وأصلح ما يظهر، ثم `python scripts/preflight.py` على الخادم العامل.
-- لم تُجرَّب الواجهة في متصفح حقيقي (حركة مسح الجذر مفحوصة منطقياً فقط)، ولا Stripe ولا SMTP، ولا اختبار حمل.
-- التجربة الميدانية لم تُجرَ. الحزمة جاهزة في `docs/PILOT.md`.
-- `scripts/preflight.py` جُرّب على خادم وهمي فقط، ولم يُجرَّب على الخادم الحقيقي.
+## Fix for the failing preflight check (40/41 → expected 41/41)
+`core workflow: repeated errors -> evidence gathering -> root detected (fresh learner)` failed because
+wrong answers were reported as `no_difficulty`. Root cause, traced with the same scenario (fresh learner,
+random displayed options): the verdict returned `no_difficulty` whenever no skill had *more* wrong than
+right answers, e.g. right-then-wrong (1–1) or 5 right / 4 wrong. A wrong answer was therefore labelled
+"no difficulty" (19% of wrong answers in a 2,000-run simulation). A second, rarer inconsistency (8.5% of
+runs): at difficulty > 1 the engine stepped down a level before looking at the evidence, so the evidence
+status could already say `root_identified` while no root was declared.
+Fixes: errors without a failing skill are now `insufficient_evidence / mixed_evidence` (thresholds
+unchanged), and `_handle_incorrect` checks the evidence first and declares a newly evidenced root on the
+same answer. The preflight check now uses the full 20-answer Basic-plan budget. In a 3,000-run simulation
+of the preflight scenario every pre-diagnosis wrong answer reports `insufficient_evidence`; 2/3,000 runs
+(a learner who is right about half the time) need more than 20 answers, which is correct behaviour for
+mixed evidence. New regression tests fail on the previous revision (14 failures) and pass now.
 
-## قواعد البيانات
-- أُضيفت أعمدة (`assignments.kind`, `assignments.target_ids`) وجدول (`user_reports`). مع قاعدة قديمة شغّل `python run_demo.py --reset`. مع PostgreSQL يمسح هذا الأمر المخطط كاملاً.
-- في الإنتاج: عيّن `JWT_SECRET` عشوائياً بطول 32 حرفاً على الأقل (`python -c "import secrets; print(secrets.token_urlsafe(48))"`)، و`DEMO_MODE=0`.
-- حد الطلبات في ذاكرة العملية. عند تشغيل أكثر من عملية انقله إلى Redis، وفعّل `TRUST_PROXY=1` فقط خلف وكيل موثوق.
+## Verification status
+| Check | Where | Result |
+|---|---|---|
+| Full `python -m pytest -q` on PostgreSQL, previous revision | team machine | 475 passed, 5 failed (480) — the five above |
+| Full `python -m pytest -q` on PostgreSQL, previous revision | team machine | 495 passed (reported) |
+| Full `python -m pytest -q` on PostgreSQL, this revision (538 tests by static count) | — | **not run yet** (the build sandbox cannot install packages from PyPI) |
+| `python scripts/preflight.py`, previous revision | team machine | 40/41 (the check fixed above) |
+| Engine/session/workflow/graph/bank/tutor/pilot tests (`--noconftest`, 413 tests), run twice | build sandbox | 413 passed, twice |
+| `node tests/js/judge_smoke.mjs`, `smoke.mjs`, `main_smoke.mjs` | build sandbox | 8/8, 178/178, 20/20 |
+| `python -m compileall -q app scripts tests` (Python 3.13 and 3.11) | build sandbox | pass |
+| Real Chromium walk-through `tests/e2e/browser_e2e.py --oracle sim` against `tests/e2e/sim_server.py` (real UI + real engine, **simulated** HTTP/persistence) | build sandbox | 14/14, three consecutive runs |
+| Real Chromium walk-through against `run_demo.py` + PostgreSQL (`--oracle db`) | — | **not run yet** |
+| `python scripts/preflight.py` against `run_demo.py` | — | **not run yet** |
+| Manual browser walk-through of the full loop + teacher view, previous revision | team machine | worked (reported) |
 
-## ملاحظات
-- النموذج الأصلي لباقة الطلاب "max" أُعيدت تسميته "school".
-- مستند التسعير القديم (`Juthoor_Pricing_Tiers_Jordan.docx`) يقول إن الأساسية بلا أصدقاء، والكود يمنحها 3 أصدقاء. لم يُحدَّث المستند.
-- حافة الاعتماد بين الأعداد الصحيحة والكسور في `knowledge_graph.py` افتراض تربوي يحتاج تحققاً مع معلمين.
-- السماء بألوان كريمية/خوخية (لا أزرق) بقرار تصميمي.
-- المتجر والرياضات الإلكترونية موجودان لكنهما خارج جوهر العرض (انظر `docs/DEMO_SCRIPT.md`).
+## Before judging (on the team machine)
+```bash
+python -m pip install -r requirements-dev.txt
+python scripts/check_env.py --dev
+python -m pytest -q                         # expect 538 passed
+python -m compileall -q app scripts tests
+cd tests/js && node judge_smoke.mjs && node smoke.mjs && node main_smoke.mjs && cd ../..
+python run_demo.py --reset                  # terminal 1
+python scripts/preflight.py                 # terminal 2
+python tests/e2e/browser_e2e.py             # terminal 2 (needs playwright + chromium)
+python run_demo.py --reset                  # restore the clean demo state
+```
+
+## Known limits
+See README "Known limitations". No field data exists; make no accuracy, learning-gain or calibration claims.

@@ -83,3 +83,20 @@ class DrillDownEvent(Base):
     direction: Mapped[str] = mapped_column(String(10), default="descend")
     triggered_by: Mapped[str] = mapped_column(String(20), default="engine")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class DiagnosisEvent(Base):
+    __tablename__ = "diagnosis_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    student_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    origin_skill: Mapped[str] = mapped_column(String(80))
+    root_skill: Mapped[str] = mapped_column(String(80))
+    confidence: Mapped[str] = mapped_column(String(20), default="")
+    confidence_level: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    p_gap: Mapped[float] = mapped_column(Float, default=0.0)
+    evidence: Mapped[list] = mapped_column(JSON, default=list)
+    path: Mapped[list] = mapped_column(JSON, default=list)
+    teacher_verdict: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

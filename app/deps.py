@@ -15,7 +15,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     payload = decode_access_token(credentials.credentials)
     if payload is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token")
-    user = db.get(User, uuid.UUID(payload["sub"]))
+    try:
+        user_id = uuid.UUID(str(payload.get("sub")))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token")
+    user = db.get(User, user_id)
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "user_not_found")
     return user

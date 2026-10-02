@@ -4,6 +4,8 @@ from functools import lru_cache
 from typing import Optional
 import networkx as nx
 
+from app.engine.diagnosis import PrereqGraph
+
 @dataclass(frozen=True)
 class Skill:
     id: str
@@ -194,6 +196,11 @@ SKILLS: dict[str, Skill] = {
         ),
     ]
 }
+
+# Domain-agnostic view used by the diagnosis engine. Construction validates the mapping
+# (unknown prerequisites, self-loops, duplicates, cycles) and fails fast at import time.
+PREREQ_GRAPH: PrereqGraph = PrereqGraph({s.id: s.prerequisites for s in SKILLS.values()})
+
 
 def _build_graph() -> nx.DiGraph:
     g = nx.DiGraph()

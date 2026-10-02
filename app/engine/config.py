@@ -19,6 +19,15 @@ BKT = {
 MAX_DRILL_DEPTH = 4
 
 
+MIN_CHAIN_EVIDENCE = 3
+
+# A single wrong probe is not enough to blame a skill: the root needs this many wrong answers.
+MIN_ROOT_EVIDENCE = 2
+
+# A mastered skill whose BKT estimate falls below this is treated as contested again.
+CONTEST_THRESHOLD = 0.5
+
+
 LLM = {
     "enabled": True,
     "provider": "groq",
