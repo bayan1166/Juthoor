@@ -100,15 +100,33 @@ def test_diagnosis_requires_corroborating_evidence_threshold():
 
 
 def test_a_passed_prerequisite_probe_stops_the_descent():
+    # Behaviour change (evidence policy, see TASKS/02_DIAGNOSIS.md): a single correct answer used to
+    # make a prerequisite "solid". One lucky answer is not evidence (a learner who lacks the skill
+    # still guesses right ~20% of the time), so two observed correct answers are now required.
     state = ae.StudentState(current_skill="mult_div_integers", difficulty=1)
     state.mastered.update(BASICS)
     for _ in range(3):
         ae.record_probe(state, "mult_div_integers", False)
     assert ae.diagnose_root(state, "mult_div_integers") is None
-    ae.record_probe(state, "subtracting_integers", True)
-    ae.record_probe(state, "adding_integers", True)
+    for _ in range(config.MIN_SOLID_EVIDENCE):
+        ae.record_probe(state, "subtracting_integers", True)
+        ae.record_probe(state, "adding_integers", True)
     found = ae.diagnose_root(state, "mult_div_integers")
     assert found["root"] == "mult_div_integers"
+
+
+def test_one_lucky_correct_prerequisite_answer_does_not_clear_the_prerequisite():
+    # Regression: the old rule (attempts > 0 and wrong == 0) let one lucky correct answer make a
+    # prerequisite solid, so the engine blamed a lesson built on a gap it had not ruled out.
+    state = ae.StudentState(current_skill="mult_div_integers", difficulty=1)
+    state.mastered.update(BASICS)
+    for _ in range(3):
+        ae.record_probe(state, "mult_div_integers", False)
+    ae.record_probe(state, "subtracting_integers", True)
+    ae.record_probe(state, "adding_integers", True)
+    assert ae.diagnose_root(state, "mult_div_integers") is None
+    verdict = ae.assess_root(state, "mult_div_integers")
+    assert verdict["status"] == "insufficient_evidence"
 
 
 def test_after_a_root_is_named_the_student_is_routed_to_it_and_back_up():

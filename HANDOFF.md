@@ -1,16 +1,27 @@
-# Handoff / تسليم
+# Handoff
 
-README.md is the full reference. This file records the current state and exactly what has been
-verified, where, and by whom.
+README.md is the full reference; `FINAL_AUDIT.md` holds the before/after numbers; `TASKS/` has one file per work item with
+its evidence. This file records the current state and exactly what has been verified, where, and what was **not**.
 
 ## What the MVP is
-A prerequisite-aware adaptive learning and root-learning-gap diagnosis platform, demonstrated on one
-domain (9 live mathematics lessons). Core loop: difficulty → evidence → prerequisite probes →
-confirmation probe → named root with evidence + confidence level → targeted remediation → retry of the
-original lesson → mastery update → teacher sees the diagnosis and its outcome. The practice page shows
-the loop as a six-step stepper (مسار التشخيص).
+A prerequisite-aware adaptive learning and root-learning-gap diagnosis platform. The demo domain is 9 integer lessons
+(Jordan Grade 6 mathematics) used as an example; the diagnosis core is subject- and grade-agnostic. Core loop: difficulty
+-> evidence -> prerequisite probes -> confirmation probe -> named root with evidence + confidence level (or an explicit
+"insufficient evidence" with what would settle it) -> targeted remediation -> retry of the original lesson -> mastery
+update -> teacher sees the diagnosis and its outcome.
 
-## Fixes for the five failures reported from the team machine (475 passed / 5 failed / 480)
+## Final hardening phase (this revision)
+Added: evidence threshold + likelihood-ratio gate + `evidence_needed`; BKT bounds/validation; reproducible benchmark and
+threshold sweep; row locking, upsert, unique/CHECK constraints and request-id idempotency; SQL migration runner;
+database integrity checker; organisation join codes; tutor evaluation suite (and a quadratic-regex fix in the chat
+safety filter); financial model rebuild. Details: `CHANGELOG_FINAL.md`, `TASKS/00_MASTER_TASKS.md`.
+
+Honest headline numbers (synthetic learners, `python scripts/diagnostic_benchmark.py --reps 5`): clean known-root wrong-root
+rate 19.1 % -> 2.7 %, premature declarations 50 % -> 0 %, root correct when committed 79.9 % -> 97.1 % (89.8 % overall).
+The 95 % goal was not reached; lucky-guess learners are still misdiagnosed 30.2 % of the time; no real-student data exists.
+
+## Earlier fixes (previous phase)
+### Five failures reported from the team machine (475 passed / 5 failed / 480)
 1. `test_api_backtracks_to_root_gap` — the diagnosis started from the lesson where the *current practice
    plan* began (adding) instead of where the learner's difficulty began (multiplying). The engine now
    diagnoses from `investigation_origin` (bottom of the return stack whose prerequisite chain contains the
@@ -33,7 +44,7 @@ the loop as a six-step stepper (مسار التشخيص).
    their latest diagnosis are excluded; when nobody qualifies the API returns `422 no_students_with_gap`.
    The demo seed no longer pre-creates remediation assignments, so the teacher can create one live.
 
-## Fix for the failing preflight check (40/41 → expected 41/41)
+### Failing preflight check (40/41 -> expected 41/41)
 `core workflow: repeated errors -> evidence gathering -> root detected (fresh learner)` failed because
 wrong answers were reported as `no_difficulty`. Root cause, traced with the same scenario (fresh learner,
 random displayed options): the verdict returned `no_difficulty` whenever no skill had *more* wrong than
@@ -51,30 +62,35 @@ mixed evidence. New regression tests fail on the previous revision (14 failures)
 ## Verification status
 | Check | Where | Result |
 |---|---|---|
-| Full `python -m pytest -q` on PostgreSQL, previous revision | team machine | 475 passed, 5 failed (480) — the five above |
 | Full `python -m pytest -q` on PostgreSQL, previous revision | team machine | 495 passed (reported) |
-| Full `python -m pytest -q` on PostgreSQL, this revision (538 tests by static count) | — | **not run yet** (the build sandbox cannot install packages from PyPI) |
-| `python scripts/preflight.py`, previous revision | team machine | 40/41 (the check fixed above) |
-| Engine/session/workflow/graph/bank/tutor/pilot tests (`--noconftest`, 413 tests), run twice | build sandbox | 413 passed, twice |
-| `node tests/js/judge_smoke.mjs`, `smoke.mjs`, `main_smoke.mjs` | build sandbox | 8/8, 178/178, 20/20 |
-| `python -m compileall -q app scripts tests` (Python 3.13 and 3.11) | build sandbox | pass |
-| Real Chromium walk-through `tests/e2e/browser_e2e.py --oracle sim` against `tests/e2e/sim_server.py` (real UI + real engine, **simulated** HTTP/persistence) | build sandbox | 14/14, three consecutive runs |
-| Real Chromium walk-through against `run_demo.py` + PostgreSQL (`--oracle db`) | — | **not run yet** |
-| `python scripts/preflight.py` against `run_demo.py` | — | **not run yet** |
-| Manual browser walk-through of the full loop + teacher view, previous revision | team machine | worked (reported) |
+| `python scripts/preflight.py`, previous revision | team machine | 41/41 expected after the fix above (reported 40/41 before it) |
+| Pure-Python test files (17 files, `--noconftest`) | build sandbox | 540 passed, 2 skipped, 1 failed (`pydantic_settings` not installable there - environment, not a defect) |
+| `node tests/js/judge_smoke.mjs`, `smoke.mjs`, `main_smoke.mjs` | build sandbox | 8/8, 179/179, 20/20 |
+| `python -m compileall -q app scripts tests finance` | build sandbox | pass |
+| `scripts/verify_migrations_sql.sh`, `verify_locking_sql.sh`, `verify_integrity_sql.sh`, `verify_state_creation_sql.sh` against PostgreSQL 16 (psql/pgbench) | build sandbox | all pass (locking: 3,800/4,000 lost updates without the lock, 0 with it) |
+| Diagnostic benchmark `--reps 5` | build sandbox | deterministic; numbers above |
+| Full `python -m pytest -q` on PostgreSQL, hardening revision (before the fixes below) | team machine | 756 passed, 2 failed (`test_stability_db.py`): state-row provisioning never committed (production bug) and the test held pooled connections (test bug). Both fixed in this revision - see CHANGELOG_FINAL.md / FINAL_AUDIT.md |
+| Full `python -m pytest -q`, after the state-row/pool fixes | team machine | 765 passed, 1 failed (`test_api_contracts.py::test_question_state_and_answer_responses_match_their_schema`: the test required options on an `input` question, which is a supported type with no options). Test replaced by type-aware invariants; production code unchanged |
+| `bash scripts/verify_state_creation_sql.sh` against PostgreSQL 16 | build sandbox | pass |
+| **Full `python -m pytest -q` and `scripts/preflight.py` on this revision (after the contract-test fix)** | - | **NOT RUN here; please re-run and send the output** (sandbox cannot install FastAPI/SQLAlchemy/psycopg2) |
+| New DB/API tests: `test_stability_db.py`, `test_authz_matrix.py`, `test_api_contracts.py`, PostgreSQL part of `test_migrations.py`, changed `test_api.py` | - | **NOT RUN** (syntax-checked only) |
+| `python scripts/preflight.py` against `run_demo.py` | - | **NOT RUN** |
+| Real-browser E2E against PostgreSQL | - | **NOT RUN** |
 
 ## Before judging (on the team machine)
 ```bash
 python -m pip install -r requirements-dev.txt
 python scripts/check_env.py --dev
-python -m pytest -q                         # expect 538 passed
-python -m compileall -q app scripts tests
+python -m pytest -q                         # first real run of the new DB/API tests: fix or report any failure
+python -m compileall -q app scripts tests finance
 cd tests/js && node judge_smoke.mjs && node smoke.mjs && node main_smoke.mjs && cd ../..
-python run_demo.py --reset                  # terminal 1
+python run_demo.py --reset                  # terminal 1 (prints the demo organisation join code)
 python scripts/preflight.py                 # terminal 2
 python tests/e2e/browser_e2e.py             # terminal 2 (needs playwright + chromium)
+python scripts/check_integrity.py           # database integrity report
 python run_demo.py --reset                  # restore the clean demo state
 ```
+If a new DB/API test fails on first run, treat it as unverified code, not as a reason to loosen the test.
 
 ## Known limits
-See README "Known limitations". No field data exists; make no accuracy, learning-gain or calibration claims.
+See README "Known limitations" and `FINAL_AUDIT.md`. No field data exists; make no accuracy, learning-gain or calibration claims.

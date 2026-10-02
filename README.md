@@ -10,9 +10,9 @@ mastery is updated, and the teacher sees the diagnosis and what happened after i
 > منصة تعلّم تكيفي تعرف المتطلبات السابقة لكل مهارة: عند تعثّر المتعلم تجمع الأدلة عبر شجرة المتطلبات
 > وتقدّر الفجوة الجذرية الأرجح مع الأدلة ومستوى الثقة، ثم تعالجها وتعيده إلى الدرس الأصلي، ويرى المعلم التشخيص ونتيجته.
 
-The MVP demonstrates **one domain** — integer and fraction lessons from the Jordanian
-mathematics curriculum (9 live lessons) — through a diagnosis core that is not tied to
-mathematics (see *Architecture*). Other subjects are not built.
+The MVP demonstrates **one domain** — integer lessons from the Jordanian Grade 6 mathematics
+curriculum (9 live lessons) — as an *example*. The diagnosis core is not tied to mathematics, a grade or a
+language (see *Architecture*); course wording lives in `app/engine/config.py` (`COURSE`). Other subjects are not built.
 
 ---
 
@@ -30,7 +30,7 @@ python run_demo.py --reset          # checks deps + DB, creates "Juthoor" if mis
 
 Database steps that `run_demo.py --reset` performs (each can be run on its own):
 `scripts/check_db.py` (connect; create the database if missing) → `scripts/reset_db.py` (drop/recreate
-the `public` schema) → `scripts/init_db.py` (create tables, add any newer columns) →
+the `public` schema) → `scripts/init_db.py` (create tables, then apply the versioned SQL migrations in `migrations/versions/`) →
 `scripts/seed_shop.py` → `scripts/seed_demo.py` (demo learners, played through the real engine).
 
 Open <http://localhost:8000/app/>. Demo password for every account: `demo1234`.
@@ -38,7 +38,7 @@ Open <http://localhost:8000/app/>. Demo password for every account: `demo1234`.
 | Account | Role | Story |
 |---|---|---|
 | `student2@demo.jo` (عمر) | student in a class (full diagnosis) | Really mastered absolute value + comparing; now on *multiplying integers*. 5–7 wrong answers lead to the root *adding integers*. |
-| `teacher@demo.jo` | teacher (school plan) | Class dashboard, diagnosis record per learner, one-click remediation. |
+| `teacher@demo.jo` | teacher (school plan) | Class dashboard, diagnosis record per learner, one-click remediation. A new teacher joining the demo organisation needs its join code (printed by `scripts/seed_demo.py`; regenerate with `scripts/org_join_code.py`). |
 | `student1@demo.jo` (ليان) | student (pro) | Already has a persisted diagnosis — visible to the teacher. |
 | `parent@demo.jo` | parent of ليان | Child report. |
 | `student3..6@demo.jo` | class members | |
@@ -58,7 +58,7 @@ Open <http://localhost:8000/app/>. Demo password for every account: `demo1234`.
 ```
 Learner answers a question on skill S
   └─ wrong → BKT update, practice plan starts (same idea again → easier → prerequisite)
-       └─ every wrong answer returns evidence_status = insufficient_evidence + why
+       └─ every wrong answer returns evidence_status = insufficient_evidence + why + evidence_needed (what would settle it)
             └─ the leading candidate has only one wrong probe → one confirmation probe on it
                  └─ verdict: root_identified — root, path, evidence per skill, confidence level,
                     explanation, intervention; DiagnosisEvent persisted
@@ -76,7 +76,8 @@ returned as `workflow` by `POST …/adaptive/answer` and `GET …/adaptive/state
 ### Diagnosis rules (`app/engine/diagnosis.py`)
 
 1. **failing(s)**: not currently believed mastered, and more wrong than right answers on `s`.
-2. **solid(s)**: believed mastered, or every observed answer on `s` correct. Otherwise *unverified*.
+2. **solid(s)**: believed mastered, or no wrong answer and at least `MIN_SOLID_EVIDENCE` (2) correct answers
+   on `s`. One lucky correct answer is *not* enough. Otherwise *unverified*.
    A mastered skill stops being "believed" only when fresh errors drop its BKT estimate below 0.5
    (two wrong answers in a row from 0.85); old history alone never re-opens it.
 3. Candidates = failing skills on `origin + all prerequisites (ancestors)`.
@@ -84,10 +85,16 @@ returned as `workflow` by `POST …/adaptive/answer` and `GET …/adaptive/state
    deeper explanation; an unverified one cannot be ruled out).
 5. Among eligible candidates, the strongest direct evidence wins (most wrong, then error rate), then
    the more fundamental skill. Other eligible candidates are reported as `competing`.
-6. **No root is named** unless the chain shows ≥ 3 wrong answers *and* the root itself ≥ 2.
+6. **No root is named** unless the chain shows ≥ 3 wrong answers, the root itself ≥ 2, *and* the leading
+   candidate's likelihood ratio against "no gap" is at least `MIN_ROOT_LR` (20; computed in log space from the
+   candidate's right/wrong counts with `p_gap=0.2`, `p_known=0.9`). These two thresholds are uncalibrated
+   defaults; `benchmarks/sweep.json` shows how stricter values trade false diagnoses for abstention.
    Otherwise the verdict is `insufficient_evidence` with the reason (`too_few_errors`,
    `root_needs_confirmation`, `prerequisites_unverified`, or `mixed_evidence` when errors were seen but
-   every skill still has at least as many right answers as wrong). `no_difficulty` means no unmastered
+   every skill still has at least as many right answers as wrong). Each insufficient verdict also returns
+   `evidence_needed`: machine-readable items (`more_errors`, `confirm_root`, `verify_prerequisite`,
+   `resolve_mixed`, each with a skill and the minimum number of answers) that the practice page shows as
+   "ما يلزم لحسم التشخيص". `no_difficulty` means no unmastered
    skill on the chain has a wrong answer.
 7. The engine checks the evidence first on every wrong answer: as soon as the verdict names a new root
    it is declared on that answer (the evidence status and the decision never disagree).
@@ -105,6 +112,7 @@ adding → comparing → absolute value. Errors on every lesson of that chain co
 | medium (متوسطة) | ≥ 2 wrong on the root and more wrong than right (also the cap when a competing candidate exists) |
 | low (أولية) | weaker evidence (not reachable with the default thresholds) |
 
+BKT probabilities are clamped to [0.001, 0.999] (never absorbing, NaN-safe) and the parameters are validated at import.
 `p_gap` in the payload is `1 − BKT p(mastery)`. The BKT parameters (`app/engine/config.py`) are
 literature-style defaults; **they have not been calibrated on real learner data**, so `p_gap` is a model
 estimate, not a measured probability. In the Omar demo the root is named with *medium* confidence
@@ -117,6 +125,32 @@ service. An LLM (OpenAI/Groq) is used only if a key is set, for tutor replies an
 wording; every call has a timeout and falls back to the offline generator / offline tutor. Tested
 with a provider that always throws (`test_g_…`).
 
+### Measured behaviour (synthetic benchmark only)
+
+`python scripts/diagnostic_benchmark.py --reps 5` drives synthetic learners with a known gap through the real
+engine (810 cases, deterministic). Result for the shipped thresholds: with clean answers the engine names the
+right root in 97.1 % of the cases where it names one (89.8 % of all gap cases; 2.7 % wrong; 7.6 % abstentions;
+no premature declarations). With noisy answers: 91.1 % / 77.8 %. A learner who guesses right often still gets a
+wrong root 30.2 % of the time, and learners with no gap get a false diagnosis in 2.2 / 8.9 / 20.0 % of clean /
+noisy / very noisy cases. The 95 % goal was **not** reached, and these figures say nothing about real students.
+Details and before/after: `FINAL_AUDIT.md`, `docs/COMPETITIVE_ADVANTAGE.md`.
+
+## Concurrency, idempotency and migrations
+
+- Every answer locks the learner's state row (`SELECT … FOR UPDATE`); the state row is created with
+  `INSERT … ON CONFLICT DO NOTHING`; `skill_mastery` has a unique (student, skill) constraint and CHECK constraints.
+- `POST /adaptive/answer` accepts an optional `request_id` (8–64 chars). A retry with the same id returns the stored
+  response (`idempotent_replay: true`); the same id with a different answer is `409 request_id_reused`. The UI sends one.
+- Migrations: `migrations/versions/NNNN_*.sql`, applied in order under an advisory lock and recorded in
+  `schema_migrations` (`app/migrations.py`). They are idempotent, so a fresh database and an older one converge.
+  Alembic is not used.
+- A learner's state row is created exactly once: the answer/question path creates and locks it; opening one's own
+  state provisions it (`provision_state`); every other read (teacher, parent, integrity checker) is read-only.
+- Connections: one per request, always returned by `get_db`. Pool sizes: `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` /
+  `DB_POOL_TIMEOUT` (defaults 10 / 20 / 30). The test suite uses the same options.
+- `scripts/check_integrity.py` checks a live database for orphans, duplicates and out-of-range values.
+- `scripts/verify_{migrations,locking,integrity,state_creation}_sql.sh` verify the SQL against a PostgreSQL server using psql/pgbench.
+
 ## Architecture
 
 - `app/static/` – single-page app, vanilla ES modules, no build step, served at `/app/`.
@@ -126,7 +160,9 @@ with a provider that always throws (`test_g_…`).
 - `app/services/session_core.py` – one question/answer step: practice plan, confirmation probes, evidence status.
 - `app/engine/diagnosis.py` – **domain-agnostic**: graph validation (unknown prerequisite, self-loop,
   duplicate, cycle), traversal, candidate ranking, confidence. No curriculum or language inside.
-- `app/engine/knowledge_graph.py` – the mathematics content graph (9 skills); validated at import.
+- `app/engine/knowledge_graph.py` – the example content graph (9 integer skills); validated at import.
+- `app/engine/benchmark.py` – synthetic-learner benchmark; `app/engine/integrity.py` – learner-state invariants.
+- `finance/model.py` – financial model (see `docs/FINANCIAL_MODEL.md`).
 - `app/engine/adaptive_engine.py` – BKT, difficulty ladder, backtracking, remediation routing, Arabic explanations.
 - `app/models/` – SQLAlchemy models. PostgreSQL schema is created by `scripts/init_db.py` / app start-up.
 - `docs/ARCHITECTURE.png` – diagram.
@@ -141,14 +177,20 @@ python -m pytest -q             # PostgreSQL: postgresql://postgres:1234@localho
 cd tests/js && npm test         # UI tests on a fake DOM, replaying real engine payloads
 python scripts/preflight.py     # live checks against the running server (start run_demo.py first)
 python scripts/make_test_report.py   # writes docs/TEST_REPORT.md from an actual run
-python -m compileall -q app scripts tests
+python -m compileall -q app scripts tests finance
+python scripts/diagnostic_benchmark.py --reps 5   # synthetic diagnosis benchmark (deterministic)
+python scripts/benchmark_sweep.py                 # threshold trade-off table
+python finance/model.py                           # financial scenarios -> finance/outputs.json
 
 # Real-browser walk-through (Chromium via Playwright; run while run_demo.py is serving):
 pip install playwright && python -m playwright install chromium
 python tests/e2e/browser_e2e.py      # then run_demo.py --reset again: it changes Omar's state
 ```
 
-Which of these have actually been run, and where, is recorded in `HANDOFF.md` ("Verification status").
+Which of these have actually been run, and where, is recorded in `HANDOFF.md` ("Verification status") and
+`FINAL_AUDIT.md`. Several test files need no web framework or database and run with
+`python -m pytest -q --noconftest <file>` (engine, flow, BKT properties, graph integrity, benchmark, stability-engine,
+tutor evaluation, financial model, migration-file validation).
 
 How the suite is configured (`tests/conftest.py`), so that a clean checkout behaves the same everywhere:
 
@@ -225,14 +267,17 @@ PyJWT, bcrypt, networkx, …) with version ranges that have wheels for current P
 
 ## Known limitations
 
-- One demonstrated domain: 9 of 18 lessons of the curriculum map are live (units 1–2).
+- One demonstrated domain: 9 of 18 lessons of the curriculum map are live (units 1–2). The 95 % diagnosis goal is not met
+  on the synthetic benchmark (see above); there are no field results.
 - The prerequisite edges, including the integers → fractions edge, are a pedagogical assumption not yet
   reviewed by teachers.
 - BKT parameters and the evidence thresholds are uncalibrated defaults; the confidence level is a
   documented rule, not a validated probability.
 - The current graph is a chain; branching and competing roots are supported and tested on a synthetic
   graph, not yet on curriculum content.
-- Rate limiting is in-process memory (single worker). No load testing has been done.
+- Rate limiting is in-process memory (single worker). Concurrency was verified at the SQL level (pgbench) and by
+  engine-level tests; an HTTP load test has not been run.
+- Password-reset codes are not e-mailed unless SMTP is wired up; outside demo mode they are not logged.
 - The off-topic guardrail for the tutor is keyword-based.
 - No field pilot has been run yet.
 - Shop, community, esports and payments exist in the code base but are outside the MVP scope and hidden

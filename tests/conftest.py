@@ -101,7 +101,7 @@ from sqlalchemy.orm import close_all_sessions, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import models
-from app.database import Base, get_db
+from app.database import Base, engine_options, get_db
 from app.main import app
 from tests.helpers import register
 
@@ -112,7 +112,7 @@ def _make_test_engine():
     if not IS_POSTGRES:
         return create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     url = make_url(TEST_DATABASE_URL)
-    eng = create_engine(url, pool_pre_ping=True)
+    eng = create_engine(url, **engine_options(TEST_DATABASE_URL))  # same pool as the app
     try:
         with eng.connect():
             pass

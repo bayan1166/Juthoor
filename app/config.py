@@ -28,6 +28,9 @@ def env_file() -> str | None:
 
 class Settings(BaseSettings):
     database_url: str = DEFAULT_DATABASE_URL
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_timeout: int = 30
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 720
@@ -59,7 +62,7 @@ class Settings(BaseSettings):
 
     @field_validator(
         "enable_vector_store", "demo_mode", "judge_mode", "llm_questions_enabled", "rate_limit_enabled",
-        "trust_proxy", "access_token_minutes", "llm_timeout_seconds", "max_upload_bytes", "smtp_port",
+        "trust_proxy", "db_pool_size", "db_max_overflow", "db_pool_timeout", "access_token_minutes", "llm_timeout_seconds", "max_upload_bytes", "smtp_port",
         mode="before",
     )
     @classmethod

@@ -234,10 +234,15 @@ def test_parent_sees_only_their_children(client):
 
 
 def test_teacher_sees_their_org(client, db):
-    db.add(Organization(name="Demo School", slug="demo"))
+    # Behaviour change (security, TASKS/04_SECURITY.md): joining an organization now requires its
+    # join code, so a public slug is no longer enough to become a teacher there.
+    from app.services import org_access
+    org = Organization(name="Demo School", slug="demo")
+    code = org_access.issue_join_code(org)
+    db.add(org)
     db.commit()
-    teacher = register(client, role="teacher", org_slug="demo")
-    pupil = register(client, org_slug="demo")
+    teacher = register(client, role="teacher", org_slug="demo", org_code=code)
+    pupil = register(client, org_slug="demo", org_code=code)
     register(client)
     roster = client.get("/me/students", headers=teacher["headers"]).json()
     assert [r["student_id"] for r in roster] == [pupil["id"]]

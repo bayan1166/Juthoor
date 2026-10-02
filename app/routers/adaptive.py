@@ -82,7 +82,8 @@ def submit_answer(student_id: uuid.UUID, payload: AnswerRequest, db: Session = D
                   user: User = Depends(get_current_user)):
     require_self(student_id, user)
     try:
-        result = engine_bridge.submit_answer(db, student_id, payload.selected_answer, payload.is_remedial)
+        result = engine_bridge.submit_answer(db, student_id, payload.selected_answer, payload.is_remedial,
+                                             request_id=payload.request_id)
     except engine_bridge.EngineError as exc:
         raise HTTPException(exc.status_code, exc.code)
     if not plans.has_full_gap_access(db, user, user):
@@ -99,9 +100,17 @@ def submit_answer(student_id: uuid.UUID, payload: AnswerRequest, db: Session = D
     return result
 
 
+def _provision_own_state(db: Session, user: User, student_id: uuid.UUID) -> None:
+    """A learner opening their own state gets a stored row (created once, race-free). Teachers/parents
+    reading a learner never write: they see the default starting state."""
+    if user.id == student_id:
+        engine_bridge.provision_state(db, student_id)
+
+
 @router.get("/state", response_model=StudentStateOut)
 def get_state(student_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     require_student_access(student_id, user, db)
+    _provision_own_state(db, user, student_id)
     full = plans.has_full_gap_access(db, user, _student(db, student_id))
     return _mask_state(engine_bridge.state_overview(db, student_id), full)
 
@@ -116,6 +125,7 @@ def get_tree(student_id: uuid.UUID, db: Session = Depends(get_db), user: User = 
 @router.get("/bootstrap")
 def bootstrap(student_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     require_student_access(student_id, user, db)
+    _provision_own_state(db, user, student_id)
     student = _student(db, student_id)
     full = plans.has_full_gap_access(db, user, student)
     wallet = economy_service.get_or_create_wallet(db, student_id)

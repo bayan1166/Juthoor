@@ -169,8 +169,11 @@ def main():
             print("Run: python run_demo.py --reset   (this wipes the database and reseeds it)")
             sys.exit(2)
         org = Organization(name="Demo School", slug="demo-school")
+        from app.services import org_access
+        join_code = org_access.issue_join_code(org)
         db.add(org)
         db.flush()
+        print(f"Demo School join code (needed to register a teacher or student into it): {join_code}")
 
         teacher = make_user(db, org, "teacher@demo.jo", "المعلمة سارة", UserRole.teacher, plan="school", gender="بنت")
         parent = make_user(db, org, "parent@demo.jo", "ولي الأمر أحمد", UserRole.parent)

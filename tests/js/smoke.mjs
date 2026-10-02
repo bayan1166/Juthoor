@@ -517,6 +517,8 @@ await run('real engine flow replay', async () => {
   check('UI shows the diagnosis card built from the real payload', finalText.includes('نتيجة التشخيص') && finalText.includes('جمع الأعداد الصحيحة') && finalText.includes('ضرب'));
   check('UI shows the confidence label from the engine', finalText.includes(`الثقة ${diagnosis.confidence}`));
   check('UI lists the evidence counts from the engine', diagnosis.evidence.every((e) => finalText.includes(`${e.wrong} خاطئة`)));
+  const withNeeded = flow.slice(0, -1).map((f, i) => [f, i]).filter(([f]) => f.result.evidence_status && (f.result.evidence_status.evidence_needed || []).length);
+  check('when the engine reports evidence_needed, the learner sees what would settle the diagnosis', withNeeded.length > 0 && withNeeded.every(([, i]) => seen[i].text.includes('ما يلزم لحسم التشخيص')));
   check('before the root is named, each wrong answer explains what evidence is still missing', seen.slice(0, -1).every((s) => s.text.includes('نجمع الأدلة')));
   check('a confirmation probe is announced before blaming the root', seen.some((s) => s.text.includes('سؤال تأكيد')));
   check('UI shows why this lesson was chosen and the remediation plan', finalText.includes('لماذا هذا الدرس؟') && finalText.includes('الخطة العلاجية'));

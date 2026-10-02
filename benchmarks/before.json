@@ -1,0 +1,84 @@
+{
+  "scenarios": {
+    "known_root_clean": {
+      "kind": "gap",
+      "cases": 225,
+      "named_root": 214,
+      "correct_root": 171,
+      "wrong_root": 43,
+      "root_accuracy_when_committed_pct": 79.9,
+      "root_accuracy_overall_pct": 76.0,
+      "wrong_root_rate_pct": 19.1,
+      "abstention_rate_pct": 4.9,
+      "premature_rate_pct": 50.0
+    },
+    "known_root_noisy": {
+      "kind": "gap",
+      "cases": 225,
+      "named_root": 206,
+      "correct_root": 142,
+      "wrong_root": 64,
+      "root_accuracy_when_committed_pct": 68.9,
+      "root_accuracy_overall_pct": 63.1,
+      "wrong_root_rate_pct": 28.4,
+      "abstention_rate_pct": 8.4,
+      "premature_rate_pct": 53.4
+    },
+    "lucky_correct": {
+      "kind": "gap",
+      "cases": 225,
+      "named_root": 191,
+      "correct_root": 102,
+      "wrong_root": 89,
+      "root_accuracy_when_committed_pct": 53.4,
+      "root_accuracy_overall_pct": 45.3,
+      "wrong_root_rate_pct": 39.6,
+      "abstention_rate_pct": 15.1,
+      "premature_rate_pct": 27.7
+    },
+    "no_gap_clean": {
+      "kind": "none",
+      "cases": 45,
+      "false_diagnoses": 1,
+      "false_diagnosis_rate_pct": 2.2,
+      "abstention_rate_pct": 97.8,
+      "premature_rate_pct": 0.0
+    },
+    "no_gap_noisy": {
+      "kind": "none",
+      "cases": 45,
+      "false_diagnoses": 4,
+      "false_diagnosis_rate_pct": 8.9,
+      "abstention_rate_pct": 91.1,
+      "premature_rate_pct": 0.0
+    },
+    "no_gap_very_noisy": {
+      "kind": "none",
+      "cases": 45,
+      "false_diagnoses": 9,
+      "false_diagnosis_rate_pct": 20.0,
+      "abstention_rate_pct": 80.0,
+      "premature_rate_pct": 0.0
+    }
+  },
+  "calibration_by_confidence_level": {
+    "high": {
+      "n": 259,
+      "accuracy_pct": 77.2
+    },
+    "medium": {
+      "n": 352,
+      "accuracy_pct": 61.1
+    },
+    "low": {
+      "n": 0,
+      "accuracy_pct": null
+    }
+  },
+  "total_cases": 810,
+  "digest": "8797834b44c265343da151439efe934bc0800e136788e381cf2b9b288978f21c",
+  "false_diagnoses_total_no_gap": 14,
+  "reps_per_cell": 5,
+  "max_answers_budget": 40,
+  "deterministic": true
+}
