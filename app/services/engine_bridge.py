@@ -82,7 +82,7 @@ def _load_state(db: Session, student_id: uuid.UUID, lock: bool = False) -> ae.St
     """Rebuild the engine state. ``lock=True`` is the write path (locks, creates the row if needed).
 
     ``lock=False`` is **read-only**: a learner with no stored row is shown the default starting state
-    and nothing is written (so teacher/parent views and the integrity checker never create rows).
+    and nothing is written (so parent views and the integrity checker never create rows).
     """
     if lock:
         row = lock_student_state(db, student_id)
@@ -401,7 +401,7 @@ def trigger_manual_drill_down(db: Session, student_id: uuid.UUID, from_skill: st
     plan = {
         "stage": pr.EASIER, "skill": from_skill, "difficulty": ecfg.PROBE_DIFFICULTY,
         "pattern": patterns[0], "stack": [], "misconception": misconception or None,
-        "breadcrumb": f"المعلم الذكي لاحظ أن الصعوبة تبدأ من «{kg.SKILLS[from_skill].name_ar}»، لنثبّت هذا الأساس أولاً.",
+        "breadcrumb": f"المساعد الذكي لاحظ أن الصعوبة تبدأ من «{kg.SKILLS[from_skill].name_ar}»، لنثبّت هذا الأساس أولاً.",
     }
     row.remediation_plan = plan
     row.pending_question = None

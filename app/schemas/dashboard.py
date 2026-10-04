@@ -43,14 +43,6 @@ class StudentInsightsOut(BaseModel):
     gap_report_locked: bool = False
 
 
-class CohortInsightsOut(BaseModel):
-    organization_id: uuid.UUID
-    generated_at: UtcDateTime
-    student_count: int
-    avg_tree_health: float
-    top_struggle_skills: list[StruggleAlert]
-
-
 class RosterStudentOut(BaseModel):
     student_id: uuid.UUID
     full_name: str

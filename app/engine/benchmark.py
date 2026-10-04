@@ -9,8 +9,8 @@ What this proves and what it does not
 -------------------------------------
 * It measures how the *decision logic* behaves under controlled answer noise
   (slips, lucky guesses). Same seed => identical results (determinism is measured).
-* It does NOT measure accuracy on real students. Real accuracy needs teacher-labelled
-  field data. Do not quote these numbers as classroom accuracy.
+* It does NOT measure accuracy on real students. Real accuracy needs expert-labelled
+  data from real learners. Do not quote these numbers as real-world accuracy.
 
 Scenario definitions
 --------------------

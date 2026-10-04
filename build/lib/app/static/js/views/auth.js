@@ -86,7 +86,7 @@ export async function authView(ctx) {
   side.appendChild(h('div', { class: 'top' }, h('a', { class: 'brand', href: '#/login', html: brandHtml() })));
   side.appendChild(h('div', { class: 'copy' },
     h('h1', null, 'اعرف أين بدأت الفجوة، لا أين ظهرت'),
-    h('p', null, 'جذور يتتبّع سلسلة المتطلبات السابقة لكل درس، ليصل بالطالب إلى الجذر الحقيقي لتعثّره في رياضيات الصف السادس.'),
+    h('p', null, 'جذور يتتبّع سلسلة المتطلبات السابقة لكل درس، ليصل بالطالب إلى الجذر الحقيقي لتعثّره في مواده الدراسية.'),
     h('ul', null,
       h('li', null, ico('target'), 'مسح الجذر: تشخيص دقيق بدل علامة رقمية'),
       h('li', null, ico('tree'), 'شجرة منهج تتفتح مع كل درس يُتقَن'),

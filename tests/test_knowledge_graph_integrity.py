@@ -78,5 +78,5 @@ def test_a_valid_branching_graph_is_accepted_and_ancestors_are_correct():
 
 
 def test_the_real_graph_is_a_linear_chain_documented_limitation():
-    """Not a defect check: documents that branching is only exercised on fixtures (TASKS/08)."""
+    """Not a defect check: documents that branching is only exercised on fixtures (see README, Knowledge graph)."""
     assert all(len(kg.prerequisites(s)) <= 1 for s in kg.SKILLS)

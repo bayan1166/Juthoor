@@ -4,8 +4,7 @@ const PY = JSON.parse(fs.readFileSync(new URL('./fixtures/py.json', import.meta.
 let role = 'student';
 const ok = (json, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(json) });
 const users = {
-  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: 'basic', plan_source: 'own', plan_expires_at: null, trial_days_left: null },
-  teacher: { user_id: 'T1', handle: '7001', email: 't@x.jo', full_name: 'سارة', role: 'teacher', plan: 'school', plan_source: 'trial', plan_expires_at: null, trial_days_left: 13 },
+  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: 'basic', plan_source: 'own', plan_expires_at: null },
 };
 const fetchMock = async (url) => {
   const p = url.split('?')[0];
@@ -16,7 +15,6 @@ const fetchMock = async (url) => {
   if (p.endsWith('/adaptive/tree')) return ok(PY.tree_full);
   if (p.endsWith('/adaptive/bootstrap')) return ok({ state: { current_skill: 'adding_integers', skills: [] }, wallet: { coins: 120, gems: 3 }, avatar: {}, avatar_svg: '<svg id="me"></svg>', drilldowns: [], drilldowns_hidden: 0, plan: { plan: 'basic', limits: { questions_per_day: 20 }, remaining: { questions: 18, tutor: 5 } } });
   if (p === '/community/summary') return ok({ unread_messages: 2, pending_requests: 1 });
-  if (p === '/classrooms') return ok([]);
   if (p === '/payments/plans') return ok(PY.plans);
   return ok({ detail: 'no_mock' }, 404);
 };
@@ -31,16 +29,19 @@ const main = await import('../../app/static/js/main.js');
 await tick(120);
 check('splash dismissed', splash.classList.contains('done'));
 const labels = byClass(app, 'nav-link').map((e) => e.textContent);
-check('student nav keeps only the learning flow', byClass(app, 'nav-link').length === 4 && ['الشجرة', 'التدريب', 'المعلم الذكي', 'صفوفي'].every((l) => labels.some((t) => t.includes(l))));
-check('shop, packages and community are not in the nav', !['المتجر', 'الباقات', 'المجتمع'].some((l) => labels.some((t) => t.includes(l))));
-check('no community dot or plans item in the rendered shell', !text(app).includes('الباقات والاشتراك'));
-check('teacher links reduce to the dashboard', main.linksFor('teacher').length === 1 && main.linksFor('parent').length === 1);
+check('student nav is the real B2C flow incl. Pro', ['الرئيسية', 'التدريب', 'المساعد الذكي', 'برو'].every((l) => labels.some((t) => t.includes(l))));
+check('"صفوفي" and classroom/school labels are gone from nav and tabbar', !text(app).includes('صفوفي') && !['الصفوف', 'المدرسة', 'لوحة المعلم'].some((l) => text(app).includes(l)));
+check('judge mode still hides shop/community but never Pro', !['المتجر', 'المجتمع'].some((l) => labels.some((t) => t.includes(l))) && labels.some((t) => t.includes('برو')));
+const cta = find(app, (e) => e.attrs && e.attrs['data-testid'] === 'upgrade-cta');
+check('visible header upgrade CTA links to /plans', !!cta && cta.attrs.href === '#/plans' && cta.textContent.includes('ترقية إلى برو'));
+check('only learners and parents have navigation; parents can reach Pro', main.linksFor('teacher').length === 0 && main.linksFor('platform_admin').length === 0 && main.linksFor('parent').some(([to]) => to === '/plans'));
 check('routes stay registered so upsell links never dead-end', !!main.matchRoute('/plans', 'student') && !!main.matchRoute('/shop', 'student') && !!main.matchRoute('/community', 'student'));
+check('/classes route no longer exists for students', main.matchRoute('/classes', 'student') === null);
 const avatarBtn = find(app, (e) => e.attrs && e.attrs['aria-label'] === 'الحساب');
 check('account button exists to open the menu', !!avatarBtn);
 avatarBtn.click();
 await tick(20);
-check('account menu opened and has no plans entry', byClass(app, 'menu').length === 1 && !text(app).includes('الباقات والاشتراك'));
+check('account menu opened and offers the Pro upgrade entry', byClass(app, 'menu').length === 1 && text(app).includes('ترقية إلى برو'));
 for (const [c, n, x] of results) console.log(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? '  -> ' + x : ''}`);
 console.log(`\n${results.length - failures}/${results.length} judge-mode checks passed`);
 process.exit(failures ? 1 : 0);

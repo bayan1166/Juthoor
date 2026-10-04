@@ -1,6 +1,6 @@
 import { h, ico, mount, clear, toast, jod, fmtDate } from '../dom.js';
 import { api } from '../api.js';
-import { store, loadMe, planLabel, isStaff, isParent } from '../store.js';
+import { store, loadMe, isInternal, isParent } from '../store.js';
 import { errorPanel, handleError, withBusy } from './shared.js';
 
 export function luhn(value) {
@@ -46,16 +46,19 @@ function limitCell(value) {
 
 function uspBlock(usp) {
   const chain = h('div', { class: 'chain', style: { marginTop: '8px' } },
-    h('span', { class: 'node' }, 'ضرب الأعداد الصحيحة'), h('span', { class: 'arrow' }, ico('chevl')),
-    h('span', { class: 'node' }, 'طرح الأعداد الصحيحة'), h('span', { class: 'arrow' }, ico('chevl')),
+    h('span', { class: 'node' }, 'الدرس الحالي'), h('span', { class: 'arrow' }, ico('chevl')),
+    h('span', { class: 'node' }, 'متطلب سابق'), h('span', { class: 'arrow' }, ico('chevl')),
     h('span', { class: 'node blur-lock' }, 'درس مخفي'), h('span', { class: 'arrow' }, ico('chevl')),
     h('span', { class: 'node blur-lock root' }, 'الجذر'));
   return h('div', { class: 'usp' },
     h('div', null, h('span', { class: 'chip lime' }, ico('target'), usp.name), h('h2', { style: { color: '#fff', marginTop: '10px' } }, usp.headline), h('p', null, usp.body),
       h('ul', null, usp.points.map((t) => h('li', null, ico('check'), t)))),
-    h('div', { class: 'demo' }, h('div', { class: 'small', style: { opacity: 0.85 } }, 'هكذا يرى الطالب في الباقة الأساسية سلسلة تعثّره'), chain,
+    h('div', { class: 'demo' }, h('div', { class: 'small', style: { opacity: 0.85 } }, 'هكذا يرى الطالب في الباقة المجانية سلسلة تعثّره'), chain,
       h('div', { class: 'row', style: { marginTop: '12px' } }, ico('lock'), h('span', null, 'باقة برو تكشف الجذر والخطة المقترحة لسدّه'))));
 }
+
+const PERIOD_LABEL = { monthly: 'شهري', yearly: 'السنة الدراسية' };
+const PERIOD_UNIT = { monthly: 'دينار / شهر', yearly: 'دينار / السنة الدراسية' };
 
 export async function plansView(ctx) {
   const me = store.me;
@@ -63,6 +66,7 @@ export async function plansView(ctx) {
   ctx.root.appendChild(page);
   mount(page, h('div', { class: 'skeleton', style: { height: '320px' } }));
 
+  const banners = [];
   if (ctx.query.paid) {
     let sid = null;
     try {
@@ -79,10 +83,11 @@ export async function plansView(ctx) {
         ctx.refreshShell();
         toast('تم تفعيل اشتراكك.', 'success');
       } catch (err) {
-        toast(err.message, 'error');
+        banners.push(h('div', { class: 'banner warn', role: 'alert' }, ico('alert'), h('div', null, `لم يتأكد الدفع بعد: ${err.message} لم يُفعَّل برو، ويمكنك المحاولة مجدداً من الأسفل.`)));
       }
     }
   }
+  if (ctx.query.canceled) banners.push(h('div', { class: 'banner', role: 'status' }, ico('info'), h('div', null, 'لم يكتمل الدفع ولم يُخصم أي مبلغ. يمكنك المحاولة مجدداً متى شئت.')));
 
   let data;
   try {
@@ -91,75 +96,62 @@ export async function plansView(ctx) {
     mount(page, errorPanel(err, () => ctx.reload()));
     return;
   }
-  let period = 'monthly';
-  const grid = h('div', { class: 'plans' });
-  const toggle = h('div', { class: 'seg' });
   const current = me.plan;
+  const pro = data.plans.find((p) => p.id === 'pro');
+  const basic = data.plans.find((p) => p.id === 'basic');
+  const unavailable = data.provider === 'none';
 
-  function cta(plan) {
-    const href = `#/checkout/${plan.id}?period=${period}`;
-    if (plan.id === 'basic') return h('button', { class: 'btn btn-block', disabled: true }, current === 'basic' ? 'خطتك الحالية' : 'متاحة دائماً');
-    if (plan.id === 'pro') {
-      if (isStaff()) return h('button', { class: 'btn btn-block', disabled: true }, 'مشمولة في باقة المدرسة');
-      if (isParent()) return h('a', { class: 'btn btn-primary btn-block', href: `${href}` }, ico('bolt'), 'فعّل برو لابنك');
-      if (current === 'pro' && me.plan_source === 'class') return h('button', { class: 'btn btn-block', disabled: true }, 'مفعّلة مجاناً عبر صفك');
-      if (current === 'pro') return h('a', { class: 'btn btn-block', href }, `خطتك الحالية، تجديد (حتى ${fmtDate(me.plan_expires_at)})`);
-      return h('a', { class: 'btn btn-primary btn-block', href }, ico('bolt'), 'اشترك في برو');
-    }
-    if (!isStaff()) return h('button', { class: 'btn btn-block', disabled: true }, 'اطلب من معلمك الاشتراك');
-    if (me.plan_source === 'trial') return h('a', { class: 'btn btn-primary btn-block', href }, ico('bolt'), `اشترك الآن (تجربتك: ${me.trial_days_left} يوماً متبقياً)`);
-    if (current === 'school') return h('a', { class: 'btn btn-block', href }, `تجديد (حتى ${fmtDate(me.plan_expires_at)})`);
-    return h('a', { class: 'btn btn-primary btn-block', href }, ico('bolt'), 'اشترك في باقة المدرسة');
+  function proCta(period) {
+    const href = `#/checkout/pro?period=${period}`;
+    if (isInternal()) return h('button', { class: 'btn btn-block', disabled: true }, 'الاشتراك للطلاب وأولياء الأمور');
+    if (unavailable) return h('button', { class: 'btn btn-block', disabled: true }, 'الدفع غير مفعّل بعد');
+    const label = isParent() ? 'فعّل برو لابنك' : current === 'pro' ? `تجديد (حتى ${fmtDate(me.plan_expires_at)})` : 'ترقية إلى برو';
+    return h('a', { class: ['btn btn-block', period === 'yearly' ? 'btn-primary' : 'btn-ghost'], href, 'data-testid': `buy-pro-${period}` }, ico('bolt'), label);
   }
 
-  function card(plan) {
-    const free = plan.price_month === 0;
-    const amount = period === 'yearly' ? plan.price_year : plan.price_month;
-    const saving = !free ? Math.round((1 - plan.price_year / (plan.price_month * 12)) * 100) : 0;
-    return h('div', { class: ['plan', plan.highlight ? 'hl' : ''] },
-      plan.highlight ? h('span', { class: 'ribbon' }, 'الأكثر طلباً') : null,
-      h('div', null, h('h3', null, plan.name_ar), h('span', { class: 'chip' }, plan.audience)),
-      h('p', { class: 'tag' }, plan.tagline),
-      h('div', null,
-        h('div', { class: 'price' }, free ? h('b', null, 'مجاني') : [h('b', null, jod(amount)), h('span', null, period === 'yearly' ? 'دينار / سنة' : 'دينار / شهر')]),
-        !free && period === 'yearly' ? h('div', { class: 'small muted' }, `ما يعادل ${jod(plan.price_year / 12)} دينار شهرياً `, h('span', { class: 'chip lime' }, `وفّر ${saving}%`)) : h('div', { class: 'small muted' }, '\u00A0')),
-      h('ul', null, plan.features.map((f) => h('li', { class: f.included ? '' : 'off' }, ico(f.included ? 'check' : 'x'), h('span', null, f.text)))),
-      cta(plan));
+  function features(list) {
+    return h('ul', null, list.map((f) => h('li', { class: f.included ? '' : 'off' }, ico(f.included ? 'check' : 'x'), h('span', null, f.text))));
   }
 
-  function paintGrid() {
-    mount(grid, data.plans.map(card));
+  function proCard(period) {
+    const amount = period === 'yearly' ? pro.price_year : pro.price_month;
+    const rec = period === 'yearly';
+    return h('div', { class: ['plan', rec ? 'hl' : ''], 'data-plan': `pro-${period}` },
+      rec ? h('span', { class: 'ribbon' }, 'الخيار الموصى به') : null,
+      h('div', null, h('h3', null, `برو · ${PERIOD_LABEL[period]}`), h('span', { class: 'chip' }, pro.audience)),
+      h('p', { class: 'tag' }, rec ? 'اشتراك واحد يغطي السنة الدراسية كاملة، دون تجديد شهري.' : pro.tagline),
+      h('div', null, h('div', { class: 'price' }, h('b', null, jod(amount)), h('span', null, PERIOD_UNIT[period])), h('div', { class: 'small muted' }, ' ')),
+      features(pro.features),
+      proCta(period));
   }
 
-  function paintToggle() {
-    mount(toggle,
-      h('button', { class: period === 'monthly' ? 'on' : '', onclick: () => { period = 'monthly'; paintToggle(); paintGrid(); } }, 'شهرياً'),
-      h('button', { class: period === 'yearly' ? 'on' : '', onclick: () => { period = 'yearly'; paintToggle(); paintGrid(); } }, 'سنوياً - وفّر أكثر'));
-  }
+  const freeCard = h('div', { class: 'plan', 'data-plan': 'free' },
+    h('div', null, h('h3', null, 'مجاني'), h('span', { class: 'chip' }, basic.audience)),
+    h('p', { class: 'tag' }, basic.tagline),
+    h('div', null, h('div', { class: 'price' }, h('b', null, 'مجاني')), h('div', { class: 'small muted' }, ' ')),
+    features(basic.features),
+    h('button', { class: 'btn btn-block', disabled: true }, current === 'basic' ? 'خطتك الحالية' : 'متاحة دائماً'));
 
   const rows = [
     ['الأسئلة اليومية', 'questions_per_day'],
-    ['رسائل المعلم الذكي يومياً', 'tutor_per_day'],
+    ['رسائل المساعد الذكي يومياً', 'tutor_per_day'],
     ['كشف سلسلة الجذر وتقرير الفجوة', 'full_gap_report'],
     ['عدد الأصدقاء', 'max_friends'],
-    ['الصفوف والواجبات والاختبارات', 'classrooms'],
     ['سجل التعلّم (أيام)', 'history_days'],
   ];
   const table = h('div', { class: 'table-wrap' }, h('table', { class: 't cmp' },
-    h('thead', null, h('tr', null, h('th', null, 'الميزة'), data.plans.map((p) => h('th', null, p.name_ar)))),
+    h('thead', null, h('tr', null, h('th', null, 'الميزة'), data.plans.map((p) => h('th', null, p.id === 'basic' ? 'مجاني' : p.name_ar)))),
     h('tbody', null, rows.map(([label, key]) => h('tr', null, h('td', null, label), data.plans.map((p) => h('td', null, limitCell(p.limits[key]))))))));
 
-  const banners = [];
-  if (me.plan_source === 'trial') banners.push(h('div', { class: 'banner' }, ico('shield'), h('div', null, `تجربتك المجانية لباقة المدرسة تنتهي بعد ${me.trial_days_left} يوماً. اشترك للاحتفاظ بصفوفك وتحليلاتك.`)));
-  if (me.plan_source === 'class') banners.push(h('div', { class: 'banner' }, ico('users'), h('div', null, 'أنت تتمتع بمزايا برو مجاناً لأنك عضو في صف معلمك.')));
+  if (data.provider === 'mock') banners.push(h('div', { class: 'banner', role: 'status' }, ico('info'), h('div', null, 'وضع العرض: بوابة الدفع الحقيقية غير موصولة، ولن يُحصَّل أي مبلغ فعلي.')));
+  if (unavailable) banners.push(h('div', { class: 'banner warn', role: 'status' }, ico('alert'), h('div', null, 'الدفع الإلكتروني غير مفعّل بعد على هذا الخادم. الباقة المجانية متاحة بالكامل.')));
 
-  paintToggle();
-  paintGrid();
   mount(page,
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'الباقات'), h('p', { class: 'muted' }, 'ابدأ مجاناً، وترقَّ حين تحتاج كشف الجذر كاملاً.')), toggle),
-    banners, uspBlock(data.usp), grid,
-    h('h2', { style: { margin: '36px 0 14px' } }, 'قارن الباقات'), table,
-    h('p', { class: 'small muted', style: { marginTop: '14px' } }, 'الأسعار بالدينار الأردني. يمكنك الإلغاء في أي وقت، ولا يُجدَّد الاشتراك تلقائياً.'));
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'جذور برو'), h('p', { class: 'muted' }, 'ابدأ مجاناً. يشتري ولي الأمر برو حين يريد كشف جذر الفجوة كاملاً وخطة علاجها.'))),
+    banners, uspBlock(data.usp),
+    h('div', { class: 'plans plans-3' }, freeCard, proCard('monthly'), proCard('yearly')),
+    h('h2', { style: { margin: '36px 0 14px' } }, 'قارن بين المجاني وبرو'), table,
+    h('p', { class: 'small muted', style: { marginTop: '14px' } }, 'الأسعار بالدينار الأردني. لا يُجدَّد الاشتراك تلقائياً. يشتري ولي الأمر الاشتراك ويستخدمه الطالب.'));
 }
 
 export async function checkoutView(ctx) {
@@ -186,6 +178,11 @@ export async function checkoutView(ctx) {
     mount(page, h('div', { class: 'empty' }, ico('users'), h('h3', null, 'لا يوجد أبناء مرتبطون بحسابك'), h('p', { class: 'muted' }, 'اطلب من ابنك إدخال بريدك كولي أمر عند إنشاء حسابه.'), h('a', { class: 'btn btn-primary', href: '#/plans' }, 'رجوع')));
     return;
   }
+  if (data.provider === 'none') {
+    mount(page, h('div', { class: 'empty' }, ico('alert'), h('h3', null, 'الدفع الإلكتروني غير مفعّل بعد'), h('p', { class: 'muted' }, 'لم يُخصم أي مبلغ. الباقة المجانية متاحة بالكامل.'), h('a', { class: 'btn btn-primary', href: '#/plans' }, 'رجوع')));
+    return;
+  }
+  const isMock = data.provider === 'mock';
   const amount = period === 'yearly' ? plan.price_year : plan.price_month;
   let childId = ctx.query.for || (kids[0] && kids[0].student_id) || '';
 
@@ -219,7 +216,7 @@ export async function checkoutView(ctx) {
     kidSelect.value = childId;
     kidSelect.addEventListener('change', () => { childId = kidSelect.value; });
   }
-  const pay = h('button', { class: 'btn btn-primary btn-lg btn-block', type: 'submit' }, ico('lock'), `ادفع ${jod(amount)} دينار`);
+  const pay = h('button', { class: 'btn btn-primary btn-lg btn-block', type: 'submit' }, ico('lock'), isMock ? `تفعيل برو (وضع العرض) · ${jod(amount)} دينار` : `المتابعة إلى الدفع الآمن · ${jod(amount)} دينار`);
 
   async function success(res, forName) {
     await loadMe();
@@ -227,8 +224,9 @@ export async function checkoutView(ctx) {
     ctx.refreshShell();
     mount(page, h('div', { class: 'card center', style: { maxWidth: '520px', margin: '40px auto', padding: '36px' } },
       h('svg', { class: 'check-draw', viewBox: '0 0 34 34', style: { width: '72px', height: '72px', color: 'var(--g-500)' } }, h('path', { d: 'M7 18l7 7 13-14', fill: 'none', stroke: 'currentColor', 'stroke-width': '3', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })),
-      h('h2', null, 'تم الاشتراك بنجاح'),
+      h('h2', null, isMock ? 'تم تفعيل برو (وضع العرض)' : 'تم الاشتراك بنجاح'),
       h('p', { class: 'muted' }, forName ? `تم تفعيل باقة ${plan.name_ar} لـ ${forName}.` : `تم تفعيل باقة ${plan.name_ar} على حسابك.`),
+      isMock ? h('div', { class: 'banner' }, ico('info'), h('div', null, 'هذا تفعيل تجريبي: لم تُنفَّذ عملية دفع حقيقية ولم يُحصَّل أي مبلغ.')) : null,
       h('div', { class: 'summary-line' }, h('span', null, 'رقم العملية'), h('b', { class: 'ltr' }, String(res.session_id).slice(0, 8).toUpperCase())),
       h('div', { class: 'summary-line' }, h('span', null, 'المبلغ'), h('b', null, `${jod(res.amount_minor)} دينار`)),
       h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '16px' } }, h('a', { class: 'btn btn-primary', href: '#/' }, 'ابدأ الآن'), h('a', { class: 'btn btn-ghost', href: '#/plans' }, 'الباقات'))));
@@ -238,10 +236,12 @@ export async function checkoutView(ctx) {
     e.preventDefault();
     errs.textContent = '';
     const digits = number.value.replace(/\D/g, '');
-    if (!holder.value.trim()) { errs.textContent = 'أدخل اسم حامل البطاقة.'; return; }
-    if (!luhn(digits)) { errs.textContent = 'رقم البطاقة غير صحيح.'; return; }
-    if (!expiryOk(expiry.value)) { errs.textContent = 'تاريخ الانتهاء غير صحيح أو منتهي.'; return; }
-    if (!/^\d{3,4}$/.test(cvv.value)) { errs.textContent = 'رمز CVV غير صحيح.'; return; }
+    if (isMock) {
+      if (!holder.value.trim()) { errs.textContent = 'أدخل اسم حامل البطاقة.'; return; }
+      if (!luhn(digits)) { errs.textContent = 'رقم البطاقة غير صحيح.'; return; }
+      if (!expiryOk(expiry.value)) { errs.textContent = 'تاريخ الانتهاء غير صحيح أو منتهي.'; return; }
+      if (!/^\d{3,4}$/.test(cvv.value)) { errs.textContent = 'رمز CVV غير صحيح.'; return; }
+    }
     await withBusy(pay, async () => {
       try {
         const body = { plan: plan.id, period };
@@ -266,21 +266,24 @@ export async function checkoutView(ctx) {
     });
   } },
     kidSelect ? h('div', { class: 'field' }, h('label', null, 'تفعيل الباقة لـ'), kidSelect) : null,
-    h('div', { class: 'field' }, h('label', null, 'اسم حامل البطاقة'), holder),
-    h('div', { class: 'field' }, h('label', null, 'رقم البطاقة'), number),
-    h('div', { class: 'grid g2' }, h('div', { class: 'field' }, h('label', null, 'تاريخ الانتهاء'), expiry), h('div', { class: 'field' }, h('label', null, 'رمز الأمان'), cvv)),
+    isMock ? [
+      h('div', { class: 'field' }, h('label', null, 'اسم حامل البطاقة'), holder),
+      h('div', { class: 'field' }, h('label', null, 'رقم البطاقة'), number),
+      h('div', { class: 'grid g2' }, h('div', { class: 'field' }, h('label', null, 'تاريخ الانتهاء'), expiry), h('div', { class: 'field' }, h('label', null, 'رمز الأمان'), cvv)),
+    ] : h('p', { class: 'muted' }, 'ستُحوَّل إلى صفحة الدفع الآمنة لإتمام العملية. لا تُدخل بيانات البطاقة في جذور.'),
     errs, pay,
-    h('div', { class: 'small muted center' }, ico('shield'), ' لا يتم إرسال رقم بطاقتك الكامل إلى خوادمنا.'));
+    h('div', { class: 'small muted center' }, ico('shield'), isMock ? ' وضع العرض: لا تُحفظ بيانات البطاقة ولا يُحصَّل أي مبلغ.' : ' تتم معالجة الدفع لدى مزوّد الدفع، ولا تصل بيانات بطاقتك إلى خوادمنا.'),
+    h('a', { class: 'small center', href: '#/plans' }, 'العودة إلى الباقات'));
 
   mount(page,
-    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'إتمام الاشتراك'), h('p', { class: 'muted' }, 'خطوة واحدة وتبدأ.'))),
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'إتمام الاشتراك'), h('p', { class: 'muted' }, 'اشتراك برو للطالب، يشتريه ولي الأمر.'))),
     h('div', { class: 'checkout' },
       h('div', { class: 'card' },
-        store.health.demo ? h('div', { class: 'banner' }, ico('info'), h('div', null, 'وضع العرض: لن يُحصَّل أي مبلغ. استخدم الرقم التجريبي ', h('b', { class: 'ltr' }, '4242 4242 4242 4242'), ' مع أي تاريخ مستقبلي.')) : null,
+        isMock ? h('div', { class: 'banner' }, ico('info'), h('div', null, 'وضع العرض: بوابة الدفع الحقيقية غير موصولة ولن يُحصَّل أي مبلغ. للتجربة استخدم الرقم ', h('b', { class: 'ltr' }, '4242 4242 4242 4242'), ' مع أي تاريخ مستقبلي.')) : null,
         form),
       h('div', { class: 'col' }, preview,
         h('div', { class: 'card' }, h('h3', null, 'ملخص الطلب'),
-          h('div', { class: 'summary-line' }, h('span', null, `باقة ${plan.name_ar}`), h('b', null, period === 'yearly' ? 'اشتراك سنوي' : 'اشتراك شهري')),
+          h('div', { class: 'summary-line' }, h('span', null, `باقة ${plan.name_ar}`), h('b', null, PERIOD_LABEL[period])),
           h('div', { class: 'summary-line' }, h('span', null, 'السعر'), h('b', null, `${jod(amount)} دينار`)),
           h('div', { class: 'summary-line total' }, h('span', null, 'الإجمالي'), h('b', null, `${jod(amount)} دينار`))))));
 }

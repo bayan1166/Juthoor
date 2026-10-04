@@ -2,12 +2,14 @@
 
 ## The claim (and its limits)
 
+The mechanism is subject- and grade-agnostic; the Grade 6 mathematics content is only the current demo content pack.
+
 Juthoor's differentiator is **how it decides**, not how many lessons it has: it names a root learning gap only when
 the evidence supports it, says exactly what evidence is still missing when it does not, and abstains instead of guessing.
 This is implemented in the engine, demoable, and measured on a reproducible synthetic benchmark.
 
 Not claimed: that it beats any named competitor (no competitor was tested), that it reaches a given accuracy on real
-students (no field data exists), or that the synthetic numbers transfer to a classroom.
+students (no field data exists), or that the synthetic numbers transfer to real learners.
 
 ## What is built
 
@@ -17,7 +19,7 @@ students (no field data exists), or that the synthetic numbers transfer to a cla
 | Likelihood ratio of the leading candidate vs "no gap", in log space; a root needs LR >= `MIN_ROOT_LR` (20) | `diagnosis.likelihood_ratio` | verdict field `likelihood_ratio` |
 | Abstention with a machine-readable reason: `insufficient_evidence` | `diagnosis.diagnose` | `evidence_status.status` in every answer response |
 | "What would settle it": `evidence_needed` (`more_errors`, `confirm_root`, `verify_prerequisite`, `resolve_mixed`, each with skill and minimum count) | `diagnosis.evidence_needed` | shown to the learner under the evidence banner ("ما يلزم لحسم التشخيص"); `tests/test_evidence_needed.py` |
-| Evidence, path, confidence level and outcome shown to the teacher | `engine_bridge.diagnosis_history`, teacher drawer | teacher view of any diagnosed learner |
+| Evidence, path, confidence level and outcome shown to the learner and in the parent report (internal reviewers see the same record) | `engine_bridge.diagnosis_history`, practice view, parent report | Omar's practice flow; `parent@demo.jo` report |
 | Reproducible benchmark with known ground truth | `app/engine/benchmark.py`, `scripts/diagnostic_benchmark.py` | `python scripts/diagnostic_benchmark.py --reps 5` |
 | Threshold sensitivity sweep | `scripts/benchmark_sweep.py` -> `benchmarks/sweep.json` | trade-off between abstention and false diagnosis |
 
@@ -43,6 +45,6 @@ covered by existing tests, and because the benchmark is synthetic.
 
 ## What would make it a real advantage
 
-1. A teacher-labelled pilot (`docs/PILOT.md`, `docs/teacher_agreement_template.csv`) to measure agreement on real learners.
+1. A small validation round with families plus a blind review by independent subject experts (`docs/PILOT.md`, `docs/expert_agreement_template.csv`) to measure agreement on real learners.
 2. Calibrating BKT and the evidence thresholds on that data.
 3. Comparing against a simple baseline (last-N answers) on the same data - the engine-level comparison is in `tests/test_bkt_properties.py`.

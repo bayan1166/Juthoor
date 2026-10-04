@@ -212,16 +212,22 @@ def main(argv=None):
         return False, f"no root detected within 20 answers ({wrong} wrong); evidence states: {statuses}"
     check("core workflow: repeated errors -> evidence gathering -> root detected (fresh learner)", core_diagnosis)
 
-    def teacher_diagnoses():
-        t, _ = login(base, "teacher@demo.jo")
-        layan, me = login(base, "student1@demo.jo")
-        status, body, _ = call(base, "GET", f"/students/{me['user_id']}/adaptive/diagnoses", token=t)
+    def parent_diagnoses():
+        t, _ = login(base, "parent@demo.jo")
+        status, kids, _ = call(base, "GET", "/me/students", token=t)
+        if status != 200 or not kids:
+            return False, f"roster status {status}"
+        layan = next((k for k in kids if k["email"] == "student1@demo.jo"), None)
+        if layan is None:
+            return False, "student1@demo.jo is not linked to parent@demo.jo"
+        ctx["parent"] = (t, layan["student_id"], kids)
+        status, body, _ = call(base, "GET", f"/students/{layan['student_id']}/adaptive/diagnoses", token=t)
         if status != 200 or not body.get("diagnoses"):
             return False, f"status {status}, {body}"
         d = body["diagnoses"][0]
         ok = bool(d["explanation"] and d["evidence"] and d["intervention"] and d["confidence"])
         return ok, f"root={d['root_name_ar']} confidence={d['confidence']} stage={d['outcome']['stage']}"
-    check("teacher sees a persisted diagnosis with evidence, confidence and intervention", teacher_diagnoses)
+    check("parent sees the child's persisted diagnosis with evidence, confidence and intervention", parent_diagnoses)
 
     def spam_logins():
         codes = [call(base, "POST", "/auth/login", {"email": f"nobody{stamp}@check.jo", "password": "wrong-pass"})[0] for _ in range(12)]
@@ -230,23 +236,28 @@ def main(argv=None):
         return True, f"statuses {sorted(set(codes))} (rate limits active outside judge mode)"
     check("spamming bad logins never returns 429 in judge mode", spam_logins)
 
-    def teacher():
-        t, me = login(base, "teacher@demo.jo")
-        status, rooms, _ = call(base, "GET", "/classrooms", token=t)
-        if status != 200 or not rooms:
-            return False, f"classrooms status {status}"
-        cid = rooms[0]["classroom_id"]
-        status, rep, _ = call(base, "GET", f"/classrooms/{cid}/analytics", token=t)
-        ok = status == 200 and len(rep["students"]) >= 3 and "top_gaps" in rep
-        ctx["teacher"] = (t, cid, rep)
-        return ok, f"{len(rep.get('students', []))} students, {len(rep.get('top_gaps', []))} gap groups"
-    check("teacher dashboard analytics load", teacher)
-    if ctx.get("teacher"):
-        t, cid, rep = ctx["teacher"]
-        check("teacher sees at least one shared gap for one-click remediation", lambda: len(rep["top_gaps"]) >= 1)
-        check("teacher safety reports load", lambda: call(base, "GET", f"/classrooms/{cid}/safety/reports", token=t)[0] == 200)
-        check("assignments list loads", lambda: call(base, "GET", "/classrooms/assignments", token=t)[0] == 200)
-        check("student cannot open the teacher analytics", lambda: call(base, "GET", f"/classrooms/{cid}/analytics", token=ctx["omar"][0])[0] in (401, 403))
+    if ctx.get("parent"):
+        pt, child_id, kids = ctx["parent"]
+        check("parent roster lists only the parent's own children",
+              lambda: (sorted(k["email"] for k in kids) == ["student1@demo.jo", "student2@demo.jo"], f"{[k['email'] for k in kids]}"))
+        check("parent report for the child loads (gap chain, diagnoses, plan)",
+              lambda: (lambda r: (r[0] == 200 and "diagnoses" in r[1] and r[1]["plan"]["plan"] == "pro", f"status {r[0]}"))(
+                  call(base, "GET", f"/students/{child_id}/adaptive/report", token=pt)))
+        check("another learner cannot read the child's diagnoses",
+              lambda: call(base, "GET", f"/students/{child_id}/adaptive/diagnoses", token=ctx["omar"][0])[0] in (401, 403))
+
+    def b2c_plans():
+        status, body, _ = call(base, "GET", "/payments/plans")
+        prices = {p["id"]: (p["price_month"], p["price_year"]) for p in body.get("plans", [])} if status == 200 else {}
+        return prices == {"basic": (0, 0), "pro": (4500, 32000)}, f"{prices}"
+    check("plans are exactly Free 0 / Pro 4.50 monthly / Pro 32 academic year (no school or teacher plan)", b2c_plans)
+
+    def no_teacher_product():
+        reg = call(base, "POST", "/auth/register", {"email": f"preflight-t{stamp}@check.jo", "password": "check1234",
+                                                     "full_name": "Not A Teacher", "role": "teacher"})[0]
+        rooms = call(base, "GET", "/classrooms", token=ctx["omar"][0])[0]
+        return reg == 422 and rooms == 404, f"teacher signup {reg}, /classrooms {rooms}"
+    check("no teacher/school product: teacher signup refused and no classroom API", no_teacher_product)
     return finish()
 
 

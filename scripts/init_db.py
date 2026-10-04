@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app import models
+from app import models  # noqa: F401 (registers every model on Base.metadata)
 from app.database import ensure_schema
 
 

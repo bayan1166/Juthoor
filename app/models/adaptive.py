@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import (JSON, Boolean, CheckConstraint, DateTime, Enum, Float, ForeignKey, Integer, String, Text,
                         UniqueConstraint)
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
@@ -106,7 +106,6 @@ class DiagnosisEvent(Base):
     p_gap: Mapped[float] = mapped_column(Float, default=0.0)
     evidence: Mapped[list] = mapped_column(JSON, default=list)
     path: Mapped[list] = mapped_column(JSON, default=list)
-    teacher_verdict: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 

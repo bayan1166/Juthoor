@@ -47,8 +47,9 @@ export function isStudent() {
   return !!store.me && store.me.role === 'student';
 }
 
-export function isStaff() {
-  return !!store.me && ['teacher', 'org_admin', 'platform_admin'].includes(store.me.role);
+// Internal operations account (moderation). It has no learning screens and never buys anything.
+export function isInternal() {
+  return !!store.me && store.me.role === 'platform_admin';
 }
 
 export function isParent() {
@@ -117,5 +118,5 @@ export function hasSession() {
 }
 
 export function planLabel(plan) {
-  return { basic: 'الأساسية', pro: 'برو', school: 'المدرسة' }[plan] || plan;
+  return { basic: 'المجانية', pro: 'برو' }[plan] || plan;
 }

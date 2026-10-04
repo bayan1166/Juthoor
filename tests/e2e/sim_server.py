@@ -4,13 +4,14 @@ What is real here: the static single-page app (served from app/static), the diag
 practice session, the workflow stage, the curriculum tree (app/engine, app/services/session_core.py,
 workflow.py, tree_service.py) — exactly the code the real API calls.
 What is simulated: HTTP routing, authentication (token = email), persistence (in memory) and the
-teacher's class report. It is NOT the product backend; use it only to exercise the UI in a real
+parent's view of the child. It is NOT the product backend; use it only to exercise the UI in a real
 browser. The real end-to-end check is `python tests/e2e/browser_e2e.py` against `run_demo.py`.
 
     python tests/e2e/sim_server.py --port 8765
 """
 import argparse
 import json
+import os
 import random
 import sys
 from datetime import datetime
@@ -28,10 +29,10 @@ from app.services import tree_service  # noqa: E402
 from app.services import workflow as wf  # noqa: E402
 
 STATIC = ROOT / "app" / "static"
-OMAR, TEACHER = "00000000-0000-4000-8000-000000000002", "00000000-0000-4000-8000-0000000000aa"
+OMAR, PARENT = "00000000-0000-4000-8000-000000000002", "00000000-0000-4000-8000-0000000000aa"
 USERS = {
     "student2@demo.jo": {"user_id": OMAR, "full_name": "عمر", "role": "student", "handle": "1002"},
-    "teacher@demo.jo": {"user_id": TEACHER, "full_name": "المعلمة سارة", "role": "teacher", "handle": "7001"},
+    "parent@demo.jo": {"user_id": PARENT, "full_name": "ولي الأمر أحمد", "role": "parent", "handle": "7002"},
 }
 TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png"}
 
@@ -72,9 +73,9 @@ def overview():
 
 
 def plan():
-    return {"plan": "pro", "source": "class", "expires_at": None, "trial_days_left": None,
+    return {"plan": "pro", "source": "own", "expires_at": None,
             "limits": {"questions_per_day": None, "tutor_per_day": None, "max_friends": None, "history_days": None,
-                       "full_gap_report": True, "classrooms": False},
+                       "full_gap_report": True},
             "usage": {"questions": 0, "tutor": 0}, "remaining": {"questions": None, "tutor": None}}
 
 
@@ -93,21 +94,10 @@ def history():
     return out
 
 
-def class_report():
-    ov = overview()
-    gaps = [s for s in ov["skills"] if s["status"] == "gap"]
-    row = {"user_id": OMAR, "handle": "1002", "full_name": "عمر", "avatar_svg": None, "tree_health": ov["tree_health"],
-           "mastered": sum(s["status"] == "mastered" for s in ov["skills"]), "current_skill": name(state.current_skill),
-           "accuracy": None, "answered": len(attempts), "last_active": now_z(), "days_since_active": 0,
-           "root_gaps": [s["name_ar"] for s in gaps], "root_gap_ids": [s["skill_id"] for s in gaps],
-           "risk": "high" if gaps else "low", "submissions_done": 0, "assignments_total": 0, "quiz_points": 0}
-    room = {"classroom_id": "C1", "name": "السادس أ", "join_code": "JUTH26", "teacher_name": "سارة", "member_count": 1,
-            "assignment_count": 0, "quiz_count": 0, "created_at": now_z()}
-    return {"classroom": room, "kpis": {"students": 1, "avg_tree_health": ov["tree_health"], "avg_accuracy": None,
-                                        "active_last_7": 1, "at_risk": int(bool(gaps))},
-            "students": [row], "top_gaps": [{"skill_id": s["skill_id"], "name_ar": s["name_ar"], "students": 1} for s in gaps],
-            "skill_mastery": [{"skill_id": s, "name_ar": name(s), "avg": round(state.mastery(s), 3)} for s in kg.ordered_skills()],
-            "activity": [{"date": datetime.utcnow().date().isoformat(), "answers": len(attempts)}]}
+def insights():
+    return {"student_id": OMAR, "tree_health": round(ae.tree_health(state), 3), "struggle_alerts": [],
+            "remediation_progress": [], "engagement": {"current_streak": 1, "questions_answered_last_7": len(attempts),
+                                                       "active_days_last_30": 1}, "gap_report_locked": False}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -146,6 +136,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(404, {"detail": "not_found"})
         if path == "/health":
             return self._send(200, {"status": "ok", "database": "simulated", "ai_tutor": "offline_fallback", "demo": True, "judge": True})
+        if path == "/payments/plans":
+            from app.services import plan_rules as pr
+            return self._send(200, {"plans": [{**p, "limits": pr.LIMITS[p["id"]]} for p in pr.PLAN_CATALOG],
+                                    "usp": pr.USP, "currency": "JOD", "provider": "mock"})
         if path == "/curriculum/map":
             return self._send(200, tree_service.public_map())
         if path == "/__mock__/pending":
@@ -159,11 +153,15 @@ class Handler(BaseHTTPRequestHandler):
         if user is None:
             return self._send(401, {"detail": "invalid_token"})
         if path == "/auth/me":
-            return self._send(200, {**user, "email": next(k for k, v in USERS.items() if v is user), "organization_id": None,
-                                    "organization_name": "Demo School", "grade_level": 6,
-                                    "plan": "school" if user["role"] == "teacher" else "pro",
-                                    "plan_source": "own" if user["role"] == "teacher" else "class",
-                                    "plan_expires_at": None, "trial_days_left": None})
+            return self._send(200, {**user, "email": next(k for k, v in USERS.items() if v is user), "grade_level": 6,
+                                    "plan": "basic" if user["role"] == "parent" else os.environ.get("SIM_PLAN", "pro"),
+                                    "plan_source": "own", "plan_expires_at": None})
+        if path == "/me/students":
+            if user["role"] != "parent":
+                return self._send(403, {"detail": "insufficient_role"})
+            return self._send(200, [{"student_id": OMAR, "full_name": "عمر", "email": "student2@demo.jo", "grade_level": 6}])
+        if path == f"/students/{OMAR}/insights":
+            return self._send(200, insights())
         if path == "/community/summary":
             return self._send(200, {"unread": 0, "requests": 0, "reports_open": 0})
         base = f"/students/{OMAR}/adaptive"
@@ -184,10 +182,6 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, {"student": {"user_id": OMAR, "full_name": "عمر", "handle": "1002"}, "state": overview(),
                                     "drilldowns": [], "drilldowns_hidden": 0, "gap_locked": False, "forecast": None,
                                     "diagnoses": history(), "plan": plan()})
-        if path == "/classrooms":
-            return self._send(200, [class_report()["classroom"]])
-        if path == "/classrooms/C1/analytics":
-            return self._send(200, class_report())
         unknown_paths.append(path)
         return self._send(404, {"detail": "not_found"})
 

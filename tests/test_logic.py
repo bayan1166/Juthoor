@@ -1,9 +1,10 @@
+import pytest
 import random
 from datetime import datetime, timedelta
 
 from app.engine import adaptive_engine as ae
 from app.engine import knowledge_graph as kg
-from app.services import avatar_render, class_analytics, plan_rules, quiz_scoring, tree_service
+from app.services import avatar_render, plan_rules, tree_service
 from app.services import curriculum_map as cur
 
 
@@ -11,16 +12,15 @@ def test_plan_expiry_downgrades_to_basic():
     now = datetime(2026, 10, 1, 12, 0)
     assert plan_rules.plan_from_fields("pro", now + timedelta(days=3), now) == "pro"
     assert plan_rules.plan_from_fields("pro", now - timedelta(seconds=1), now) == "basic"
-    assert plan_rules.plan_from_fields("school", None, now) == "school"
     assert plan_rules.plan_from_fields("basic", None, now) == "basic"
 
 
-def test_trial_days_left_rounds_up_and_expires():
-    now = datetime(2026, 10, 1, 12, 0)
-    assert plan_rules.trial_days_left(now + timedelta(days=14), now) == 14
-    assert plan_rules.trial_days_left(now + timedelta(hours=2), now) == 1
-    assert plan_rules.trial_days_left(now - timedelta(minutes=1), now) is None
-    assert plan_rules.trial_days_left(None, now) is None
+def test_only_the_b2c_tiers_exist():
+    from app.models.org import PlanTierUser, UserRole
+    assert {t.value for t in PlanTierUser} == {"basic", "pro"}
+    assert set(plan_rules.LIMITS) == {"basic", "pro"}
+    assert {r.value for r in UserRole} == {"student", "parent", "platform_admin"}
+    assert not hasattr(plan_rules, "TRIAL_DAYS") and not hasattr(plan_rules, "STUDENTS_PER_SEAT")
 
 
 def test_daily_quota_resets_at_local_midnight():
@@ -40,62 +40,19 @@ def test_forecast_and_prices():
     assert plan_rules.forecast_days(9, 3.0) == 3
     assert plan_rules.forecast_days(1, 0.4) == 3
     assert plan_rules.forecast_days(5, 0) is None
-    assert plan_rules.price_for("pro", "monthly") == 2990
-    assert plan_rules.price_for("pro", "yearly") == 29900
-    assert plan_rules.price_for("school", "monthly") == 6990
+    assert plan_rules.price_for("pro", "monthly") == 4500
+    assert plan_rules.price_for("pro", "yearly") == 32000
+    with pytest.raises(KeyError):
+        plan_rules.price_for("school", "monthly")
 
 
 def test_catalogue_is_consistent():
     ids = [p["id"] for p in plan_rules.PLAN_CATALOG]
-    assert ids == ["basic", "pro", "school"]
+    assert ids == ["basic", "pro"]
     for plan in plan_rules.PLAN_CATALOG:
         assert plan["id"] in plan_rules.LIMITS
         assert any(f["included"] for f in plan["features"])
     assert plan_rules.PLAN_CATALOG[1]["price_year"] < plan_rules.PLAN_CATALOG[1]["price_month"] * 12
-
-
-def test_quiz_scoring_modes():
-    qs = [{"id": f"q{i}", "correct_index": 1, "points": 100} for i in range(4)]
-    answers = {"q0": 1, "q1": 1, "q2": 0, "q3": 1}
-    plain = quiz_scoring.score_attempt(qs, answers, 30.0, "quiz", 0)
-    assert plain["score"] == 300 and plain["correct"] == 3 and plain["bonus"] == 0
-    fast = quiz_scoring.score_attempt(qs, answers, 10.0, "race", 120)
-    slow = quiz_scoring.score_attempt(qs, answers, 110.0, "race", 120)
-    assert fast["score"] > slow["score"] > 300
-    none = quiz_scoring.score_attempt(qs, {}, 5.0, "race", 60)
-    assert none["score"] == 0 and none["bonus"] == 0
-    missing = quiz_scoring.score_attempt(qs, {"q0": 1, "zzz": 5}, 5.0, "quiz", 0)
-    assert missing["correct"] == 1
-
-
-def test_generated_quiz_questions_are_valid_for_every_skill():
-    for skill in kg.SKILLS:
-        items = quiz_scoring.generate_questions(skill, 6, random.Random(7))
-        assert len(items) == 6, skill
-        for item in items:
-            assert len(set(item["options"])) == len(item["options"]) >= 3
-            assert item["options"][item["correct_index"]]
-
-
-def test_ranking_handles_ties_and_speed():
-    rows = [
-        {"full_name": "a", "score": 300, "duration_seconds": 50.0},
-        {"full_name": "b", "score": 300, "duration_seconds": 40.0},
-        {"full_name": "c", "score": 500, "duration_seconds": 90.0},
-        {"full_name": "d", "score": 300, "duration_seconds": 40.0},
-    ]
-    ranked = class_analytics.rank_rows(rows)
-    assert [r["full_name"] for r in ranked][0] == "c"
-    assert [r["rank"] for r in ranked] == [1, 2, 2, 4]
-
-
-def test_risk_levels():
-    assert class_analytics.risk_level(0.9, 0, None, 0) == "inactive"
-    assert class_analytics.risk_level(0.8, 40, 1, 1) == "high"
-    assert class_analytics.risk_level(0.2, 40, 1, 0) == "high"
-    assert class_analytics.risk_level(0.4, 40, 1, 0) == "medium"
-    assert class_analytics.risk_level(0.8, 40, 9, 0) == "high"
-    assert class_analytics.risk_level(0.8, 40, 1, 0) == "low"
 
 
 def test_tree_payload_for_new_student():

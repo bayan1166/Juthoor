@@ -1,7 +1,6 @@
 import uuid
 
-from app.models.adaptive import DrillDownEvent, StudentAdaptiveState
-from app.models.org import Organization
+from app.models.adaptive import StudentAdaptiveState
 from tests.helpers import register, set_plan
 
 
@@ -233,19 +232,15 @@ def test_parent_sees_only_their_children(client):
     assert client.get(f"/students/{kid['id']}/insights", headers=parent["headers"]).status_code == 200
 
 
-def test_teacher_sees_their_org(client, db):
-    # Behaviour change (security, TASKS/04_SECURITY.md): joining an organization now requires its
-    # join code, so a public slug is no longer enough to become a teacher there.
-    from app.services import org_access
-    org = Organization(name="Demo School", slug="demo")
-    code = org_access.issue_join_code(org)
-    db.add(org)
-    db.commit()
-    teacher = register(client, role="teacher", org_slug="demo", org_code=code)
-    pupil = register(client, org_slug="demo", org_code=code)
-    register(client)
-    roster = client.get("/me/students", headers=teacher["headers"]).json()
-    assert [r["student_id"] for r in roster] == [pupil["id"]]
+def test_parent_report_is_the_buyer_view_of_the_child(client, db):
+    """B2C: the parent (buyer) reads the child's report; Pro unlocks the root chain there, never a teacher."""
+    parent = register(client, role="parent")
+    kid = register(client, guardian_id=parent["id"])
+    free = client.get(f"/students/{kid['id']}/adaptive/report", headers=parent["headers"]).json()
+    assert free["plan"]["plan"] == "basic" and free["diagnoses"] == []
+    set_plan(db, kid["id"], "pro")
+    pro = client.get(f"/students/{kid['id']}/adaptive/report", headers=parent["headers"]).json()
+    assert pro["plan"]["plan"] == "pro" and pro["student"]["user_id"] == kid["id"]
 
 
 def test_student_cannot_list_students(client, student):
@@ -281,7 +276,7 @@ def test_demo_seed_script_runs(db, session_factory, monkeypatch):
     seed.main()
     seed.main()
     from app.models.org import User
-    assert db.query(User).count() == 8
+    assert db.query(User).count() == 7
 
 
 def test_tutor_detected_gap_becomes_next_question(client, student, db):
@@ -289,7 +284,7 @@ def test_tutor_detected_gap_becomes_next_question(client, student, db):
     plan = engine_bridge.trigger_manual_drill_down(db, uuid.UUID(student["id"]), "adding_integers", "sign confusion")
     assert plan is not None
     q = get_question(client, student)
-    assert q["remedial"] == "easier" and q["skill"] == "adding_integers" and "المعلم الذكي" in q["banner"]
+    assert q["remedial"] == "easier" and q["skill"] == "adding_integers" and "المساعد الذكي" in q["banner"]
     assert engine_bridge.trigger_manual_drill_down(db, uuid.UUID(student["id"]), "calculus", "") is None
 
 

@@ -15,7 +15,7 @@ from app.config import settings
 from app.database import engine, ensure_schema
 from app.services.secrets_check import suggestion, weak_secret_reason
 from app.routers import (
-    adaptive, auth, chat, classroom, community, curriculum, dashboard, economy, esports, payment,
+    adaptive, auth, chat, community, curriculum, dashboard, economy, esports, moderation, payment,
 )
 
 logger = logging.getLogger("juthoor")
@@ -68,7 +68,7 @@ async def unhandled(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "server_error"})
 
 
-for module in (auth, adaptive, chat, curriculum, dashboard, economy, esports, community, payment, classroom):
+for module in (auth, adaptive, chat, curriculum, dashboard, economy, esports, community, payment, moderation):
     app.include_router(module.router)
 
 

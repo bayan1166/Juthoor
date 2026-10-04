@@ -43,7 +43,7 @@ def test_register_and_login_responses_match_their_schema(client):
 @pytest.mark.parametrize("patch", [
     {"email": "not-an-email"}, {"password": "123"}, {"password": "x" * 129}, {"full_name": ""}, {"full_name": "   "},
     {"full_name": "n" * 151}, {"grade_level": 0}, {"grade_level": 13}, {"grade_level": "six"}, {"role": "wizard"},
-    {"role": "platform_admin"}, {"gender": "other"}, {"email": 12345}, {"org_code": "x" * 65},
+    {"role": "platform_admin"}, {"role": "teacher"}, {"role": "org_admin"}, {"gender": "other"}, {"email": 12345},
 ])
 def test_register_rejects_invalid_fields(client, patch):
     r = _reg(client, **patch)
@@ -194,17 +194,16 @@ def test_chat_start_rejects_unknown_skill_and_missing_field(client):
     assert client.post(f"{base}/start", json={}, headers=s["headers"]).status_code == 422
 
 
-# --- classrooms -------------------------------------------------------------------------------------
+# --- no teacher/school product ------------------------------------------------------------------
 
-def test_classroom_validation(client):
-    t = register(client, "teacher")
-    for bad in ({}, {"name": ""}, {"name": "x" * 500}, {"name": 5}):
-        r = client.post("/classrooms", json=bad, headers=t["headers"])
-        assert r.status_code == 422, (bad, r.text)
-        _assert_error_shape(r)
+def test_the_retired_classroom_and_organization_apis_are_gone(client):
     s = register(client)
-    r = client.post("/classrooms/join", json={"join_code": "ZZZZZZ"}, headers=s["headers"])
-    assert r.status_code in (404, 422)
+    for path in ("/classrooms", "/classrooms/join", "/classrooms/assignments"):
+        for r in (client.get(path, headers=s["headers"]), client.post(path, json={"name": "x"}, headers=s["headers"])):
+            assert r.status_code in (404, 405), (path, r.status_code)
+            _assert_error_shape(r)
+    r = client.get(f"/organizations/{uuid.uuid4()}/insights", headers=s["headers"])
+    assert r.status_code == 404
     _assert_error_shape(r)
 
 

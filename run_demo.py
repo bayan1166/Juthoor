@@ -71,7 +71,7 @@ def main():
 
     url = f"http://localhost:{args.port}/app/"
     print(f"Juthoor is running at {url}")
-    print("Demo accounts use the password demo1234 (teacher@demo.jo, parent@demo.jo, student1@demo.jo ...)")
+    print("Demo accounts use the password demo1234 (student2@demo.jo, parent@demo.jo, student1@demo.jo ...)")
     if not args.no_browser:
         threading.Thread(target=lambda: (time.sleep(2.0), webbrowser.open(url)), daemon=True).start()
     try:

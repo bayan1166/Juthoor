@@ -112,7 +112,10 @@ def test_reusing_a_request_id_for_a_different_answer_is_rejected_not_replayed(cl
     right = _pending_correct(s)
     rid = "reuse-" + uuid.uuid4().hex[:10]
     assert _post_answer(client, s, right, rid).status_code == 200
-    other = next(o for o in q["options"] if o != right)
+    # The first question is drawn at random and may be a typed-input question (options == []), so the
+    # "different answer" must not depend on options existing. Any answer that differs from `right` will do.
+    other = next((o for o in q["options"] if o != right), "0" if str(right) != "0" else "1")
+    assert other != right
     r = _post_answer(client, s, other, rid)
     assert r.status_code == 409 and r.json()["detail"] == "request_id_reused"
 
@@ -320,7 +323,7 @@ def test_first_write_path_request_race_creates_one_locked_row(client, db):
 
 
 def test_read_paths_never_write_a_state_row(client, db):
-    """Teacher/parent views and the integrity checker read with lock=False: no row is created, nothing is
+    """Parent views and the integrity checker read with lock=False: no row is created, nothing is
     left in the transaction, and the default starting state is shown."""
     s = register(client)
     sid = uuid.UUID(s["id"])

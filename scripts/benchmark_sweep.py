@@ -3,7 +3,7 @@
     python scripts/benchmark_sweep.py [--reps 3] [--out benchmarks/sweep.json]
 
 Shows the accuracy / abstention / false-diagnosis trade-off for (MIN_SOLID_EVIDENCE, MIN_ROOT_LR).
-Synthetic learners only: this documents a trade-off, it does not prove classroom accuracy.
+Synthetic learners only: this documents a trade-off, it does not prove real-world accuracy.
 """
 import argparse, json, sys
 from pathlib import Path

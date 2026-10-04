@@ -17,12 +17,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://postgres:1234@db:5432/Juthoor
-      UPLOAD_DIR: /srv/uploads
     ports:
       - "8000:8000"
-    volumes:
-      - juthoor_uploads:/srv/uploads
 
 volumes:
   juthoor_db_data:
-  juthoor_uploads:

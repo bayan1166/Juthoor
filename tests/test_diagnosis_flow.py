@@ -100,7 +100,7 @@ def test_diagnosis_requires_corroborating_evidence_threshold():
 
 
 def test_a_passed_prerequisite_probe_stops_the_descent():
-    # Behaviour change (evidence policy, see TASKS/02_DIAGNOSIS.md): a single correct answer used to
+    # Behaviour change (evidence policy, see docs/COMPETITIVE_ADVANTAGE.md): a single correct answer used to
     # make a prerequisite "solid". One lucky answer is not evidence (a learner who lacks the skill
     # still guesses right ~20% of the time), so two observed correct answers are now required.
     state = ae.StudentState(current_skill="mult_div_integers", difficulty=1)

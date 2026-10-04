@@ -5,10 +5,10 @@ Against the real stack (the judged setup):
     python tests/e2e/browser_e2e.py                  # terminal 2
 Requires: pip install playwright && python -m playwright install chromium
 
-It drives the UI exactly as a judge would: Omar's demo button -> practice page -> realistic wrong
-answers (the bank's misconception-linked distractors) until the root is named -> correct answers
-through remediation and the retry of the original lesson -> page refresh -> teacher login -> the
-teacher's diagnosis record. To know which option is right or wrong it reads the pending question
+It drives the UI exactly as a judge would: Omar's demo button -> his tree -> practice page -> realistic
+wrong answers (the bank's misconception-linked distractors) until the root is named -> correct answers
+through remediation and the retry of the original lesson -> page refresh -> parent login (the buyer) ->
+the diagnosis record in the parent report. To know which option is right or wrong it reads the pending question
 from PostgreSQL (`--oracle db`, a test oracle only; the browser never sees answers). At the end it
 re-reads PostgreSQL to confirm the diagnosis and the mastery updates were persisted.
 
@@ -127,7 +127,11 @@ def run(base: str, oracle, headed: bool, shots: Path) -> int:
         page.on("request", lambda r: r.method == "POST" and r.url.endswith("/adaptive/answer") and answer_posts.append(time.time()))
 
         page.goto(base + "/app/#/login")
-        page.get_by_role("button", name="طالب (عمر - ضمن صف)").click()
+        page.get_by_role("button", name="طالب (عمر - برو)").click()
+        page.wait_for_selector("svg.scene .leaf", timeout=15000)
+        check("demo login lands on the learner's tree first", page.evaluate("location.hash") in ("#/", "") and page.locator(".leaf.cur").count() == 1,
+              page.evaluate("location.hash"))
+        page.get_by_role("link", name="تابع التدريب").first.click()
         page.wait_for_selector(".q-card", timeout=15000)
         page.wait_for_selector("[data-testid=workflow]", timeout=10000)
         check("learner opens practice; diagnosis stepper visible", stage(page) in ("practising", "gathering_evidence"), stage(page))
@@ -200,14 +204,16 @@ def run(base: str, oracle, headed: bool, shots: Path) -> int:
         page.evaluate("localStorage.removeItem('juthoor.token')")
         page.goto(base + "/app/#/login")
         page.reload()
-        page.get_by_role("button", name="معلمة", exact=True).click()
-        row = page.locator("tr.click", has_text="عمر").first
-        row.wait_for(timeout=15000)
-        row.click()
-        record = page.wait_for_selector("[data-testid=teacher-diagnoses]", timeout=15000).inner_text()
-        check("teacher sees origin, root, confidence, evidence, intervention and outcome",
-              all(k in record for k in ("التعثّر الظاهر في", ROOT_NAME, "الثقة", "الأدلة", "التدخل المقترح", "أُغلقت الفجوة")), record[:200])
-        page.screenshot(path=str(shots / "3_teacher.png"), full_page=True)
+        # B2C: the parent (the buyer) sees where the gap started, the evidence and what happened after it.
+        page.get_by_role("button", name="ولي أمر", exact=True).click()
+        page.wait_for_selector("select[aria-label='الابن']", timeout=15000)
+        page.select_option("select[aria-label='الابن']", label="عمر")
+        page.wait_for_function("(() => { const r = document.querySelector('[data-testid=diagnosis-record]'); "
+                               "return r && r.innerText.includes('التعثّر الظاهر في'); })()", timeout=15000)
+        record = page.locator("[data-testid=diagnosis-record]").inner_text()
+        check("parent report shows origin, root, confidence, evidence, next step and outcome",
+              all(k in record for k in ("التعثّر الظاهر في", ROOT_NAME, "الثقة", "الأدلة", "الخطوة التالية المقترحة", "أُغلقت الفجوة")), record[:200])
+        page.screenshot(path=str(shots / "3_parent.png"), full_page=True)
         browser.close()
 
     check("no uncaught JavaScript errors", not errors, errors[:5])

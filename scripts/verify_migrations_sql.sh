@@ -15,6 +15,7 @@ run_all() { # db -> applies every migration file inside one transaction like app
 for db in juthoor_mig_old juthoor_mig_fresh; do $PSQL -d postgres -c "DROP DATABASE IF EXISTS $db" >/dev/null; $PSQL -d postgres -c "CREATE DATABASE $db" >/dev/null; done
 
 # ---- OLD database: schema as shipped before this change, with duplicate and invalid rows -------------
+# (it still contains the legacy organizations table from the removed teacher/school subsystem)
 $PSQL -d juthoor_mig_old >/dev/null <<'SQL'
 CREATE TABLE organizations (id uuid PRIMARY KEY, name text NOT NULL, slug varchar(80) UNIQUE NOT NULL);
 CREATE TABLE users (id uuid PRIMARY KEY, email text UNIQUE NOT NULL);
@@ -43,7 +44,8 @@ check "old: correct>attempts repaired"             "$(q juthoor_mig_old "select 
 check "old: valid row preserved exactly"           "$(q juthoor_mig_old "select p_mastery||'/'||attempts||'/'||correct from skill_mastery where id='10000000-0000-0000-0000-000000000005'")" "0.4/1/1"
 check "old: diagnosis row preserved"               "$(q juthoor_mig_old "select count(*) from diagnosis_events")" "1"
 check "old: diagnosis_events gained explanation"   "$(q juthoor_mig_old "select count(*) from information_schema.columns where table_name='diagnosis_events' and column_name in ('confidence_level','explanation')")" "2"
-check "old: organizations gained join_code_hash"   "$(q juthoor_mig_old "select count(*) from information_schema.columns where table_name='organizations' and column_name='join_code_hash'")" "1"
+check "old: retired 0004 leaves the legacy organizations table untouched" "$(q juthoor_mig_old "select count(*) from information_schema.columns where table_name='organizations' and column_name='join_code_hash'")" "0"
+check "old: legacy organizations rows are not destroyed" "$(q juthoor_mig_old "select count(*) from organizations")" "1"
 check "old: answer_receipts exists"                "$(q juthoor_mig_old "select to_regclass('answer_receipts') is not null")" "t"
 # constraints are enforced
 dup=$($PSQL -d juthoor_mig_old -c "insert into skill_mastery values (gen_random_uuid(),'00000000-0000-0000-0000-000000000001','adding_integers',0.5,1,1,now())" 2>&1 | grep -c "uq_skill_mastery_student_skill")
@@ -58,7 +60,6 @@ check "old: re-running every migration is a no-op (rows unchanged)" "$(q juthoor
 
 # ---- FRESH database: tables as create_all would build them from the current models --------------------
 $PSQL -d juthoor_mig_fresh >/dev/null <<'SQL'
-CREATE TABLE organizations (id uuid PRIMARY KEY, name text NOT NULL, slug varchar(80) UNIQUE NOT NULL, join_code_hash varchar(64));
 CREATE TABLE users (id uuid PRIMARY KEY, email text UNIQUE NOT NULL);
 CREATE TABLE skill_mastery (id uuid PRIMARY KEY, student_id uuid REFERENCES users(id), skill_id varchar(80),
   p_mastery double precision, attempts int, correct int, updated_at timestamp,

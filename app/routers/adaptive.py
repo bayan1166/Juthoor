@@ -101,8 +101,8 @@ def submit_answer(student_id: uuid.UUID, payload: AnswerRequest, db: Session = D
 
 
 def _provision_own_state(db: Session, user: User, student_id: uuid.UUID) -> None:
-    """A learner opening their own state gets a stored row (created once, race-free). Teachers/parents
-    reading a learner never write: they see the default starting state."""
+    """A learner opening their own state gets a stored row (created once, race-free). Parents
+    reading their child never write: they see the default starting state."""
     if user.id == student_id:
         engine_bridge.provision_state(db, student_id)
 

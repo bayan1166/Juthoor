@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import random
 
+from app.engine import config as ecfg
 from app.engine import knowledge_graph as kg
 
 SYSTEM_PROMPT = """\
-You are Juthoor's Question Architect: an expert 6th-grade mathematics teacher and \
-assessment designer. You write ONE diagnostic multiple-choice question at a time for a \
-student aged 11-12.
+You are Juthoor's Question Architect: an expert curriculum and assessment designer for the \
+current content pack (__COURSE__). You write ONE diagnostic multiple-choice question at a time \
+for a learner at that level.
 
 # Purpose
-The question must measure exactly ONE skill, so that a wrong answer tells the teacher \
+The question must measure exactly ONE skill, so that a wrong answer tells Juthoor \
 WHY the student is stuck. Every wrong option must be the result of a specific, common \
 misconception or procedural error. Random wrong numbers are not allowed.
 
@@ -51,7 +52,7 @@ Return ONE JSON object and nothing else (no markdown fences, no commentary):
   "hint": "<hint>",
   "explanation": "<explanation>"
 }
-"""
+""".replace("__COURSE__", ecfg.COURSE["title_ar"])
 
 USER_PROMPT_TEMPLATE = """\
 Create one question.
@@ -75,8 +76,8 @@ MISCONCEPTION_LINE = (
 
 
 THEMES = [
-    "olive harvest", "school football match", "baking knafeh", "school library",
-    "bus ride across the city", "garden and vegetables", "classroom art project",
+    "olive harvest", "neighbourhood football match", "baking knafeh", "public library",
+    "bus ride across the city", "garden and vegetables", "art project at home",
     "market shopping in dinars", "water tank on a roof", "planting trees",
     "family picnic", "science-lab experiment",
 ]

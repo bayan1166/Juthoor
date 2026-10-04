@@ -2,7 +2,7 @@
 
 Learner attempts a skill -> difficulty -> evidence -> prerequisite investigation -> named root
 with evidence and confidence -> remediation -> retry of the original lesson -> mastery update
--> teacher sees the diagnosis and its outcome.
+-> the parent (the buyer, B2C) sees the diagnosis and its outcome in the child's report.
 
 Scenario letters match the README "Testing" table. Nothing here is mocked except where a test
 deliberately breaks a dependency (AI provider, database) to check graceful failure.
@@ -18,7 +18,7 @@ from app.main import app
 from app.models.adaptive import AttemptLog, DiagnosisEvent, SkillMastery, StudentAdaptiveState
 from app.models.org import User
 from scripts import seed_demo
-from tests.helpers import register
+from tests.helpers import register, set_plan
 
 
 def misconception_answer(db, s) -> str:
@@ -29,18 +29,6 @@ def misconception_answer(db, s) -> str:
     traps = pending.get("traps") or {}
     assert traps, f"question without a misconception-linked wrong answer: {pending['question']}"
     return next(iter(traps))
-
-
-def teacher_with_class(client):
-    teacher = register(client, "teacher")
-    room = client.post("/classrooms", json={"name": "Class A"}, headers=teacher["headers"])
-    assert room.status_code == 200, room.text
-    return teacher, room.json()
-
-
-def join(client, student, room):
-    r = client.post("/classrooms/join", json={"join_code": room["join_code"]}, headers=student["headers"])
-    assert r.status_code == 200, r.text
 
 
 def question(client, s):
@@ -70,13 +58,13 @@ def play(client, db, s, ok: bool) -> dict:
 
 @pytest.fixture
 def omar(client, db):
-    """A class member who has really mastered the first two lessons, now placed on multiplication."""
-    teacher, room = teacher_with_class(client)
-    s = register(client)
-    join(client, s, room)
+    """A learner (Pro, bought by the parent) who has really mastered the first two lessons, now on multiplication."""
+    parent = register(client, role="parent")
+    s = register(client, guardian_id=parent["id"])
+    set_plan(db, s["id"], "pro")
     user = db.get(User, uuid.UUID(s["id"]))
     seed_demo.prepare_story_student(db, user, "mult_div_integers")
-    return {"student": s, "teacher": teacher, "room": room}
+    return {"student": s, "parent": parent}
 
 
 def diagnose(client, db, s, limit=15):
@@ -153,8 +141,8 @@ def test_bcd_wrong_answers_gather_evidence_before_naming_the_root(client, db, om
 
 # --- E: correct answers after remediation, retry of the original lesson -----------------
 
-def test_e_remediation_then_retry_updates_mastery_and_teacher_outcome(client, db, omar):
-    s, teacher = omar["student"], omar["teacher"]
+def test_e_remediation_then_retry_updates_mastery_and_the_parent_sees_the_outcome(client, db, omar):
+    s, parent = omar["student"], omar["parent"]
     diagnose(client, db, s)
     asked = []
     for _ in range(40):
@@ -171,7 +159,7 @@ def test_e_remediation_then_retry_updates_mastery_and_teacher_outcome(client, db
     assert "mult_div_integers" in asked, "the original lesson is retried"
     assert status["adding_integers"] == "mastered" and status["mult_div_integers"] == "mastered"
 
-    report = client.get(f"/students/{s['id']}/adaptive/report", headers=teacher["headers"]).json()
+    report = client.get(f"/students/{s['id']}/adaptive/report", headers=parent["headers"]).json()
     record = report["diagnoses"][0]
     assert record["root_skill"] == "adding_integers" and record["outcome"]["stage"] == "resolved"
     assert record["outcome"]["root_after"]["right"] >= 1 and record["outcome"]["origin_retry"]["right"] >= 1
@@ -254,29 +242,28 @@ def test_persistence_survives_restart_and_the_retry_continues(client, db, omar, 
         fresh.close()
 
 
-# --- I: teacher views the diagnosis; access control ---------------------------------------
+# --- I: the parent views the diagnosis; access control -----------------------------------
 
-def test_i_teacher_sees_evidence_and_others_cannot(client, db, omar):
-    s, teacher = omar["student"], omar["teacher"]
+def test_i_parent_sees_evidence_and_others_cannot(client, db, omar):
+    s, parent = omar["student"], omar["parent"]
     diagnose(client, db, s)
-    r = client.get(f"/students/{s['id']}/adaptive/diagnoses", headers=teacher["headers"])
+    r = client.get(f"/students/{s['id']}/adaptive/diagnoses", headers=parent["headers"])
     assert r.status_code == 200 and not r.json()["locked"]
     record = r.json()["diagnoses"][0]
     assert record["root_name_ar"] and record["explanation"] and record["intervention"]
     assert record["evidence"] and all("name_ar" in e for e in record["evidence"])
     assert record["outcome"]["stage"] in {"pending", "remediating"}
 
-    analytics = client.get(f"/classrooms/{omar['room']['classroom_id']}/analytics", headers=teacher["headers"]).json()
-    row = next(x for x in analytics["students"] if x["user_id"] == s["id"])
-    assert row["root_gap_ids"] == ["adding_integers"]
+    tree = client.get(f"/students/{s['id']}/adaptive/tree", headers=parent["headers"]).json()
+    assert tree["root_gap"]["skill"] == "adding_integers" and not tree["root_gap"]["locked"]
 
-    insights = client.get(f"/students/{s['id']}/insights", headers=teacher["headers"]).json()
+    insights = client.get(f"/students/{s['id']}/insights", headers=parent["headers"]).json()
     causes = {a["skill_id"]: a["predicted_root_cause_skill"] for a in insights["struggle_alerts"]}
     assert causes.get("adding_integers") == "adding_integers"
 
-    stranger_teacher = register(client, "teacher")
+    stranger_parent = register(client, role="parent")
     other_student = register(client)
-    assert client.get(f"/students/{s['id']}/adaptive/diagnoses", headers=stranger_teacher["headers"]).status_code == 403
+    assert client.get(f"/students/{s['id']}/adaptive/diagnoses", headers=stranger_parent["headers"]).status_code == 403
     assert client.get(f"/students/{s['id']}/adaptive/diagnoses", headers=other_student["headers"]).status_code == 403
     assert client.get(f"/students/{s['id']}/adaptive/diagnoses").status_code in {401, 403}
 
@@ -294,9 +281,8 @@ def test_j_refreshing_the_question_never_breaks_grading(client, db, student):
 def test_j_two_learners_with_the_same_history_get_the_same_root(client, db):
     roots = []
     for _ in range(2):
-        teacher, room = teacher_with_class(client)
         s = register(client)
-        join(client, s, room)
+        set_plan(db, s["id"], "pro")
         seed_demo.prepare_story_student(db, db.get(User, uuid.UUID(s["id"])), "mult_div_integers")
         roots.append(diagnose(client, db, s)[0]["diagnosis"]["root"])
     assert roots == ["adding_integers", "adding_integers"]
@@ -358,10 +344,10 @@ def test_k_database_outage_returns_a_clean_503(client, tmp_path):
 # --- N: missing learner / unknown skill / stale state -------------------------------------
 
 def test_n_missing_learner_is_a_controlled_error(client, omar):
-    teacher = omar["teacher"]
+    parent = omar["parent"]
     ghost = uuid.uuid4()
     for path in ("diagnoses", "state", "report", "tree"):
-        r = client.get(f"/students/{ghost}/adaptive/{path}", headers=teacher["headers"])
+        r = client.get(f"/students/{ghost}/adaptive/{path}", headers=parent["headers"])
         assert r.status_code in {403, 404} and "detail" in r.json()
 
 

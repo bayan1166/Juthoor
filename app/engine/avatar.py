@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 
 from app.engine import avatar_items as ai
-from app.engine.theme import PALETTE as C, mix
+from app.engine.theme import PALETTE as C
 
 
 SKINS = {

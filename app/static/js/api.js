@@ -9,7 +9,6 @@ const MESSAGES = {
   validation: 'بعض المدخلات غير صحيحة، راجعها وحاول مجدداً.',
   invalid_credentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
   email_already_registered: 'هذا البريد مسجّل مسبقاً، جرّب تسجيل الدخول.',
-  organization_not_found: 'رمز المدرسة غير صحيح.',
   guardian_must_be_existing_parent: 'بريد ولي الأمر غير مسجّل كحساب ولي أمر.',
   no_active_question: 'انتهت صلاحية السؤال، سنعرض سؤالاً جديداً.',
   insufficient_balance: 'رصيدك لا يكفي لإتمام الشراء.',
@@ -29,48 +28,26 @@ const MESSAGES = {
   friendship_not_found: 'طلب الصداقة غير موجود.',
   not_your_incoming_request: 'هذا الطلب ليس موجهاً إليك.',
   not_friends: 'يجب قبول الصداقة أولاً قبل المراسلة.',
-  friend_limit_reached: 'وصلت إلى الحد الأقصى للأصدقاء في الباقة الأساسية.',
+  friend_limit_reached: 'وصلت إلى الحد الأقصى للأصدقاء في الباقة المجانية.',
   empty_message: 'اكتب رسالة أولاً.',
   session_not_pending: 'تم استخدام جلسة الدفع مسبقاً.',
   confirm_only_for_mock_provider: 'يجب إتمام الدفع عبر بوابة الدفع.',
   bad_card: 'بيانات البطاقة غير صحيحة.',
-  school_plan_for_teachers: 'باقة المدرسة مخصصة للمعلمين.',
+  payment_provider_not_configured: 'الدفع الإلكتروني غير مفعّل بعد على هذا الخادم، ولم يُخصم أي مبلغ.',
+  payment_provider_unavailable: 'تعذّر الاتصال ببوابة الدفع الآن. لم يُخصم أي مبلغ، حاول مجدداً بعد قليل.',
   pro_plan_for_students: 'باقة برو مخصصة للطلاب وأولياء الأمور.',
   child_required: 'اختر الابن الذي ستفعّل له الباقة.',
   payment_not_completed: 'لم يكتمل الدفع بعد.',
   not_a_stripe_session: 'جلسة الدفع غير صالحة.',
   invalid_or_expired_code: 'الرمز غير صحيح أو انتهت صلاحيته.',
   too_many_attempts: 'محاولات كثيرة. انتظر بضع دقائق ثم حاول مجدداً.',
-  teacher_role_required: 'هذه الميزة متاحة للمعلمين فقط.',
-  student_role_required: 'هذه الميزة متاحة للطلاب فقط.',
   student_only: 'هذه الميزة متاحة للطالب نفسه فقط.',
-  classroom_not_found: 'الصف غير موجود، تأكد من الرمز.',
-  teacher_only: 'هذا الإجراء يحتاج صلاحية المعلم.',
   unknown_skill: 'الدرس غير معروف.',
-  assignment_not_found: 'الواجب غير موجود.',
-  submission_not_found: 'التسليم غير موجود.',
-  file_not_found: 'الملف غير موجود.',
-  cannot_access_file: 'لا تملك صلاحية تنزيل هذا الملف.',
-  empty_submission: 'اكتب إجابتك أو أرفق ملفاً.',
-  file_type_not_allowed: 'نوع الملف غير مسموح. الأنواع المقبولة: PDF، صور، Word، Excel، PowerPoint، نص.',
-  file_too_large: 'حجم الملف أكبر من 5 ميغابايت.',
-  already_graded: 'تم تصحيح هذا الواجب ولا يمكن تعديله.',
-  score_out_of_range: 'الدرجة أكبر من الدرجة العظمى للواجب.',
-  class_full: 'هذا الصف مكتمل العدد.',
-  member_not_found: 'الطالب غير موجود في الصف.',
-  quiz_not_found: 'الاختبار غير موجود.',
-  already_submitted: 'سبق أن أنهيت هذا الاختبار.',
-  quiz_closed: 'هذا الاختبار مغلق حالياً.',
-  attempt_not_started: 'لم تبدأ هذا الاختبار بعد.',
-  attempt_not_found: 'لا توجد محاولة لهذا الطالب.',
-  generation_failed: 'تعذّر توليد أسئلة كافية لهذا الدرس.',
   bad_after: 'طلب غير صحيح.',
   rate_limited: 'طلبات كثيرة خلال وقت قصير. انتظر قليلاً ثم حاول مجدداً.',
   message_link: 'لا يُسمح بإرسال الروابط في الدردشة حفاظاً على سلامتك.',
   message_contact: 'لا يُسمح بمشاركة أرقام الهاتف أو البريد أو حسابات التواصل في الدردشة حفاظاً على سلامتك.',
   unblock_first: 'ألغِ الحظر أولاً إن أردت إرسال طلب صداقة.',
-  no_students_with_gap: 'لا يوجد طلاب بحاجة إلى تكليف علاجي جديد لهذه الفجوة: إما لا أحد لديه الفجوة، أو كُلّف أصحابها بها بعد آخر تشخيص.',
-  not_assigned: 'هذا التكليف غير موجّه إليك.',
   report_not_found: 'البلاغ غير موجود.',
   cannot_block_self: 'لا يمكنك حظر نفسك.',
   cannot_report_self: 'لا يمكنك الإبلاغ عن نفسك.',
@@ -89,9 +66,6 @@ const FIELDS = {
   message: 'الرسالة فارغة أو طويلة جداً.',
   body: 'الرسالة فارغة أو طويلة جداً.',
   code: 'الرمز يتكون من 6 أرقام.',
-  title: 'العنوان قصير جداً.',
-  name: 'الاسم قصير جداً.',
-  join_code: 'رمز الصف يتكون من 6 خانات.',
 };
 
 export class ApiError extends Error {
@@ -139,10 +113,10 @@ export function toError(status, data) {
     if (code === 'message_not_allowed') message = arg === 'link' ? MESSAGES.message_link : MESSAGES.message_contact;
     if (code === 'daily_limit_reached') {
       upsell = { type: 'quota', kind: arg };
-      message = arg === 'tutor' ? 'استنفدت رسائل المعلم الذكي لهذا اليوم في الباقة الأساسية.' : 'استنفدت أسئلة التدريب لهذا اليوم في الباقة الأساسية.';
+      message = arg === 'tutor' ? 'استنفدت رسائل المساعد الذكي لهذا اليوم في الباقة المجانية.' : 'استنفدت أسئلة التدريب لهذا اليوم في الباقة المجانية.';
     } else if (code === 'plan_upgrade_required') {
       upsell = { type: 'plan', plan: arg };
-      message = arg === 'school' ? 'هذه الميزة تحتاج باقة المدرسة.' : 'هذه الميزة تحتاج باقة برو.';
+      message = 'هذه الميزة تحتاج باقة برو.';
     } else if (code === 'friend_limit_reached') {
       upsell = { type: 'friends' };
     } else if (code === 'item_not_owned') {
@@ -226,7 +200,6 @@ export const api = {
   put: (path, body, opts = {}) => request('PUT', path, { ...opts, body }),
   patch: (path, body, opts = {}) => request('PATCH', path, { ...opts, body }),
   del: (path, opts = {}) => request('DELETE', path, opts),
-  upload: (path, form) => request('POST', path, { form }),
   invalidate(prefix = '') {
     for (const key of Array.from(cache.keys())) if (key.startsWith(prefix)) cache.delete(key);
   },

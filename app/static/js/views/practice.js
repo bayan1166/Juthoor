@@ -136,7 +136,7 @@ export async function practiceView(ctx) {
   function showLimit() {
     mount(area, upsellCard({
       title: 'انتهت أسئلة اليوم',
-      text: 'استخدمت أسئلتك اليومية في الباقة الأساسية. يتجدد رصيدك عند منتصف الليل، أو تابع الآن بلا حد مع باقة برو واكشف جذر تعثّرك كاملاً.',
+      text: 'استخدمت أسئلتك اليومية في الباقة المجانية. يتجدد رصيدك عند منتصف الليل، أو تابع الآن بلا حد مع باقة برو واكشف جذر تعثّرك كاملاً.',
       cta: 'افتح التدريب غير المحدود',
       secondary: { label: 'العودة إلى الشجرة', href: '#/' },
     }));
@@ -227,7 +227,7 @@ export async function practiceView(ctx) {
     if (locked) return;
     locked = true;
     if (area.opts) area.opts.setAttribute('data-locked', '1');
-    const analyzing = h('div', { class: 'analyzing', role: 'status', 'aria-live': 'polite' }, h('div', { class: 'spin' }), h('b', null, 'المعلم الذكي يقوم بتحليل إجابتك...'));
+    const analyzing = h('div', { class: 'analyzing', role: 'status', 'aria-live': 'polite' }, h('div', { class: 'spin' }), h('b', null, 'المساعد الذكي يقوم بتحليل إجابتك...'));
     if (area.feedback) area.feedback.appendChild(analyzing);
     let d;
     try {
@@ -312,7 +312,7 @@ export async function practiceView(ctx) {
             if (i === 0 && plan.path.length === 1) caption.textContent = `الدليل يشير إلى «${lesson.title}» نفسه.`;
             else if (i === 0) caption.textContent = `الخطأ ظهر في «${lesson.title}»، نتتبّع الأسباب المحتملة…`;
             else if (!last) caption.textContent = `نفحص «${lesson.title}»…`;
-            else if (plan.locked) caption.textContent = 'وصلنا إلى جذر مخفي في الباقة الأساسية. افتح باقة برو لتعرف الدرس بالضبط.';
+            else if (plan.locked) caption.textContent = 'وصلنا إلى جذر مخفي في الباقة المجانية. افتح باقة برو لتعرف الدرس بالضبط.';
             else if (plan.found) caption.textContent = `الجذر الأرجح بحسب إجاباتك: «${lesson.title}».`;
             else caption.textContent = `ننزل إلى «${lesson.title}» لنفحص إن كان هو الأساس.`;
           },

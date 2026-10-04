@@ -381,7 +381,7 @@ export async function communityView(ctx) {
     openModal({
       title: message ? 'الإبلاغ عن رسالة' : `الإبلاغ عن ${friend.full_name}`,
       content: h('div', { class: 'col' },
-        h('p', { class: 'muted' }, 'سيراجع البلاغ معلمك أو مسؤول المنصة، ولن يعرف الطرف الآخر أنك أبلغت.'),
+        h('p', { class: 'muted' }, 'سيراجع البلاغ فريق الإشراف في جذور، ولن يعرف الطرف الآخر أنك أبلغت.'),
         h('div', { class: 'field' }, h('label', null, 'السبب'), reason),
         h('div', { class: 'field' }, h('label', null, 'تفاصيل'), details),
         h('label', { class: 'row nowrap' }, alsoBlock, h('span', null, 'احظر هذا المستخدم أيضاً'))),

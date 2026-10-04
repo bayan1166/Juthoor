@@ -45,7 +45,23 @@ LLM = {
 
 # Subject/course wording lives here (not in prompts or plan text) so a second subject or grade band
 # is a configuration change. The diagnosis engine itself knows nothing about any subject.
+# The values below describe the CURRENT content pack (demo/seed content), not the product. Juthoor is a
+# general adaptive-learning platform; the UI shows these only as content metadata ("current course").
 COURSE = {
+    "id": "jo-math-g6",
+    "subject": "mathematics",
+    "subject_ar": "الرياضيات",
+    "grade": 6,
+    "grade_ar": "الصف السادس",
+    "title_ar": "رياضيات الصف السادس",
+    "curriculum_ar": "المنهج الأردني",
+    "is_demo_content": True,
     "description_ar": "الرياضيات (المسار المتاح حالياً: الأعداد الصحيحة ثم الكسور)",
     "full_tree_label_ar": "شجرة المنهج الكاملة",
 }
+
+
+def course_meta() -> dict:
+    """Public, display-only metadata of the current content pack."""
+    keys = ("id", "subject", "subject_ar", "grade", "grade_ar", "title_ar", "curriculum_ar", "is_demo_content")
+    return {k: COURSE[k] for k in keys}

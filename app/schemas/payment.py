@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class CheckoutStartRequest(BaseModel):
-    plan: Literal["pro", "school"]
+    plan: Literal["pro"]
     period: Literal["monthly", "yearly"] = "monthly"
     for_student_id: uuid.UUID | None = None
 

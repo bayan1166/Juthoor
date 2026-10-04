@@ -16,14 +16,14 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models.adaptive import StudentAdaptiveState
 from app.models.economy import AvatarConfig
-from app.models.org import Organization, PlanTierUser, User, UserRole
+from app.models.org import User, UserRole
 from app.models.password_reset import PasswordResetToken
 from app.schemas.auth import (
     ForgotPasswordRequest, LoginRequest, MeOut, RegisterRequest, ResetPasswordRequest,
     ResetTokenOut, TokenResponse, VerifyCodeRequest,
 )
 from app.security import create_access_token, hash_password, verify_password
-from app.services import identity, org_access, plans
+from app.services import identity, plans
 from app.services.economy_service import get_or_create_wallet
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -43,9 +43,7 @@ def _code_hash(user_id, code: str) -> str:
 
 
 def _token_for(user: User) -> TokenResponse:
-    token = create_access_token(
-        str(user.id), user.role.value, str(user.organization_id) if user.organization_id else None
-    )
+    token = create_access_token(str(user.id), user.role.value)
     return TokenResponse(access_token=token, user_id=user.id, role=user.role)
 
 
@@ -78,18 +76,6 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
     if db.scalar(select(User).where(User.email == email)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "email_already_registered")
 
-    org = None
-    if payload.org_slug:
-        org = db.scalar(select(Organization).where(Organization.slug == payload.org_slug))
-        if org is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "organization_not_found")
-        # Membership must be proven: a teacher can read every student in the organization, so a
-        # public slug alone must never be enough. Anyone joining an org that issued a code needs it too.
-        if payload.role == UserRole.teacher or org.join_code_hash is not None:
-            throttle("org-code", f"{client_ip(request)}:{org.slug}", 10, 3600)
-            if not org_access.code_matches(org, payload.org_code):
-                raise HTTPException(status.HTTP_403_FORBIDDEN, "invalid_org_code")
-
     guardian_id = payload.guardian_id
     if payload.guardian_email is not None and guardian_id is None:
         found = db.scalar(select(User).where(User.email == str(payload.guardian_email).lower()))
@@ -107,15 +93,9 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
         full_name=payload.full_name.strip(),
         role=payload.role,
         guardian_id=guardian_id,
-        organization_id=org.id if org else None,
         grade_level=payload.grade_level,
         handle=identity.unique_handle(db),
     )
-    if payload.role == UserRole.teacher:
-        ends = datetime.utcnow() + timedelta(days=plans.TRIAL_DAYS)
-        user.plan = PlanTierUser.school
-        user.plan_expires_at = ends
-        user.trial_ends_at = ends
     db.add(user)
     db.flush()
 
@@ -151,10 +131,8 @@ def me(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     state = plans.effective_plan(db, user)
     return MeOut(
         user_id=user.id, handle=user.handle, email=user.email, full_name=user.full_name, role=user.role,
-        organization_id=user.organization_id,
-        organization_name=user.organization.name if user.organization else None,
         grade_level=user.grade_level, plan=state.plan, plan_source=state.source,
-        plan_expires_at=state.expires_at, trial_days_left=state.trial_days_left,
+        plan_expires_at=state.expires_at,
     )
 
 

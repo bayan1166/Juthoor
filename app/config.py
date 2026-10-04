@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_chat_model: str = "llama-3.3-70b-versatile"
     stripe_secret_key: str = ""
+    # Mock checkout never charges anyone; it is only reachable in demo mode or when explicitly enabled.
+    allow_mock_payments: bool = False
     chroma_persist_dir: str = "./chroma_store"
     chroma_collection: str = "juthoor_curriculum"
     enable_vector_store: bool = False
@@ -48,8 +50,6 @@ class Settings(BaseSettings):
     llm_questions_enabled: bool = False
     llm_timeout_seconds: float = 6.0
     public_url: str = "http://localhost:8000"
-    upload_dir: str = "./uploads"
-    max_upload_bytes: int = 5 * 1024 * 1024
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
@@ -61,8 +61,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(ROOT / ".env"), env_file_encoding="utf-8", extra="ignore")
 
     @field_validator(
-        "enable_vector_store", "demo_mode", "judge_mode", "llm_questions_enabled", "rate_limit_enabled",
-        "trust_proxy", "db_pool_size", "db_max_overflow", "db_pool_timeout", "access_token_minutes", "llm_timeout_seconds", "max_upload_bytes", "smtp_port",
+        "enable_vector_store", "demo_mode", "allow_mock_payments", "judge_mode", "llm_questions_enabled", "rate_limit_enabled",
+        "trust_proxy", "db_pool_size", "db_max_overflow", "db_pool_timeout", "access_token_minutes", "llm_timeout_seconds", "smtp_port",
         mode="before",
     )
     @classmethod

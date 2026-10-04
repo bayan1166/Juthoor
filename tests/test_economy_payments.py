@@ -134,7 +134,7 @@ def test_v_expired_token_is_rejected(client):
     import jwt as pyjwt
     from app.config import settings
     s = register(client)
-    expired = pyjwt.encode({"sub": s["id"], "role": "student", "org_id": None,
+    expired = pyjwt.encode({"sub": s["id"], "role": "student",
                             "exp": datetime.utcnow() - timedelta(minutes=1)}, settings.jwt_secret, algorithm="HS256")
     r = client.get("/auth/me", headers={"Authorization": f"Bearer {expired}"})
     assert r.status_code == 401 and r.json()["detail"] == "invalid_token"

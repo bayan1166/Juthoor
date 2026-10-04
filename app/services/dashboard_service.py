@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.engine import knowledge_graph as kg
 from app.models.adaptive import AttemptLog, DiagnosisEvent, DrillDownEvent, MasteryStatus, SkillMastery
-from app.models.org import User
 
 SEVERITY_THRESHOLDS = {"high": 0.35, "medium": 0.55}
 
@@ -156,37 +155,4 @@ def student_insights(db: Session, student_id: uuid.UUID) -> dict:
         "struggle_alerts": struggle_alerts(db, student_id),
         "remediation_progress": remediation_progress(db, student_id),
         "engagement": engagement_summary(db, student_id),
-    }
-
-
-def cohort_insights(db: Session, organization_id: uuid.UUID) -> dict:
-    student_ids = db.scalars(
-        select(User.id).where(User.organization_id == organization_id, User.role == "student")
-    ).all()
-    if not student_ids:
-        return {"organization_id": organization_id, "generated_at": datetime.utcnow(),
-                "student_count": 0, "avg_tree_health": 0.0, "top_struggle_skills": []}
-
-    from app.services.engine_bridge import state_overview
-    healths = []
-    skill_hits: dict[str, int] = defaultdict(int)
-    worst_alert_by_skill: dict[str, dict] = {}
-    for sid in student_ids:
-        overview = state_overview(db, sid)
-        healths.append(overview["tree_health"])
-        for alert in struggle_alerts(db, sid):
-            skill_hits[alert["skill_id"]] += 1
-            current = worst_alert_by_skill.get(alert["skill_id"])
-            if current is None or alert["p_mastery"] < current["p_mastery"]:
-                worst_alert_by_skill[alert["skill_id"]] = alert
-
-    top_skills = sorted(skill_hits.items(), key=lambda kv: -kv[1])[:5]
-    top_alerts = [worst_alert_by_skill[sid] for sid, _ in top_skills]
-
-    return {
-        "organization_id": organization_id,
-        "generated_at": datetime.utcnow(),
-        "student_count": len(student_ids),
-        "avg_tree_health": round(sum(healths) / len(healths), 3),
-        "top_struggle_skills": top_alerts,
     }

@@ -41,24 +41,9 @@ def require_student_access(student_id: uuid.UUID, user: User, db: Session) -> No
         child = db.get(User, student_id)
         if child is not None and child.guardian_id == user.id:
             return
-    if user.role in (UserRole.teacher, UserRole.org_admin, UserRole.platform_admin):
-        from app.models.classroom import Classroom, ClassroomMember
-        from sqlalchemy import select
-
-        target = db.get(User, student_id)
-        if target is not None:
-            if user.role == UserRole.platform_admin:
-                return
-            if target.organization_id is not None and target.organization_id == user.organization_id:
-                return
-            shared = db.scalar(
-                select(ClassroomMember.id)
-                .join(Classroom, Classroom.id == ClassroomMember.classroom_id)
-                .where(ClassroomMember.student_id == student_id, Classroom.teacher_id == user.id)
-                .limit(1)
-            )
-            if shared is not None:
-                return
+    # Internal operations account (support/moderation); never self-registered, no product screen.
+    if user.role == UserRole.platform_admin and db.get(User, student_id) is not None:
+        return
     raise HTTPException(status.HTTP_403_FORBIDDEN, "cannot_access_student")
 
 

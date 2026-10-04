@@ -9,7 +9,7 @@ const SOURCES = {
   llm_rag: ['book', 'نموذج لغوي مدعوم بمقاطع من المنهج'],
   llm: ['spark', 'نموذج لغوي'],
   guardrail: ['shield', 'خارج المنهج: لم يُرسل لأي نموذج'],
-  tutor: ['book', 'معلم المنهج المحلي'],
+  tutor: ['book', 'المساعد المحلي (دون اتصال)'],
 };
 
 const JUDGE_QUICK = [
@@ -36,7 +36,7 @@ export async function tutorView(ctx) {
   const chipsRow = h('div', { class: 'chips-row' });
   const bottom = h('div', null, chipsRow, composer);
   const shell = h('div', { class: 'tutor-shell' },
-    h('div', { class: 'chat-head' }, h('span', { class: 'avatar', html: leafAvatarSvg() }), h('div', { class: 'grow' }, h('b', null, 'المعلم الذكي'), h('div', { class: 'small muted' }, 'يشرح ويحلّ خطوة بخطوة ويتتبّع جذر التعثّر')), select, quotaEl),
+    h('div', { class: 'chat-head' }, h('span', { class: 'avatar', html: leafAvatarSvg() }), h('div', { class: 'grow' }, h('b', null, 'المساعد الذكي'), h('div', { class: 'small muted' }, 'يشرح ويحلّ خطوة بخطوة ويتتبّع جذر التعثّر')), select, quotaEl),
     msgs, bottom);
   page.appendChild(shell);
   ctx.root.appendChild(page);
@@ -82,7 +82,7 @@ export async function tutorView(ctx) {
   }
 
   function typing() {
-    const row = h('div', { class: 'row-msg' }, h('span', { class: 'avatar sm', html: leafAvatarSvg() }), h('div', { class: 'bubble theirs' }, h('span', { class: 'typing' }, h('i'), h('i'), h('i')), h('span', { class: 'small muted', style: { marginInlineStart: '8px' } }, 'المعلم الذكي يقوم بتحليل إجابتك...')));
+    const row = h('div', { class: 'row-msg' }, h('span', { class: 'avatar sm', html: leafAvatarSvg() }), h('div', { class: 'bubble theirs' }, h('span', { class: 'typing' }, h('i'), h('i'), h('i')), h('span', { class: 'small muted', style: { marginInlineStart: '8px' } }, 'المساعد الذكي يقوم بتحليل إجابتك...')));
     msgs.appendChild(row);
     scrollDown();
     return row;
@@ -92,8 +92,8 @@ export async function tutorView(ctx) {
     blocked = true;
     mount(bottom, h('div', { style: { padding: '14px' } }, upsellCard({
       title: 'انتهت رسائل اليوم',
-      text: 'الباقة الأساسية تتيح 5 رسائل يومياً مع المعلم الذكي. تابع الآن بلا حد مع باقة برو.',
-      cta: 'افتح المعلم الذكي بلا حد',
+      text: 'الباقة المجانية تتيح 5 رسائل يومياً مع المساعد الذكي. تابع الآن بلا حد مع باقة برو.',
+      cta: 'افتح المساعد الذكي بلا حد',
     })));
   }
 

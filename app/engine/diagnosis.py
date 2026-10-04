@@ -226,7 +226,7 @@ def evidence_needed(verdict: dict, evidence: Mapping[str, SkillEvidence],
                     min_root_lr: float = MIN_ROOT_LR) -> list[dict]:
     """What is still missing before a root can be named (empty when a root is identified).
 
-    Machine-readable so a teacher view can say *what would settle it*, not only "not enough data".
+    Machine-readable so the learner and parent views can say *what would settle it*, not only "not enough data".
     Each item: ``kind`` (more_errors | confirm_root | verify_prerequisite | resolve_mixed),
     ``skill`` and the smallest ``needed`` count of answers of the stated type.
     """

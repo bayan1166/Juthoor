@@ -1,8 +1,17 @@
 import { h, ico, mathBdi, clear } from './dom.js';
 
+// ---------------------------------------------------------------------------------------------
+// Juthoor tree: one leaf per lesson, one bough per unit, roots = foundation.
+// Drawing rules: shape + colour for every state (never colour alone), two-tone flat leaves,
+// no sky/sun/clouds, no colour gradients, calm motion only for "you are here" and the root trace.
+// ---------------------------------------------------------------------------------------------
+
 const LEAF_LEN = 104;
-const LEAF_W = 50;
-const TRUNK = [[0, 0], [-24, -132], [30, -352], [0, -616]];
+const LEAF_W = 52;
+const BUD = 0.6;
+// Upright trunk with a gentle, natural sway (not a lean); the root flare is drawn symmetrically.
+const TRUNK = [[0, 0], [-5, -170], [8, -350], [2, -520]];
+const TRUNK_W = [60, 8];
 const BOUGHS = {
   1: { c: [[-8, -104], [-88, -100], [-162, -142], [-256, -212]], w: [30, 7] },
   2: { c: [[8, -168], [90, -170], [176, -212], [268, -276]], w: [28, 7] },
@@ -11,6 +20,8 @@ const BOUGHS = {
 };
 
 export const STATUS_LABEL = { mastered: 'متقن', learning: 'قيد التعلّم', open: 'مفتوح', locked: 'مغلق', soon: 'قريباً' };
+
+let sceneSeq = 0;
 
 function bez(p, t) {
   const u = 1 - t;
@@ -31,6 +42,8 @@ function rotate(x, y, deg) {
   return [x * Math.cos(r) - y * Math.sin(r), x * Math.sin(r) + y * Math.cos(r)];
 }
 
+const f1 = (n) => n.toFixed(1);
+
 function taper(p, w0, w1, flare, steps = 22) {
   const left = [], right = [];
   for (let i = 0; i <= steps; i += 1) {
@@ -42,48 +55,79 @@ function taper(p, w0, w1, flare, steps = 22) {
     right.push([x + ty * half, y - tx * half]);
   }
   const pts = left.concat(right.reverse());
-  return `M${pts.map((q) => `${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join('L')}Z`;
+  return `M${pts.map((q) => `${f1(q[0])} ${f1(q[1])}`).join('L')}Z`;
 }
 
+// A band inside a tapered stroke, between two fractions of the local half-width (+ = right-hand normal).
+function band(p, w0, w1, fa, fb, t0 = 0, t1 = 1, steps = 22) {
+  const a = [], b = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = t0 + ((t1 - t0) * i) / steps;
+    const [x, y] = bez(p, t);
+    const [tx, ty] = bezTan(p, t);
+    const half = (w0 + (w1 - w0) * t) / 2;
+    a.push([x + ty * half * fa, y - tx * half * fa]);
+    b.push([x + ty * half * fb, y - tx * half * fb]);
+  }
+  const pts = a.concat(b.reverse());
+  return `M${pts.map((q) => `${f1(q[0])} ${f1(q[1])}`).join('L')}Z`;
+}
+
+function offsetLine(p, w0, w1, f, t0, t1, steps = 18) {
+  const pts = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = t0 + ((t1 - t0) * i) / steps;
+    const [x, y] = bez(p, t);
+    const [tx, ty] = bezTan(p, t);
+    const half = (w0 + (w1 - w0) * t) / 2;
+    pts.push(`${f1(x + ty * half * f)} ${f1(y - tx * half * f)}`);
+  }
+  return `M${pts.join('L')}`;
+}
+
+function curveLine(p, t0 = 0, t1 = 1, dx = 0, dy = 0, steps = 18) {
+  const pts = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const [x, y] = bez(p, t0 + ((t1 - t0) * i) / steps);
+    pts.push(`${f1(x + dx)} ${f1(y + dy)}`);
+  }
+  return `M${pts.join('L')}`;
+}
+
+// A natural leaf: base at (0,0), tip at (0,-L); slightly fuller toward the base, pointed tip.
 function leafPath(L, Wd) {
   const w = Wd / 2;
-  return `M0 0C${(-w * 1.15).toFixed(1)} ${(-L * 0.22).toFixed(1)} ${(-w * 1.05).toFixed(1)} ${(-L * 0.7).toFixed(1)} 0 ${-L.toFixed(1)}C${(w * 1.05).toFixed(1)} ${(-L * 0.7).toFixed(1)} ${(w * 1.15).toFixed(1)} ${(-L * 0.22).toFixed(1)} 0 0Z`;
+  return `M0 0C${f1(-w * 1.2)} ${f1(-L * 0.18)} ${f1(-w * 1.02)} ${f1(-L * 0.72)} 0 ${f1(-L)}C${f1(w * 1.02)} ${f1(-L * 0.72)} ${f1(w * 1.2)} ${f1(-L * 0.18)} 0 0Z`;
 }
 
-function veins(L, Wd) {
+function halfPath(L, Wd, side) {
+  const w = (Wd / 2) * side;
+  return `M0 0C${f1(w * 1.2)} ${f1(-L * 0.18)} ${f1(w * 1.02)} ${f1(-L * 0.72)} 0 ${f1(-L)}Z`;
+}
+
+function ribPath(L, Wd) {
   const w = Wd / 2;
-  let d = `M0 0L0 ${(-L * 0.9).toFixed(1)}`;
-  for (const f of [0.28, 0.5, 0.7]) {
-    d += `M0 ${(-L * f).toFixed(1)}l${(w * 0.62).toFixed(1)} ${(-L * 0.13).toFixed(1)}M0 ${(-L * f).toFixed(1)}l${(-w * 0.62).toFixed(1)} ${(-L * 0.13).toFixed(1)}`;
-  }
+  let d = `M0 ${f1(-L * 0.04)}Q${f1(w * 0.06)} ${f1(-L * 0.5)} 0 ${f1(-L * 0.9)}`;
+  for (const f of [0.34, 0.56]) d += `M0 ${f1(-L * f)}q${f1(w * 0.5)} ${f1(-L * 0.08)} ${f1(w * 0.72)} ${f1(-L * 0.17)}M0 ${f1(-L * f)}q${f1(-w * 0.5)} ${f1(-L * 0.08)} ${f1(-w * 0.72)} ${f1(-L * 0.17)}`;
   return d;
 }
 
-function rng(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6D2B79F5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-export function computeScene(w, hgt, data) {
+export function computeScene(w, hgt, data, reserve = 0) {
   const wide = w >= 760 && w >= hgt * 0.95;
   const narrow = w < 820;
-  const kx = wide ? 2.3 : 1;
-  const ky = wide ? 0.72 : 1;
+  const kx = wide ? 1.95 : 1;
+  const ky = wide ? 0.8 : 1;
   const sc = (pts) => pts.map(([x, y]) => [x * kx, y * ky]);
-  const trunk = sc(TRUNK);
+  // The trunk is never stretched sideways (that made it look tilted on wide screens); only boughs widen.
+  const trunk = TRUNK.map(([x, y]) => [x, y * ky]);
   const boughs = {};
   for (const k of Object.keys(BOUGHS)) boughs[k] = { c: sc(BOUGHS[k].c), w: BOUGHS[k].w };
 
   const leaves = [];
   let index = 0;
   for (const unit of data.units) {
-    const b = boughs[unit.no] || boughs[4];
+    const bough = boughs[unit.no] ? String(unit.no) : '4';
+    const b = boughs[bough];
     const n = unit.lessons.length;
     unit.lessons.forEach((lesson, k) => {
       const t = 0.24 + 0.71 * (n > 1 ? k / (n - 1) : 0.5);
@@ -93,22 +137,23 @@ export function computeScene(w, hgt, data) {
       const cands = [rotate(tx, ty, 50), rotate(tx, ty, -50)];
       const v = upper ? (cands[0][1] < cands[1][1] ? cands[0] : cands[1]) : (cands[0][1] > cands[1][1] ? cands[0] : cands[1]);
       const twig = 20;
-      const scale = upper ? 1 : 0.9;
+      const scale = (upper ? 1 : 0.9) * (lesson.status === 'soon' ? BUD : 1);
       const bx = x + v[0] * twig;
       const by = y + v[1] * twig;
       const deg = (Math.atan2(v[0], -v[1]) * 180) / Math.PI;
       const L = LEAF_LEN * scale;
-      leaves.push({ unit, lesson, x: bx, y: by, deg, scale, stem: [x, y], tip: [bx + Math.sin((deg * Math.PI) / 180) * L, by - Math.cos((deg * Math.PI) / 180) * L], index });
+      leaves.push({ unit, lesson, bough, t, x: bx, y: by, deg, scale, stem: [x, y], tip: [bx + Math.sin((deg * Math.PI) / 180) * L, by - Math.cos((deg * Math.PI) / 180) * L], index });
       index += 1;
     });
   }
 
   let minX = 0, maxX = 0, minY = 0;
   for (const l of leaves) {
+    const pad = l.lesson.current ? 46 : 28;
     for (const [px, py] of [[l.x, l.y], l.tip]) {
-      minX = Math.min(minX, px - 28);
-      maxX = Math.max(maxX, px + 28);
-      minY = Math.min(minY, py - 20);
+      minX = Math.min(minX, px - pad);
+      maxX = Math.max(maxX, px + pad);
+      minY = Math.min(minY, py - (l.lesson.current ? 40 : 20));
     }
   }
   for (const k of Object.keys(boughs)) for (const [px, py] of boughs[k].c) {
@@ -119,121 +164,204 @@ export function computeScene(w, hgt, data) {
   minX = Math.min(minX, -40);
   maxX = Math.max(maxX, 40);
 
-  const groundY = Math.round(hgt * (narrow ? 0.84 : 0.8));
+  const groundY = Math.round(hgt * (narrow ? 0.82 : 0.78));
   const topPad = narrow ? 120 : 84;
   const padX = narrow ? 14 : 40;
-  const s = Math.max(0.2, Math.min((w - padX * 2) / (maxX - minX), (groundY - topPad) / -minY));
-  const ox = w / 2 - (s * (minX + maxX)) / 2;
+  const aw = w - reserve;
+  const s = Math.max(0.2, Math.min((aw - padX * 2) / (maxX - minX), (groundY - topPad) / -minY));
+  const ox = aw / 2 - (s * (minX + maxX)) / 2;
   return { w, h: hgt, wide, narrow, s, ox, oy: groundY, groundY, trunk, boughs, leaves, bounds: { minX, maxX, minY } };
 }
 
-function leafLook(l) {
-  const st = l.lesson.status;
-  const p = l.lesson.progress || 0;
-  if (st === 'mastered') return { fill: '#13895F', fo: 1, stroke: '#0B5E40', so: 1, dash: '' };
-  if (st === 'learning') return { fill: '#16A36B', fo: 0.3 + 0.62 * p, stroke: '#13895F', so: 0.95, dash: '' };
-  if (st === 'open') return { fill: 'var(--leaf-glass)', fo: 0.95, stroke: '#16A36B', so: 1, dash: '' };
-  if (st === 'locked') return { fill: 'var(--leaf-glass)', fo: 0.4, stroke: '#5E7667', so: 0.7, dash: ' stroke-dasharray="5 5"' };
-  return { fill: 'var(--leaf-glass)', fo: 0.25, stroke: '#5E7667', so: 0.45, dash: ' stroke-dasharray="5 5"' };
+export function centerOfLeaf(l) {
+  const rad = (l.deg * Math.PI) / 180;
+  const len = LEAF_LEN * l.scale;
+  return [l.x + Math.sin(rad) * len * 0.5, l.y - Math.cos(rad) * len * 0.5];
 }
 
-function leafSvg(l, selected) {
+// Path between two leaves that travels along the tree itself (leaf -> twig -> bough -> trunk ->
+// bough -> twig -> leaf), so "tracing the gap" literally follows the structure back to the foundation.
+export function skeletonPath(sc, a, b) {
+  const pts = [centerOfLeaf(a), [a.x, a.y], a.stem];
+  const push = (p, t0, t1) => {
+    const steps = Math.max(2, Math.ceil(Math.abs(t1 - t0) * 24));
+    for (let i = 1; i <= steps; i += 1) pts.push(bez(p, t0 + ((t1 - t0) * i) / steps));
+  };
+  const ca = sc.boughs[a.bough].c;
+  const cb = sc.boughs[b.bough].c;
+  if (a.bough === b.bough) {
+    push(ca, a.t, b.t);
+  } else {
+    push(ca, a.t, 0);
+    pts.push(cb[0]);
+    push(cb, 0, b.t);
+  }
+  pts.push([b.x, b.y], centerOfLeaf(b));
+  return `M${pts.map(([x, y]) => `${f1(x)} ${f1(y)}`).join('L')}`;
+}
+
+const TONE = {
+  mastered: ['var(--lf-m1)', 'var(--lf-m2)'],
+  gap: ['var(--lf-g1)', 'var(--lf-g2)'],
+  open: ['var(--lf-o1)', 'var(--lf-o2)'],
+  locked: ['var(--lf-ghost)', 'var(--lf-ghost)'],
+  soon: ['var(--lf-ghost)', 'var(--lf-ghost)'],
+};
+
+function leafSvg(l, selected, sc, uid) {
   const { lesson, unit } = l;
-  const look = leafLook(l);
+  const st = lesson.status;
+  const kind = lesson.gap ? 'gap' : st;
   const L = LEAF_LEN * l.scale;
   const Wd = LEAF_W * l.scale;
-  const rad = (l.deg * Math.PI) / 180;
-  const cx = l.x + Math.sin(rad) * L * 0.5;
-  const cy = l.y - Math.cos(rad) * L * 0.5;
-  const st = lesson.status;
+  const [cx, cy] = centerOfLeaf(l);
+  const inv = 1 / sc.s;
   const cls = ['leaf', st, lesson.current ? 'cur' : '', lesson.gap ? 'gap' : '', selected === lesson.key ? 'sel' : ''].filter(Boolean).join(' ');
-  const label = `${unit.title}، الدرس ${lesson.no}: ${lesson.title} (${STATUS_LABEL[st] || st})`;
-  let mark = '';
-  if (st === 'locked') {
-    mark = `<g transform="translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${(l.scale * 1.15).toFixed(2)})" fill="none" stroke="var(--num-dim,#5E7667)" stroke-width="2.2" stroke-linecap="round"><rect x="-8" y="-3" width="16" height="12" rx="3"/><path d="M-4.5 -3V-7a4.5 4.5 0 019 0v4"/></g>`;
-  } else if (st === 'mastered') {
-    mark = `<path d="M${(cx - 9 * l.scale).toFixed(1)} ${cy.toFixed(1)}l${(6 * l.scale).toFixed(1)} ${(6 * l.scale).toFixed(1)}l${(12 * l.scale).toFixed(1)} ${(-13 * l.scale).toFixed(1)}" fill="none" stroke="#fff" stroke-width="${(4 * l.scale).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round"/>`;
-  } else {
-    const color = st === 'learning' && lesson.progress > 0.55 ? '#fff' : st === 'soon' ? 'var(--num-dim,#5E7667)' : 'var(--num-open,#12684A)';
-    mark = `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" dy=".36em" text-anchor="middle" font-size="${(26 * l.scale).toFixed(0)}" font-weight="800" style="fill:${color};direction:ltr" pointer-events="none">${lesson.no}</text>`;
-  }
-  const ring = lesson.current
-    ? `<g transform="translate(${l.x.toFixed(1)} ${l.y.toFixed(1)}) rotate(${l.deg.toFixed(1)})"><path class="pulse" d="${leafPath(L * 1.2, Wd * 1.38)}" transform="translate(0 ${(L * 0.08).toFixed(1)})" fill="none" stroke="#C6F36B" stroke-width="3"/></g>`
-    : '';
-  const gap = lesson.gap
-    ? `<g transform="translate(${l.x.toFixed(1)} ${l.y.toFixed(1)}) rotate(${l.deg.toFixed(1)})"><path class="pulse" d="${leafPath(L * 1.14, Wd * 1.3)}" transform="translate(0 ${(L * 0.06).toFixed(1)})" fill="none" stroke="#C2503A" stroke-width="3" stroke-dasharray="6 4"/></g>`
-    : '';
-  const sel = `<g transform="translate(${l.x.toFixed(1)} ${l.y.toFixed(1)}) rotate(${l.deg.toFixed(1)})" class="selring" style="display:${selected === lesson.key ? 'block' : 'none'}"><path d="${leafPath(L * 1.16, Wd * 1.3)}" transform="translate(0 ${(L * 0.07).toFixed(1)})" fill="none" stroke="#C6F36B" stroke-width="2.4" stroke-dasharray="4 5"/></g>`;
-  return `<g class="${cls}" data-key="${lesson.key}" tabindex="0" role="button" aria-label="${label}" style="--i:${l.index}">`
-    + `<title>${label}</title>`
-    + `<path d="M${l.stem[0].toFixed(1)} ${l.stem[1].toFixed(1)}L${l.x.toFixed(1)} ${l.y.toFixed(1)}" stroke="var(--bark1)" stroke-width="3.2" stroke-linecap="round" fill="none"/>`
-    + `${gap}${ring}`
-    + `<g transform="translate(${l.x.toFixed(1)} ${l.y.toFixed(1)}) rotate(${l.deg.toFixed(1)})"><path class="shape" d="${leafPath(L, Wd)}" fill="${look.fill}" fill-opacity="${look.fo.toFixed(2)}" stroke="${look.stroke}" stroke-opacity="${look.so}" stroke-width="1.8"${look.dash}/>`
-    + `<path d="${veins(L, Wd)}" fill="none" stroke="#fff" stroke-opacity="${st === 'mastered' ? 0.25 : 0.4}" stroke-width="1.2" stroke-linecap="round" pointer-events="none"/></g>`
-    + `${sel}${mark}<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(46 * l.scale).toFixed(0)}" fill="transparent"/></g>`;
-}
+  const label = `${unit.title}، الدرس ${lesson.no}: ${lesson.title} (${lesson.gap ? 'الجذر المرصود' : STATUS_LABEL[st] || st})`;
+  const rot = `translate(${f1(l.x)} ${f1(l.y)}) rotate(${f1(l.deg)})`;
 
-function hillPath(w, baseY, amp, seed) {
-  const r = rng(seed);
-  const pts = [];
-  const n = 7;
-  for (let i = 0; i <= n; i += 1) pts.push([(w / n) * i, baseY - r() * amp]);
-  let d = `M0 ${baseY + 200}L${pts[0][0]} ${pts[0][1].toFixed(1)}`;
-  for (let i = 1; i < pts.length; i += 1) {
-    const [px, py] = pts[i - 1];
-    const [qx, qy] = pts[i];
-    d += `C${(px + (qx - px) / 2).toFixed(1)} ${py.toFixed(1)} ${(px + (qx - px) / 2).toFixed(1)} ${qy.toFixed(1)} ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+  const [sx, sy] = l.stem;
+  const mx = (sx + l.x) / 2 + (l.y - sy) * 0.18;
+  const my = (sy + l.y) / 2 - (l.x - sx) * 0.18;
+  const stem = `<path d="M${f1(sx)} ${f1(sy)}Q${f1(mx)} ${f1(my)} ${f1(l.x)} ${f1(l.y)}" stroke="var(--bark1)" stroke-width="2.4" stroke-linecap="round" fill="none"/>`;
+
+  let fill;
+  if (st === 'learning' && !lesson.gap) {
+    const p = Math.max(0.12, Math.min(1, lesson.progress || 0));
+    const clip = `${uid}-c${l.index}`;
+    fill = `<clipPath id="${clip}"><rect x="${f1(-Wd)}" y="${f1(-L * p)}" width="${f1(Wd * 2)}" height="${f1(L * p + 2)}"/></clipPath>`
+      + `<path class="half" d="${halfPath(L, Wd, -1)}" fill="${TONE.open[0]}"/><path class="half" d="${halfPath(L, Wd, 1)}" fill="${TONE.open[1]}"/>`
+      + `<g clip-path="url(#${clip})"><path class="half fillp" d="${halfPath(L, Wd, -1)}" fill="${TONE.mastered[0]}"/><path class="half fillp" d="${halfPath(L, Wd, 1)}" fill="${TONE.mastered[1]}"/></g>`;
+  } else {
+    const [a, b] = TONE[kind] || TONE.locked;
+    fill = `<path class="half" d="${halfPath(L, Wd, -1)}" fill="${a}"/><path class="half" d="${halfPath(L, Wd, 1)}" fill="${b}"/>`;
   }
-  return `${d}L${w} ${baseY + 200}Z`;
+  const line = { mastered: 'var(--lf-m1)', gap: 'var(--lf-g1)', learning: 'var(--lf-line)', open: 'var(--lf-line)', locked: 'var(--lf-muted)', soon: 'var(--lf-muted)' }[kind];
+  const lineW = kind === 'locked' || kind === 'soon' ? 1.1 : 1.6;
+  const lineO = kind === 'soon' ? 0.45 : kind === 'locked' ? 0.7 : 1;
+  const outline = `<path class="outline" d="${leafPath(L, Wd)}" fill="none" stroke="${line}" stroke-opacity="${lineO}" stroke-width="${lineW}" stroke-linejoin="round"/>`;
+  const ribO = kind === 'mastered' || kind === 'gap' ? 0.35 : kind === 'soon' ? 0 : 0.22;
+  const rib = ribO ? `<path d="${ribPath(L, Wd)}" fill="none" stroke="${kind === 'mastered' || kind === 'gap' ? '#fff' : 'var(--lf-muted)'}" stroke-opacity="${ribO}" stroke-width="1" stroke-linecap="round" pointer-events="none"/>` : '';
+
+  let mark = '';
+  const k = l.scale;
+  if (lesson.gap) {
+    mark = `<g transform="translate(${f1(cx)} ${f1(cy)}) scale(${(k * 1.05).toFixed(2)})" fill="none" stroke="#fff" stroke-width="2.4"><circle r="10"/><circle r="3.6" fill="#fff"/></g>`;
+  } else if (st === 'mastered') {
+    mark = `<path d="M${f1(cx - 9 * k)} ${f1(cy)}l${f1(6 * k)} ${f1(6 * k)}l${f1(12 * k)} ${f1(-13 * k)}" fill="none" stroke="#fff" stroke-width="${f1(3.6 * k)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  } else if (st === 'locked') {
+    mark = `<g transform="translate(${f1(cx)} ${f1(cy)}) scale(${(k * 0.95).toFixed(2)})" fill="none" stroke="var(--lf-muted)" stroke-opacity=".85" stroke-width="2" stroke-linecap="round"><rect x="-7" y="-2" width="14" height="10.5" rx="2.6"/><path d="M-4 -2V-5.6a4 4 0 018 0V-2"/></g>`;
+  } else if (st !== 'soon') {
+    const color = st === 'learning' && (lesson.progress || 0) > 0.5 ? '#fff' : 'var(--num-open)';
+    mark = `<text x="${f1(cx)}" y="${f1(cy)}" dy=".36em" text-anchor="middle" font-size="${(24 * k).toFixed(0)}" font-weight="800" style="fill:${color};direction:ltr" pointer-events="none">${lesson.no}</text>`;
+  }
+
+  // Rings live in their own <g> so CSS animation (transform) never overrides an SVG transform attribute.
+  const halo = (scaleL, scaleW, attrs, cls = '') => `<g transform="${rot}"><g transform="translate(0 ${f1(L * (scaleL - 1) * 0.42)})"><g class="${cls}"><path d="${leafPath(L * scaleL, Wd * scaleW)}" fill="none" ${attrs}/></g></g></g>`;
+  const cur = lesson.current
+    ? halo(1.28, 1.52, 'stroke="var(--cur-ring)" stroke-opacity=".14" stroke-width="10"') + halo(1.22, 1.44, 'stroke="var(--cur-ring)" stroke-width="2.2"', 'pulse')
+    : '';
+  const gapRing = lesson.gap ? halo(1.2, 1.4, 'stroke="var(--lf-g1)" stroke-width="2"', 'pulse') : '';
+  const sel = `<g class="selring" style="display:${selected === lesson.key ? 'block' : 'none'}">${halo(1.18, 1.36, 'stroke="var(--cur-ring)" stroke-width="2.2" stroke-dasharray="4 5"')}</g>`;
+
+  let pin = '';
+  if (lesson.current) {
+    const rad = (l.deg * Math.PI) / 180;
+    const [tx, ty] = l.tip;
+    const px = tx + Math.sin(rad) * 26 * inv;
+    const py = ty - Math.cos(rad) * 26 * inv;
+    pin = `<g transform="translate(${f1(px)} ${f1(py)}) scale(${inv.toFixed(3)})" pointer-events="none"><g class="here"><rect x="-33" y="-12" width="66" height="24" rx="12" fill="var(--cur-ring)"/><text y="1" dy=".34em" text-anchor="middle" font-size="12.5" font-weight="800" style="fill:var(--cur-ink);direction:rtl">أنت هنا</text></g></g>`;
+  }
+
+  return `<g class="${cls}" data-key="${lesson.key}" tabindex="0" role="button" aria-label="${label}" style="--i:${l.index}">`
+    + `<title>${label}</title>${stem}${gapRing}${cur}`
+    + `<g transform="${rot}"><g class="shape">${fill}${outline}${rib}</g></g>`
+    + `${sel}${mark}${pin}<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${(46 * l.scale).toFixed(0)}" fill="transparent"/></g>`;
 }
 
 function rootsSvg(sc) {
-  const depth = sc.h - sc.groundY - 14;
+  const g = sc.groundY;
+  const depth = sc.h - g - 10;
+  const reach = Math.min(sc.w * 0.34, 440);
+  const ox = sc.ox;
   const out = [];
-  const spans = [[-1, 0.5, 9], [1, 0.55, 9], [-1, 0.28, 6], [1, 0.3, 6], [-1, 0.78, 5], [1, 0.8, 5]];
-  const reach = Math.min(sc.w * 0.34, 420);
-  spans.forEach(([dir, f, wd], i) => {
-    const x1 = sc.ox + dir * reach * f * 0.5;
-    const x2 = sc.ox + dir * reach * f;
-    const y1 = sc.groundY + depth * (0.25 + i * 0.03);
-    const y2 = sc.groundY + depth * (0.55 + (i % 3) * 0.16);
-    out.push(`<path d="M${sc.ox.toFixed(1)} ${sc.groundY}C${x1.toFixed(1)} ${(sc.groundY + 6).toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" stroke="var(--root)" stroke-width="${wd}" stroke-linecap="round" opacity=".9"/>`);
-    out.push(`<path d="M${((x1 + x2) / 2).toFixed(1)} ${((y1 + y2) / 2).toFixed(1)}q${(dir * 18).toFixed(1)} ${(depth * 0.12).toFixed(1)} ${(dir * 34).toFixed(1)} ${(depth * 0.2).toFixed(1)}" fill="none" stroke="var(--root)" stroke-width="2.4" stroke-linecap="round" opacity=".7"/>`);
+  const roots = [[-1, 0.95, 0.42, 7], [1, 1, 0.48, 7], [-1, 0.62, 0.78, 5.5], [1, 0.58, 0.82, 5.5], [-1, 0.3, 0.95, 4], [1, 0.26, 0.7, 4]];
+  roots.forEach(([dir, f, ey, wd]) => {
+    const p = [[ox + dir * 6, g + 1], [ox + dir * reach * f * 0.22, g + depth * 0.1], [ox + dir * reach * f * 0.62, g + depth * ey * 0.45], [ox + dir * reach * f, g + depth * ey]];
+    out.push(`<path d="${taper(p, wd, 0.6, 0, 16)}" style="fill:var(--root)"/>`);
+    const [bx, by] = bez(p, 0.5);
+    const sub = [[bx, by], [bx + dir * reach * 0.06, by + depth * 0.08], [bx + dir * reach * 0.12, by + depth * 0.18], [bx + dir * reach * 0.16, by + depth * 0.3]];
+    out.push(`<path d="${taper(sub, wd * 0.45, 0.4, 0, 10)}" style="fill:var(--root)" opacity=".7"/>`);
   });
-  out.push(`<path d="M${sc.ox.toFixed(1)} ${sc.groundY}L${sc.ox.toFixed(1)} ${(sc.groundY + depth * 0.9).toFixed(1)}" stroke="var(--root)" stroke-width="10" stroke-linecap="round" opacity=".85"/>`);
-  return out.join('');
+  const tap = [[ox, g], [ox - 6, g + depth * 0.3], [ox + 8, g + depth * 0.6], [ox, g + depth * 0.92]];
+  out.push(`<path d="${taper(tap, 9, 0.8, 0, 16)}" style="fill:var(--root)"/>`);
+  return `<g class="roots">${out.join('')}</g>`;
 }
 
-export function sceneSvg(sc, { selected = null } = {}) {
-  const r = rng(26);
-  const stars = Array.from({ length: 46 }, () => `<circle class="star" cx="${(r() * sc.w).toFixed(0)}" cy="${(r() * sc.groundY * 0.55).toFixed(0)}" r="${(0.7 + r() * 1.5).toFixed(1)}" fill="#fff" style="animation-delay:${(r() * 4).toFixed(1)}s"/>`).join('');
-  const pollen = Array.from({ length: 14 }, () => `<circle class="pollen" cx="${(r() * sc.w).toFixed(0)}" cy="${(sc.groundY * (0.3 + r() * 0.65)).toFixed(0)}" r="${(1.6 + r() * 2).toFixed(1)}" fill="#fff" style="animation-delay:${(r() * 9).toFixed(1)}s"/>`).join('');
-  const sunR = Math.max(34, Math.min(sc.w, sc.h) * 0.075);
-  const sunX = sc.narrow ? sc.w * 0.8 : sc.w * 0.84;
-  const sunY = sc.narrow ? 150 : sc.groundY * 0.26;
-  const cloud = (cx, cy, k, cls) => `<g class="cloud ${cls}"><g transform="translate(${cx} ${cy}) scale(${k})" fill="var(--cloud)" opacity=".85"><ellipse cx="0" cy="0" rx="62" ry="20"/><ellipse cx="-26" cy="-14" rx="34" ry="22"/><ellipse cx="14" cy="-20" rx="40" ry="26"/></g></g>`;
+// Static trace from the current lesson back to the diagnosed root (only when the gap is visible, not locked).
+function rootTrace(sc, data) {
+  const gap = data && data.root_gap;
+  if (!gap || !gap.found || gap.locked) return '';
+  const from = sc.leaves.find((l) => l.lesson.current);
+  const to = sc.leaves.find((l) => l.lesson.skill === gap.skill);
+  if (!from || !to || from === to) return '';
+  const d = skeletonPath(sc, from, to);
+  return `<path class="root-trace-glow" d="${d}" fill="none" stroke="var(--lf-g1)" stroke-opacity=".18" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`
+    + `<path class="root-trace" d="${d}" fill="none" stroke="var(--lf-g1)" stroke-width="2.4" stroke-dasharray="2 7" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+}
+
+export function sceneSvg(sc, { selected = null, data = null } = {}) {
+  sceneSeq += 1;
+  const uid = `jt${sceneSeq}`;
   const tr = sc.trunk;
-  const trunkD = taper(tr, 64, 20, 46);
-  const boughD = Object.keys(sc.boughs).map((k) => taper(sc.boughs[k].c, sc.boughs[k].w[0], sc.boughs[k].w[1], 0, 16)).join('');
-  const medallions = sc.leaves.length ? Object.keys(sc.boughs).map((k) => {
+  const [tw0, tw1] = TRUNK_W;
+  const trunkD = taper(tr, tw0, tw1, 0, 26);
+  // Symmetric root flare: the trunk widens evenly into the ground instead of ending in a slanted wedge.
+  const flare = `M-82 2C-48 -1 -34 -20 -28 -80L28 -80C34 -20 48 -1 82 2Z`;
+  const flareShade = `M82 2C48 -1 34 -20 28 -80L16 -80C18 -34 26 -8 34 2Z`;
+  const shade = band(tr, tw0, tw1, -1, -0.5, 0, 0.96);
+  const light = band(tr, tw0, tw1, 0.22, 0.62, 0.02, 0.9);
+  const bark = [offsetLine(tr, tw0, tw1, -0.18, 0.05, 0.6), offsetLine(tr, tw0, tw1, 0.05, 0.28, 0.82), offsetLine(tr, tw0, tw1, -0.55, 0.32, 0.7)]
+    .map((d) => `<path d="${d}" fill="none" stroke="var(--bark-line)" stroke-opacity=".38" stroke-width="1.1" stroke-linecap="round"/>`).join('');
+  const boughD = Object.keys(sc.boughs).map((k) => taper(sc.boughs[k].c, sc.boughs[k].w[0] * 0.78, 1.4, 0, 22)).join('');
+  const boughHi = Object.keys(sc.boughs).map((k) => {
     const c = sc.boughs[k].c;
-    const [mx, my] = bez(c, 0.08);
-    return `<g transform="translate(${mx.toFixed(1)} ${my.toFixed(1)})"><circle r="17" fill="var(--bark2)" stroke="var(--bark1)" stroke-width="2"/><text y="1" dy=".36em" text-anchor="middle" font-size="18" font-weight="800" fill="#FFF6E2" style="direction:ltr">${k}</text></g>`;
+    const up = bezTan(c, 0.5)[0] > 0 ? 0.42 : -0.42;
+    return `<path d="${offsetLine(c, sc.boughs[k].w[0] * 0.78, 1.4, up, 0.06, 0.92)}" fill="none" stroke="var(--bark-hi)" stroke-opacity=".6" stroke-width="1.5" stroke-linecap="round"/>`;
+  }).join('');
+  // A small fork at every bough tip so branches end like branches, not like cut sticks.
+  const forks = [...Object.keys(sc.boughs).map((k) => sc.boughs[k].c), tr].map((c) => {
+    const [x, y] = bez(c, 0.985);
+    const [tx, ty] = bezTan(c, 0.985);
+    return [26, -26].map((deg) => {
+      const [dx, dy] = rotate(tx, ty, deg);
+      const L = deg * (tx > 0 ? -1 : 1) > 0 ? 30 : 22;
+      const w = c === tr ? 5 : 2.6;
+      return taper([[x, y], [x + dx * L * 0.35, y + dy * L * 0.35], [x + dx * L * 0.7, y + dy * L * 0.7 - 3], [x + dx * L, y + dy * L - 6]], w, 0.5, 0, 8);
+    }).join('');
+  }).join('');
+  const medallions = sc.leaves.length ? Object.keys(sc.boughs).map((k) => {
+    const [mx, my] = bez(sc.boughs[k].c, 0.08);
+    return `<g transform="translate(${f1(mx)} ${f1(my)})"><circle r="15" fill="var(--medal)" stroke="var(--bark1)" stroke-width="2"/><text y="1" dy=".36em" text-anchor="middle" font-size="15" font-weight="800" fill="var(--medal-ink)" style="direction:ltr">${k}</text></g>`;
   }).join('') : '';
-  const leaves = sc.leaves.map((l) => leafSvg(l, selected)).join('');
-  return `<svg class="scene" viewBox="0 0 ${sc.w} ${sc.h}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="شجرة المنهج: ورقة لكل درس">`
-    + `<defs><radialGradient id="sunG"><stop offset="0" style="stop-color:var(--sun)" stop-opacity="1"/><stop offset=".45" style="stop-color:var(--sun)" stop-opacity=".45"/><stop offset="1" style="stop-color:var(--sun)" stop-opacity="0"/></radialGradient>`
-    + `<linearGradient id="soilG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--soil1)"/><stop offset="1" style="stop-color:var(--soil2)"/></linearGradient>`
-    + `<linearGradient id="barkG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--bark2)"/><stop offset=".5" style="stop-color:var(--bark1)"/><stop offset="1" style="stop-color:var(--bark2)"/></linearGradient></defs>`
-    + `${stars}`
-    + `<circle class="sun-glow" cx="${sunX.toFixed(0)}" cy="${sunY.toFixed(0)}" r="${(sunR * 3.2).toFixed(0)}" fill="url(#sunG)"/><circle cx="${sunX.toFixed(0)}" cy="${sunY.toFixed(0)}" r="${sunR.toFixed(0)}" style="fill:var(--sun)"/>`
-    + `${cloud(sc.w * 0.12, 120, 1.1, 'c1')}${cloud(sc.w * 0.5, 90, 0.8, 'c2')}${cloud(sc.w * 0.3, 190, 0.9, 'c3')}`
-    + `<path d="${hillPath(sc.w, sc.groundY - sc.h * 0.04, sc.h * 0.14, 3)}" style="fill:var(--hill1)"/><path d="${hillPath(sc.w, sc.groundY, sc.h * 0.07, 11)}" style="fill:var(--hill2)"/>`
-    + `${pollen}`
-    + `<rect x="0" y="${sc.groundY}" width="${sc.w}" height="${(sc.h - sc.groundY + 2).toFixed(0)}" fill="url(#soilG)"/>`
-    + `<rect x="0" y="${sc.groundY - 5}" width="${sc.w}" height="12" rx="6" style="fill:var(--grass)"/>`
+  const leaves = sc.leaves.map((l) => leafSvg(l, selected, sc, uid)).join('');
+  const { minX, maxX, minY } = sc.bounds;
+  const hx = sc.ox + (sc.s * (minX + maxX)) / 2;
+  const hy = sc.oy + sc.s * minY * 0.48;
+  const hr = Math.max(120, sc.s * (maxX - minX) * 0.36);
+  const g = sc.groundY;
+  const ground = `M0 ${g}C${f1(sc.ox * 0.55)} ${g} ${f1(sc.ox - 80)} ${g - 10} ${f1(sc.ox)} ${g - 10}C${f1(sc.ox + 80)} ${g - 10} ${f1(sc.ox + (sc.w - sc.ox) * 0.45)} ${g} ${sc.w} ${g}`;
+  return `<svg class="scene" viewBox="0 0 ${sc.w} ${sc.h}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="خريطة الجذور: ورقة لكل درس، والجذور هي الأساس">`
+    + `<defs><filter id="${uid}-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${f1(hr * 0.32)}"/></filter></defs>`
+    + `<ellipse class="halo" cx="${f1(hx)}" cy="${f1(hy)}" rx="${f1(hr * 1.25)}" ry="${f1(hr * 0.8)}" style="fill:var(--halo)" filter="url(#${uid}-soft)"/>`
+    + `<path d="${ground}L${sc.w} ${sc.h}L0 ${sc.h}Z" style="fill:var(--soil)"/>`
+    + `<path d="${ground}" fill="none" style="stroke:var(--ground-line)" stroke-width="1.5"/>`
     + `${rootsSvg(sc)}`
-    + `<g transform="translate(${sc.ox.toFixed(1)} ${sc.oy}) scale(${sc.s.toFixed(4)})"><path d="${trunkD}" fill="url(#barkG)"/><path d="${boughD}" fill="url(#barkG)"/>${medallions}${leaves}<g class="scan-layer"></g></g>`
+    + `<g transform="translate(${f1(sc.ox)} ${sc.oy}) scale(${sc.s.toFixed(4)})">`
+    + `<ellipse cx="0" cy="3" rx="170" ry="11" style="fill:var(--tree-shadow)"/>`
+    + `<path d="${boughD}" style="fill:var(--bark1)"/><path d="${forks}" style="fill:var(--bark1)"/>${boughHi}`
+    + `<path d="${trunkD}" style="fill:var(--bark1)"/><path d="${flare}" style="fill:var(--bark1)"/><path d="${flareShade}" style="fill:var(--bark2)" opacity=".32"/><path d="${shade}" style="fill:var(--bark2)" opacity=".32"/><path d="${light}" style="fill:var(--bark-hi)" opacity=".38"/>${bark}`
+    + `${medallions}${rootTrace(sc, data)}${leaves}<g class="scan-layer"></g></g>`
     + `</svg>`;
 }
 
@@ -280,7 +408,11 @@ function panelContent(found, opts, close) {
       lesson.accuracy !== null && lesson.accuracy !== undefined ? h('span', { class: 'chip green' }, `الدقة: ${Math.round(lesson.accuracy * 100)}%`) : null));
   }
   if (lesson.gap) {
-    body.appendChild(h('div', { class: 'gap-banner', style: { marginBottom: '14px' } }, ico('alert'), h('div', null, 'هذا الدرس هو الجذر المرصود للتعثّر الحالي. أتقنه لتنفتح بقية الدروس.')));
+    body.appendChild(h('div', { class: 'gap-banner', style: { marginBottom: '14px' } }, ico('target'), h('div', null,
+      h('b', null, 'الجذر المرصود للتعثّر الحالي. '),
+      `${lesson.attempts ? `الأدلة المسجّلة في هذا الدرس: ${lesson.correct ?? 0} صحيحة من ${lesson.attempts} محاولة. ` : ''}أصلحه ثم ارجع إلى درسك الحالي لتنفتح بقية الدروس.`)));
+  } else if (lesson.skill && !lesson.attempts && lesson.status !== 'soon') {
+    body.appendChild(h('div', { class: 'banner' }, ico('info'), h('div', null, 'لا أدلة بعد على هذا الدرس، ولا يحكم النظام عليه قبل أن يجيب الطالب.')));
   }
   if (lesson.missing && lesson.missing.length) {
     body.appendChild(h('div', { class: 'banner' }, ico('lock'), h('div', null, h('b', null, 'أتقن هذه الدروس أولاً: '), lesson.missing.join('، '))));
@@ -319,6 +451,7 @@ function hudContent(data, opts) {
       h('div', { class: 'row nowrap' }, ring,
         h('div', { class: 'grow' },
           h('div', { style: { fontWeight: 800 } }, opts.title || 'صحة الشجرة'),
+          data.course ? h('div', { class: 'course-chip', title: data.course.curriculum_ar || '' }, ico('book'), h('span', { class: 'cc-label' }, 'المحتوى الحالي: '), h('span', null, `${data.course.subject_ar} · ${data.course.grade_ar}`)) : null,
           h('div', { class: 'muted small' }, `${data.summary.mastered} من ${data.summary.live} دروس مُتقنة`),
           h('div', { class: 'muted small' }, `${data.summary.correct} إجابة صحيحة من ${data.summary.answered}`))),
       opts.canPractice !== false ? h('a', { class: 'btn btn-primary btn-sm btn-block', style: { marginTop: '12px' }, href: '#/practice' }, ico('pencil'), 'تابع التدريب') : null));
@@ -336,12 +469,16 @@ function hudContent(data, opts) {
   return nodes;
 }
 
+const STATE_KEY = [['mastered', 'متقن'], ['learning', 'قيد التعلّم'], ['current', 'أنت هنا'], ['gap', 'الجذر المرصود'], ['locked', 'ينتظر إتقان المتطلبات'], ['soon', 'محتوى قيد الإعداد']];
+
 function legendContent(data) {
-  return data.units.map((u) => {
+  const key = h('div', { class: 'state-key', 'aria-label': 'دليل الألوان' }, STATE_KEY.map(([k, label]) => h('span', { class: 'sk' }, h('i', { class: `sw sw-${k}` }), label)));
+  const units = data.units.map((u) => {
     const total = u.lessons.length;
     const done = u.lessons.filter((l) => l.status === 'mastered').length;
-    return h('span', { class: 'chip' }, h('b', null, String(u.no)), ` ${u.title}`, h('span', { class: 'muted' }, ` ${done}/${total}`));
+    return h('span', { class: 'chip unit-chip' }, h('b', null, String(u.no)), ` ${u.title}`, h('span', { class: 'muted' }, ` ${done}/${total}`));
   });
+  return [key, h('div', { class: 'unit-row' }, units)];
 }
 
 export function renderTreeStage(host, data, opts = {}) {
@@ -368,9 +505,14 @@ export function renderTreeStage(host, data, opts = {}) {
     return { w: Math.max(320, w), h: Math.max(380, hh) };
   }
 
+  function reserveFor() {
+    const wide = size.w >= 900 && !opts.compact && !opts.embedded && !opts.bare;
+    return wide && current.summary ? 400 : 0;
+  }
+
   function draw() {
     size = measure();
-    sceneBox.innerHTML = sceneSvg(computeScene(size.w, size.h, current), { selected });
+    sceneBox.innerHTML = sceneSvg(computeScene(size.w, size.h, current, reserveFor()), { selected, data: current });
   }
 
   function closePanel() {
@@ -423,15 +565,11 @@ export function renderTreeStage(host, data, opts = {}) {
     if (layer) clear(layer);
   }
 
-  function centerOf(l) {
-    const rad = (l.deg * Math.PI) / 180;
-    const len = LEAF_LEN * l.scale;
-    return [l.x + Math.sin(rad) * len * 0.5, l.y - Math.cos(rad) * len * 0.5];
-  }
+  const centerOf = centerOfLeaf;
 
   function scan(skills, o = {}) {
     clearScan();
-    const sc = computeScene(size.w, size.h, current);
+    const sc = computeScene(size.w, size.h, current, reserveFor());
     const bySkill = new Map(sc.leaves.map((l) => [l.lesson.skill, l]));
     const steps = skills.map((s) => bySkill.get(s)).filter(Boolean);
     const reduced = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -455,8 +593,7 @@ export function renderTreeStage(host, data, opts = {}) {
         if (layer) {
           const [cx, cy] = centerOf(l);
           if (i > 0) {
-            const [px, py] = centerOf(steps[i - 1]);
-            layer.appendChild(h('path', { class: 'scan-seg', d: `M${px.toFixed(1)} ${py.toFixed(1)}L${cx.toFixed(1)} ${cy.toFixed(1)}`, pathLength: '1' }));
+            layer.appendChild(h('path', { class: 'scan-seg', d: skeletonPath(sc, steps[i - 1], l), pathLength: '1', 'vector-effect': 'non-scaling-stroke' }));
           }
           layer.appendChild(h('circle', { class: ['scan-dot', last ? 'end' : ''], cx: cx.toFixed(1), cy: cy.toFixed(1), r: last ? '15' : '9' }));
         }

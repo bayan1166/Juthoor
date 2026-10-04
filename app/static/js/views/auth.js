@@ -1,15 +1,15 @@
 import { h, ico, mount, clear, toast } from '../dom.js';
 import { api } from '../api.js';
-import { store } from '../store.js';
+import { store, getTheme, setTheme } from '../store.js';
 import { brandHtml } from '../icons.js';
 import { renderTreeStage, demoTreeData } from '../tree.js';
 import { withBusy } from './shared.js';
 
 const DEMOS = [
-  { label: 'طالب (عمر - ضمن صف)', email: 'student2@demo.jo', landing: '#/practice' },
+  // Every account lands on its home (the tree for students); nothing jumps straight into practice.
+  { label: 'طالب (عمر - برو)', email: 'student2@demo.jo', featured: true },
   { label: 'طالبة (ليان - برو)', email: 'student1@demo.jo' },
-  { label: 'طالبة (مريم - أساسية)', email: 'student3@demo.jo' },
-  { label: 'معلمة', email: 'teacher@demo.jo' },
+  { label: 'طالبة (مريم - مجانية)', email: 'student3@demo.jo' },
   { label: 'ولي أمر', email: 'parent@demo.jo' },
 ];
 
@@ -82,15 +82,25 @@ export async function authView(ctx) {
   const page = h('div', { class: 'auth page-enter' });
   const side = h('div', { class: 'auth-side' });
   const card = h('div', { class: 'auth-card' });
-  const main = h('div', { class: 'auth-main' }, card);
+  // Light/dark switch is available before sign-in too (the app header only exists after login).
+  const themeBtn = h('button', { class: 'icon-btn auth-theme', type: 'button', 'aria-label': 'تبديل المظهر', title: 'الوضع الفاتح / الداكن' }, ico(getTheme() === 'dark' ? 'sun' : 'moon'));
+  themeBtn.addEventListener('click', () => {
+    const next = getTheme() === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    clear(themeBtn);
+    themeBtn.appendChild(ico(next === 'dark' ? 'sun' : 'moon'));
+  });
+  const main = h('div', { class: 'auth-main' }, themeBtn, card);
   side.appendChild(h('div', { class: 'top' }, h('a', { class: 'brand', href: '#/login', html: brandHtml() })));
+  const courseNote = h('div', { class: 'course-note', hidden: true });
   side.appendChild(h('div', { class: 'copy' },
     h('h1', null, 'اعرف أين بدأت الفجوة، لا أين ظهرت'),
-    h('p', null, 'جذور يتتبّع سلسلة المتطلبات السابقة لكل درس، ليصل بالطالب إلى الجذر الحقيقي لتعثّره في رياضيات الصف السادس.'),
+    h('p', null, 'قد يعرف الطالب أن السؤال صعب، دون أن يعرف أي فكرة سابقة تسبّب الصعوبة. جذور يجمع الأدلة من إجاباته، ويفحص المتطلبات السابقة، ويعيده إلى الجذر الأرجح حتى يتقنه، ثم يرجع به إلى درسه.'),
     h('ul', null,
-      h('li', null, ico('target'), 'مسح الجذر: تشخيص دقيق بدل علامة رقمية'),
-      h('li', null, ico('tree'), 'شجرة منهج تتفتح مع كل درس يُتقَن'),
-      h('li', null, ico('users'), 'لوحة معلم بالصفوف والواجبات والاختبارات'))));
+      h('li', null, ico('target'), 'تشخيص مبني على الأدلة، بثقة معلنة بصدق، أو «الأدلة غير كافية بعد»'),
+      h('li', null, ico('tree'), 'علاج موجّه للمتطلب الناقص، ثم عودة إلى الدرس الأصلي وتحديث الإتقان'),
+      h('li', null, ico('file'), 'تقرير واضح لولي الأمر: أين بدأت الفجوة، وما الخطوة التالية')),
+    courseNote));
   page.appendChild(side);
   page.appendChild(main);
   ctx.root.appendChild(page);
@@ -98,6 +108,11 @@ export async function authView(ctx) {
   let backdrop = null;
   api.get('/curriculum/map', { ttl: 3600000 }).then((map) => {
     if (ctx.destroyed) return;
+    if (map.course) {
+      courseNote.textContent = `المحتوى المتاح حالياً للتجربة: ${map.course.subject_ar} · ${map.course.grade_ar}`;
+      courseNote.hidden = false;
+      courseNote.removeAttribute('hidden');
+    }
     backdrop = renderTreeStage(side, demoTreeData(map), { fill: true, bare: true, interactive: false });
   }).catch(() => null);
 
@@ -134,14 +149,14 @@ export async function authView(ctx) {
   function demoRow() {
     if (!store.health.demo) return null;
     return h('div', { class: 'col', style: { marginTop: '16px', gap: '8px' } },
-      h('div', { class: 'small muted center' }, 'وضع العرض: ابدأ بحساب عمر، يفتح صفحة التدريب مباشرة'),
+      h('div', { class: 'small muted center' }, 'وضع العرض: ابدأ بحساب عمر، ثم «تابع التدريب» من شجرته'),
       h('div', { class: 'row', style: { justifyContent: 'center', gap: '8px' } }, DEMOS.map((d) => h('button', {
-        class: d.landing ? 'chip green' : 'chip', type: 'button', onclick: async (e) => {
+        class: d.featured ? 'chip green' : 'chip', type: 'button', onclick: async (e) => {
           const btn = e.currentTarget;
           await withBusy(btn, async () => {
             try {
               const res = await api.post('/auth/login', { email: d.email, password: 'demo1234' });
-              await finish(res.access_token, d.landing);
+              await finish(res.access_token);
             } catch (err) {
               toast(err.message, 'error');
             }
@@ -185,11 +200,9 @@ export async function authView(ctx) {
     const email = h('input', { class: 'input', type: 'email', required: true, autocomplete: 'username', dir: 'ltr' });
     const pw = passwordField('كلمة المرور (6 أحرف على الأقل)', 'new-password');
     const meterFill = h('i');
-    const org = h('input', { class: 'input', placeholder: 'اختياري', dir: 'ltr' });
     const guardian = h('input', { class: 'input', type: 'email', placeholder: 'اختياري', dir: 'ltr' });
     const err = errBox();
     const extra = h('div', { class: 'col' });
-    const trial = h('div', { class: 'banner', hidden: true }, ico('shield'), h('div', null, 'يحصل المعلم على 14 يوماً مجانية من باقة المدرسة بكل مزاياها.'));
     pw.input.addEventListener('input', () => {
       const s = strength(pw.input.value);
       meterFill.style.width = `${s * 25}%`;
@@ -198,7 +211,7 @@ export async function authView(ctx) {
     const roleSeg = h('div', { class: 'seg' });
     const genderRow = h('div', { class: 'field' });
     const buttons = {};
-    const labels = { student: 'طالب', parent: 'ولي أمر', teacher: 'معلم' };
+    const labels = { student: 'طالب', parent: 'ولي أمر' };
     function paintRole() {
       for (const k of Object.keys(buttons)) buttons[k].classList.toggle('on', k === role);
       clear(extra);
@@ -211,12 +224,8 @@ export async function authView(ctx) {
           row.appendChild(b);
         }
         genderRow.appendChild(row);
-        extra.appendChild(h('div', { class: 'field' }, h('label', null, 'رمز المدرسة'), org));
-        extra.appendChild(h('div', { class: 'field' }, h('label', null, 'بريد ولي الأمر'), guardian));
+        extra.appendChild(h('div', { class: 'field' }, h('label', null, 'بريد ولي الأمر (ليتابع تقريرك ويشترك لك في برو)'), guardian));
       }
-      trial.hidden = role !== 'teacher';
-      if (role === 'teacher') trial.removeAttribute('hidden');
-      else trial.setAttribute('hidden', '');
     }
     for (const k of Object.keys(labels)) {
       buttons[k] = h('button', { type: 'button', onclick: () => { role = k; paintRole(); } }, labels[k]);
@@ -237,7 +246,6 @@ export async function authView(ctx) {
       const body = { full_name: name.value.trim(), email: email.value.trim(), password: pw.input.value, role };
       if (role === 'student') {
         body.gender = gender;
-        if (org.value.trim()) body.org_slug = org.value.trim();
         if (guardian.value.trim()) body.guardian_email = guardian.value.trim();
       }
       await withBusy(submit, async () => {
@@ -250,7 +258,6 @@ export async function authView(ctx) {
       });
     } },
       h('div', { class: 'field' }, h('label', null, 'نوع الحساب'), roleSeg),
-      trial,
       h('div', { class: 'field' }, h('label', null, 'الاسم الكامل'), name),
       h('div', { class: 'field' }, h('label', null, 'البريد الإلكتروني'), email),
       h('div', { class: 'col', style: { gap: '6px' } }, pw.el, h('div', { class: 'meter' }, meterFill)),

@@ -1,518 +1,267 @@
 {
- "inputs": {
-  "fx": 0.709,
-  "loaded_salaries": {
-   "developer": 1028,
-   "qa": 800,
-   "designer": 800,
-   "support_sales": 686,
-   "customer_success": 628,
-   "content_teacher": 514
-  },
-  "llm_jod_per_message": 0.00174,
-  "llm_jod_per_student_year": 0.563,
-  "infra_month_total": 103.1,
-  "plans": {
-   "school_seat_low": 3.5,
-   "school_seat_test": 7.0,
-   "teacher": 29.0,
-   "family": 14.9
-  },
-  "churn": {
-   "school": 0.15,
-   "family": 0.4,
-   "teacher": 0.3
-  },
-  "discount": 0.15,
-  "collection_rate": 0.95,
-  "tax_note": "Prices are shown exclusive of sales tax; income/corporate tax is NOT modelled (assumption: pre-tax view)."
+ "business_model": "B2C: student = user, parent/guardian = buyer; no teacher or school pricing",
+ "prices_jod": {
+  "free": 0.0,
+  "pro_monthly": 4.5,
+  "pro_academic_year": 32.0
  },
- "unit_economics": {
-  "school_3_5": {
-   "list_price": 3.5,
-   "net_revenue_per_student": 2.826,
-   "variable_cost_per_student": 0.591,
-   "cs_cost_per_student": 0.96,
-   "contribution_per_student": 1.275,
-   "contribution_margin_pct": 45.1,
-   "contribution_per_school": 318.8
-  },
-  "school_7_0": {
-   "list_price": 7.0,
-   "net_revenue_per_student": 5.652,
-   "variable_cost_per_student": 0.619,
-   "cs_cost_per_student": 0.96,
-   "contribution_per_student": 4.073,
-   "contribution_margin_pct": 72.1,
-   "contribution_per_school": 1018.3
-  },
-  "teacher": {
-   "list_price": 29.0,
-   "net_revenue": 27.55,
-   "variable_cost": 1.139,
-   "contribution": 26.411,
-   "contribution_margin_pct": 95.9
-  },
-  "family": {
-   "list_price": 14.9,
-   "net_revenue": 14.155,
-   "variable_cost": 0.987,
-   "contribution": 13.168,
-   "contribution_margin_pct": 93.0
-  }
+ "stage_monthly_cost": {
+  "stage1": 630.3000000000001,
+  "stage2": 4275.012500000001,
+  "stage3": 14674.275000000001
  },
  "scenarios": {
   "Conservative": {
-   "school_3_5": {
-    "years": [
-     {
-      "year": 1,
-      "schools_end": 2,
-      "avg_students": 150,
-      "teachers_end": 10,
-      "families_end": 0,
-      "revenue": 562,
-      "rev_school": 424,
-      "rev_teacher": 138,
-      "rev_family": 0,
-      "cogs": 1572,
-      "gross_margin_pct": -179.9,
-      "acquisition": 800,
-      "staff": 0,
-      "total_cost": 2372,
-      "net": -1810,
-      "avg_monthly_burn": 151
-     },
-     {
-      "year": 2,
-      "schools_end": 6,
-      "avg_students": 600,
-      "teachers_end": 40,
-      "families_end": 30,
-      "revenue": 2597,
-      "rev_school": 1696,
-      "rev_teacher": 689,
-      "rev_family": 212,
-      "cogs": 2595,
-      "gross_margin_pct": 0.1,
-      "acquisition": 1909,
-      "staff": 4116,
-      "total_cost": 8620,
-      "net": -6024,
-      "avg_monthly_burn": 502
-     },
-     {
-      "year": 3,
-      "schools_end": 12,
-      "avg_students": 1350,
-      "teachers_end": 90,
-      "families_end": 80,
-      "revenue": 6385,
-      "rev_school": 3815,
-      "rev_teacher": 1791,
-      "rev_family": 779,
-      "cogs": 4440,
-      "gross_margin_pct": 30.5,
-      "acquisition": 3173,
-      "staff": 10284,
-      "total_cost": 17897,
-      "net": -11512,
-      "avg_monthly_burn": 959
-     }
-    ],
-    "cash": {
-     "one_time_investment": 20668,
-     "lowest_cumulative_cash": -40014,
-     "funding_needed_to_cover_3_years": 40014,
-     "cumulative_cash_end_y3": -40014
-    }
+   "unit": {
+    "months_paid": 4.419921745191681,
+    "monthly_plan_revenue": 19.889647853362565,
+    "gross": 23.522753497353794,
+    "after_tax": 20.278235773580857,
+    "fees": 1.2166941464148522,
+    "net": 19.061541627166005,
+    "variable_cost": 0.5,
+    "contribution": 18.561541627166005
    },
-   "school_7_0": {
-    "years": [
-     {
-      "year": 1,
-      "schools_end": 2,
-      "avg_students": 150,
-      "teachers_end": 10,
-      "families_end": 0,
-      "revenue": 986,
-      "rev_school": 848,
-      "rev_teacher": 138,
-      "rev_family": 0,
-      "cogs": 1576,
-      "gross_margin_pct": -59.9,
-      "acquisition": 800,
-      "staff": 0,
-      "total_cost": 2376,
-      "net": -1391,
-      "avg_monthly_burn": 116
-     },
-     {
-      "year": 2,
-      "schools_end": 6,
-      "avg_students": 600,
-      "teachers_end": 40,
-      "families_end": 30,
-      "revenue": 4293,
-      "rev_school": 3392,
-      "rev_teacher": 689,
-      "rev_family": 212,
-      "cogs": 2612,
-      "gross_margin_pct": 39.1,
-      "acquisition": 1909,
-      "staff": 4116,
-      "total_cost": 8637,
-      "net": -4345,
-      "avg_monthly_burn": 362
-     },
-     {
-      "year": 3,
-      "schools_end": 12,
-      "avg_students": 1350,
-      "teachers_end": 90,
-      "families_end": 80,
-      "revenue": 10200,
-      "rev_school": 7631,
-      "rev_teacher": 1791,
-      "rev_family": 779,
-      "cogs": 4478,
-      "gross_margin_pct": 56.1,
-      "acquisition": 3173,
-      "staff": 10284,
-      "total_cost": 17935,
-      "net": -7735,
-      "avg_monthly_burn": 645
-     }
-    ],
-    "cash": {
-     "one_time_investment": 20668,
-     "lowest_cumulative_cash": -34139,
-     "funding_needed_to_cover_3_years": 34139,
-     "cumulative_cash_end_y3": -34139
+   "years": [
+    {
+     "year": 1,
+     "signups": 5000,
+     "conversion": 0.02,
+     "new_payers": 100.0,
+     "renewals": 0.0,
+     "payers": 100.0,
+     "gross": 2352.275349735379,
+     "gst_applies": false,
+     "after_tax": 2352.275349735379,
+     "fees": 141.13652098412274,
+     "revenue": 2211.1388287512564,
+     "variable": 300.0,
+     "marketing": 3600.0,
+     "fixed": 51300.15000000001,
+     "operating": -52989.011171248756,
+     "cumulative": -52989.011171248756,
+     "break_even_payers": 2763.787137428227
+    },
+    {
+     "year": 2,
+     "signups": 12000,
+     "conversion": 0.025,
+     "new_payers": 300.0,
+     "renewals": 25.0,
+     "payers": 325.0,
+     "gross": 7644.894886639983,
+     "gst_applies": false,
+     "after_tax": 7644.894886639983,
+     "fees": 458.693693198399,
+     "revenue": 7186.201193441584,
+     "variable": 762.5,
+     "marketing": 8640.0,
+     "fixed": 51300.15000000001,
+     "operating": -53516.44880655842,
+     "cumulative": -106505.45997780719,
+     "break_even_payers": 2763.787137428227
+    },
+    {
+     "year": 3,
+     "signups": 24000,
+     "conversion": 0.03,
+     "new_payers": 720.0,
+     "renewals": 81.25,
+     "payers": 801.25,
+     "gross": 18847.60623975473,
+     "gst_applies": false,
+     "after_tax": 18847.60623975473,
+     "fees": 1130.8563743852837,
+     "revenue": 17716.749865369446,
+     "variable": 1600.625,
+     "marketing": 17280.0,
+     "fixed": 76258.38000000002,
+     "operating": -77422.25513463057,
+     "cumulative": -183927.71511243776,
+     "break_even_payers": 4108.407670642561
     }
+   ],
+   "acquisition": {
+    "cac_blended": 28.8,
+    "cac_paid_only": 72.0,
+    "lifetime_years": 1.3333333333333333,
+    "ltv": 24.74872216955467,
+    "ltv_to_cac_blended": 0.859330630887315,
+    "ltv_to_cac_paid_only": 0.343732252354926
+   },
+   "peak_cumulative_deficit": 183927.71511243776,
+   "steady_state_payers_to_cover": {
+    "stage2": 2764,
+    "stage3": 9487
    }
   },
-  "Expected": {
-   "school_3_5": {
-    "years": [
-     {
-      "year": 1,
-      "schools_end": 4,
-      "avg_students": 500,
-      "teachers_end": 30,
-      "families_end": 30,
-      "revenue": 2039,
-      "rev_school": 1413,
-      "rev_teacher": 413,
-      "rev_family": 212,
-      "cogs": 2045,
-      "gross_margin_pct": -0.3,
-      "acquisition": 1780,
-      "staff": 0,
-      "total_cost": 3825,
-      "net": -1786,
-      "avg_monthly_burn": 149
-     },
-     {
-      "year": 2,
-      "schools_end": 15,
-      "avg_students": 2375,
-      "teachers_end": 120,
-      "families_end": 150,
-      "revenue": 10053,
-      "rev_school": 6712,
-      "rev_teacher": 2066,
-      "rev_family": 1274,
-      "cogs": 5477,
-      "gross_margin_pct": 45.5,
-      "acquisition": 5414,
-      "staff": 10284,
-      "total_cost": 21175,
-      "net": -11122,
-      "avg_monthly_burn": 927
-     },
-     {
-      "year": 3,
-      "schools_end": 40,
-      "avg_students": 6875,
-      "teachers_end": 300,
-      "families_end": 400,
-      "revenue": 29109,
-      "rev_school": 19430,
-      "rev_teacher": 5786,
-      "rev_family": 3893,
-      "cogs": 13986,
-      "gross_margin_pct": 52.0,
-      "acquisition": 12618,
-      "staff": 23652,
-      "total_cost": 50257,
-      "net": -21148,
-      "avg_monthly_burn": 1762
-     }
-    ],
-    "cash": {
-     "one_time_investment": 20668,
-     "lowest_cumulative_cash": -54724,
-     "funding_needed_to_cover_3_years": 54724,
-     "cumulative_cash_end_y3": -54724
-    }
+  "Base": {
+   "unit": {
+    "months_paid": 5.33637895995392,
+    "monthly_plan_revenue": 24.01370531979264,
+    "gross": 27.208223191875582,
+    "after_tax": 23.4553648205824,
+    "fees": 1.4073218892349466,
+    "net": 22.048042931347453,
+    "variable_cost": 0.5,
+    "contribution": 21.548042931347453
    },
-   "school_7_0": {
-    "years": [
-     {
-      "year": 1,
-      "schools_end": 4,
-      "avg_students": 500,
-      "teachers_end": 30,
-      "families_end": 30,
-      "revenue": 3452,
-      "rev_school": 2826,
-      "rev_teacher": 413,
-      "rev_family": 212,
-      "cogs": 2059,
-      "gross_margin_pct": 40.3,
-      "acquisition": 1780,
-      "staff": 0,
-      "total_cost": 3839,
-      "net": -387,
-      "avg_monthly_burn": 32
-     },
-     {
-      "year": 2,
-      "schools_end": 15,
-      "avg_students": 2375,
-      "teachers_end": 120,
-      "families_end": 150,
-      "revenue": 16765,
-      "rev_school": 13425,
-      "rev_teacher": 2066,
-      "rev_family": 1274,
-      "cogs": 5544,
-      "gross_margin_pct": 66.9,
-      "acquisition": 5414,
-      "staff": 10284,
-      "total_cost": 21242,
-      "net": -4477,
-      "avg_monthly_burn": 373
-     },
-     {
-      "year": 3,
-      "schools_end": 40,
-      "avg_students": 6875,
-      "teachers_end": 300,
-      "families_end": 400,
-      "revenue": 48539,
-      "rev_school": 38861,
-      "rev_teacher": 5786,
-      "rev_family": 3893,
-      "cogs": 14180,
-      "gross_margin_pct": 70.8,
-      "acquisition": 12618,
-      "staff": 23652,
-      "total_cost": 50451,
-      "net": -1912,
-      "avg_monthly_burn": 159
-     }
-    ],
-    "cash": {
-     "one_time_investment": 20668,
-     "lowest_cumulative_cash": -27444,
-     "funding_needed_to_cover_3_years": 27444,
-     "cumulative_cash_end_y3": -27444
+   "years": [
+    {
+     "year": 1,
+     "signups": 12000,
+     "conversion": 0.035,
+     "new_payers": 420.00000000000006,
+     "renewals": 0.0,
+     "payers": 420.00000000000006,
+     "gross": 11427.453740587745,
+     "gst_applies": false,
+     "after_tax": 11427.453740587745,
+     "fees": 685.6472244352647,
+     "revenue": 10741.806516152481,
+     "variable": 810.0,
+     "marketing": 8640.0,
+     "fixed": 51300.15000000001,
+     "operating": -50008.34348384753,
+     "cumulative": -50008.34348384753,
+     "break_even_payers": 2380.7336083115965
+    },
+    {
+     "year": 2,
+     "signups": 35000,
+     "conversion": 0.04,
+     "new_payers": 1400.0,
+     "renewals": 147.0,
+     "payers": 1547.0,
+     "gross": 42091.121277831524,
+     "gst_applies": true,
+     "after_tax": 36285.44937744097,
+     "fees": 2177.126962646458,
+     "revenue": 34108.322414794515,
+     "variable": 2523.5,
+     "marketing": 25200.0,
+     "fixed": 82497.93750000001,
+     "operating": -76113.1150852055,
+     "cumulative": -126121.45856905304,
+     "break_even_payers": 3828.558248321682
+    },
+    {
+     "year": 3,
+     "signups": 80000,
+     "conversion": 0.045,
+     "new_payers": 3600.0,
+     "renewals": 541.4499999999999,
+     "payers": 4141.45,
+     "gross": 112681.49593799312,
+     "gst_applies": true,
+     "after_tax": 97139.22063620097,
+     "fees": 5828.353238172058,
+     "revenue": 91310.86739802892,
+     "variable": 6070.725,
+     "marketing": 57600.0,
+     "fixed": 126174.84000000003,
+     "operating": -98534.69760197111,
+     "cumulative": -224656.15617102414,
+     "break_even_payers": 5855.512744335803
     }
+   ],
+   "acquisition": {
+    "cac_blended": 18.0,
+    "cac_paid_only": 45.0,
+    "lifetime_years": 1.5384615384615383,
+    "ltv": 33.15083527899608,
+    "ltv_to_cac_blended": 1.8417130710553375,
+    "ltv_to_cac_paid_only": 0.736685228422135
+   },
+   "peak_cumulative_deficit": 224656.15617102414,
+   "steady_state_payers_to_cover": {
+    "stage2": 2381,
+    "stage3": 8173
    }
   },
-  "Aggressive": {
-   "school_3_5": {
-    "years": [
-     {
-      "year": 1,
-      "schools_end": 8,
-      "avg_students": 1200,
-      "teachers_end": 80,
-      "families_end": 100,
-      "revenue": 5201,
-      "rev_school": 3392,
-      "rev_teacher": 1102,
-      "rev_family": 708,
-      "cogs": 3074,
-      "gross_margin_pct": 40.9,
-      "acquisition": 3840,
-      "staff": 20568,
-      "total_cost": 27482,
-      "net": -22280,
-      "avg_monthly_burn": 1857
-     },
-     {
-      "year": 2,
-      "schools_end": 40,
-      "avg_students": 7200,
-      "teachers_end": 400,
-      "families_end": 600,
-      "revenue": 31915,
-      "rev_school": 20349,
-      "rev_teacher": 6612,
-      "rev_family": 4954,
-      "cogs": 13553,
-      "gross_margin_pct": 57.5,
-      "acquisition": 16508,
-      "staff": 52104,
-      "total_cost": 82165,
-      "net": -50250,
-      "avg_monthly_burn": 4187
-     },
-     {
-      "year": 3,
-      "schools_end": 120,
-      "avg_students": 24000,
-      "teachers_end": 1200,
-      "families_end": 2000,
-      "revenue": 108272,
-      "rev_school": 67830,
-      "rev_teacher": 22040,
-      "rev_family": 18402,
-      "cogs": 43031,
-      "gross_margin_pct": 60.3,
-      "acquisition": 43900,
-      "staff": 85356,
-      "total_cost": 172287,
-      "net": -64015,
-      "avg_monthly_burn": 5335
-     }
-    ],
-    "cash": {
-     "one_time_investment": 20668,
-     "lowest_cumulative_cash": -157213,
-     "funding_needed_to_cover_3_years": 157213,
-     "cumulative_cash_end_y3": -157213
-    }
+  "Growth": {
+   "unit": {
+    "months_paid": 5.88608302649831,
+    "monthly_plan_revenue": 26.487373619242398,
+    "gross": 29.2436868096212,
+    "after_tax": 25.210074835880345,
+    "fees": 1.512604490152821,
+    "net": 23.697470345727524,
+    "variable_cost": 0.5,
+    "contribution": 23.197470345727524
    },
-   "school_7_0": {
-    "years": [
-     {
-      "year": 1,
-      "schools_end": 8,
-      "avg_students": 1200,
-      "teachers_end": 80,
-      "families_end": 100,
-      "revenue": 8593,
-      "rev_school": 6783,
-      "rev_teacher": 1102,
-      "rev_family": 708,
-      "cogs": 3107,
-      "gross_margin_pct": 63.8,
-      "acquisition": 3840,
-      "staff": 20568,
-      "total_cost": 27515,
-      "net": -18923,
-      "avg_monthly_burn": 1577
-     },
-     {
-      "year": 2,
-      "schools_end": 40,
-      "avg_students": 7200,
-      "teachers_end": 400,
-      "families_end": 600,
-      "revenue": 52264,
-      "rev_school": 40698,
-      "rev_teacher": 6612,
-      "rev_family": 4954,
-      "cogs": 13756,
-      "gross_margin_pct": 73.7,
-      "acquisition": 16508,
-      "staff": 52104,
-      "total_cost": 82368,
-      "net": -30104,
-      "avg_monthly_burn": 2509
-     },
-     {
-      "year": 3,
-      "schools_end": 120,
-      "avg_students": 24000,
-      "teachers_end": 1200,
-      "families_end": 2000,
-      "revenue": 176102,
-      "rev_school": 135660,
-      "rev_teacher": 22040,
-      "rev_family": 18402,
-      "cogs": 43709,
-      "gross_margin_pct": 75.2,
-      "acquisition": 43900,
-      "staff": 85356,
-      "total_cost": 172965,
-      "net": 3137,
-      "avg_monthly_burn": 0
-     }
-    ],
-    "cash": {
-     "one_time_investment": 20668,
-     "lowest_cumulative_cash": -69695,
-     "funding_needed_to_cover_3_years": 69695,
-     "cumulative_cash_end_y3": -66558
+   "years": [
+    {
+     "year": 1,
+     "signups": 25000,
+     "conversion": 0.05,
+     "new_payers": 1250.0,
+     "renewals": 0.0,
+     "payers": 1250.0,
+     "gross": 36554.6085120265,
+     "gst_applies": true,
+     "after_tax": 31512.59354485043,
+     "fees": 1890.7556126910258,
+     "revenue": 29621.837932159404,
+     "variable": 1875.0,
+     "marketing": 22500.0,
+     "fixed": 51300.15000000001,
+     "operating": -46053.312067840605,
+     "cumulative": -46053.312067840605,
+     "break_even_payers": 2211.4544920389735
+    },
+    {
+     "year": 2,
+     "signups": 90000,
+     "conversion": 0.055,
+     "new_payers": 4950.0,
+     "renewals": 562.5,
+     "payers": 5512.5,
+     "gross": 161205.82353803687,
+     "gst_applies": true,
+     "after_tax": 138970.53753279042,
+     "fees": 8338.232251967425,
+     "revenue": 130632.305280823,
+     "variable": 7256.25,
+     "marketing": 81000.0,
+     "fixed": 113695.725,
+     "operating": -71319.669719177,
+     "cumulative": -117372.9817870176,
+     "break_even_payers": 4901.212214328375
+    },
+    {
+     "year": 3,
+     "signups": 220000,
+     "conversion": 0.06,
+     "new_payers": 13200.0,
+     "renewals": 2480.625,
+     "payers": 15680.625,
+     "gross": 458559.2864791164,
+     "gst_applies": true,
+     "after_tax": 395309.7297233762,
+     "fees": 23718.583783402573,
+     "revenue": 371591.14593997365,
+     "variable": 18840.3125,
+     "marketing": 198000.0,
+     "fixed": 176091.30000000002,
+     "operating": -21340.46656002637,
+     "cumulative": -138713.44834704397,
+     "break_even_payers": 7590.9699366177765
     }
+   ],
+   "acquisition": {
+    "cac_blended": 16.363636363636363,
+    "cac_paid_only": 32.72727272727273,
+    "lifetime_years": 1.8181818181818181,
+    "ltv": 42.17721881041368,
+    "ltv_to_cac_blended": 2.577496705080836,
+    "ltv_to_cac_paid_only": 1.288748352540418
+   },
+   "peak_cumulative_deficit": 138713.44834704397,
+   "steady_state_payers_to_cover": {
+    "stage2": 2212,
+    "stage3": 7591
    }
-  }
- },
- "break_even": {
-  "team unpaid (infra only) | 3.5 JOD | 150 students/school": {
-   "fixed_cost_year": 1238,
-   "schools": 13,
-   "students": 1950
-  },
-  "team unpaid (infra only) | 3.5 JOD | 250 students/school": {
-   "fixed_cost_year": 1238,
-   "schools": 4,
-   "students": 1000
-  },
-  "team unpaid (infra only) | 7.0 JOD | 150 students/school": {
-   "fixed_cost_year": 1238,
-   "schools": 3,
-   "students": 450
-  },
-  "team unpaid (infra only) | 7.0 JOD | 250 students/school": {
-   "fixed_cost_year": 1238,
-   "schools": 2,
-   "students": 500
-  },
-  "0.5 FTE support/sales | 3.5 JOD | 150 students/school": {
-   "fixed_cost_year": 5354,
-   "schools": 57,
-   "students": 8550
-  },
-  "0.5 FTE support/sales | 3.5 JOD | 250 students/school": {
-   "fixed_cost_year": 5354,
-   "schools": 17,
-   "students": 4250
-  },
-  "0.5 FTE support/sales | 7.0 JOD | 150 students/school": {
-   "fixed_cost_year": 5354,
-   "schools": 11,
-   "students": 1650
-  },
-  "0.5 FTE support/sales | 7.0 JOD | 250 students/school": {
-   "fixed_cost_year": 5354,
-   "schools": 6,
-   "students": 1500
-  },
-  "1 dev + 1 support/sales + 0.5 content | 3.5 JOD | 150 students/school": {
-   "fixed_cost_year": 24890,
-   "schools": 262,
-   "students": 39300
-  },
-  "1 dev + 1 support/sales + 0.5 content | 3.5 JOD | 250 students/school": {
-   "fixed_cost_year": 24890,
-   "schools": 79,
-   "students": 19750
-  },
-  "1 dev + 1 support/sales + 0.5 content | 7.0 JOD | 150 students/school": {
-   "fixed_cost_year": 24890,
-   "schools": 49,
-   "students": 7350
-  },
-  "1 dev + 1 support/sales + 0.5 content | 7.0 JOD | 250 students/school": {
-   "fixed_cost_year": 24890,
-   "schools": 25,
-   "students": 6250
   }
  }
 }

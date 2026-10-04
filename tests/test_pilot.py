@@ -29,14 +29,14 @@ def test_empty_and_template_files_are_handled(tmp_path):
     assert ps.summarize(ps.load(str(path)))["mean_gain"] == 50
 
 
-def test_teacher_blind_agreement_summary():
+def test_blind_expert_agreement_summary():
     from scripts import agreement_summary as ag
     rows = [
-        {"student_code": "S1", "teacher_root": "adding_integers", "juthoor_root": "جمع الأعداد الصحيحة"},
-        {"student_code": "S2", "teacher_root": "subtracting_integers", "juthoor_root": "adding_integers"},
-        {"student_code": "S3", "teacher_root": "none", "juthoor_root": "none"},
-        {"student_code": "S4", "teacher_root": "", "juthoor_root": "adding_integers"},
-        {"student_code": "S5", "teacher_root": "geometry", "juthoor_root": "absolute_value"},
+        {"student_code": "S1", "expert_root": "adding_integers", "juthoor_root": "جمع الأعداد الصحيحة"},
+        {"student_code": "S2", "expert_root": "subtracting_integers", "juthoor_root": "adding_integers"},
+        {"student_code": "S3", "expert_root": "none", "juthoor_root": "none"},
+        {"student_code": "S4", "expert_root": "", "juthoor_root": "adding_integers"},
+        {"student_code": "S5", "expert_root": "geometry", "juthoor_root": "absolute_value"},
     ]
     s = ag.summarize(rows)
     assert s["n"] == 4 and s["agree"] == 2 and s["adjacent"] == 1 and s["skipped"] == ["S4"]

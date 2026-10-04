@@ -1,11 +1,11 @@
-"""Teacher-blind diagnosis comparison.
+"""Blind expert review of Juthoor's diagnoses (internal validation, not a product feature).
 
-Protocol (docs/PILOT.md, section "Teacher-blind comparison"):
-1. BEFORE opening Juthoor's report, the teacher writes, for each learner code, the
-   prerequisite lesson she believes is the underlying gap (column teacher_root).
-2. Then copy Juthoor's named root for the same learner (teacher drawer, "سجل التشخيص",
-   or the class CSV export) into juthoor_root.
-3. python scripts/agreement_summary.py docs/teacher_agreement_template.csv
+Protocol (docs/PILOT.md, section "Blind expert review"):
+1. BEFORE seeing Juthoor's result, an independent subject expert writes, for each consenting
+   learner code, the prerequisite lesson they believe is the underlying gap (column expert_root).
+2. Then copy Juthoor's named root for the same learner (the parent report, "سجل التشخيص")
+   into juthoor_root.
+3. python scripts/agreement_summary.py docs/expert_agreement_template.csv
 
 Cells may hold skill ids (adding_integers) or Arabic lesson names. Empty cells are skipped.
 "none" means "no gap / insufficient evidence". The output is raw agreement on a small sample:
@@ -41,14 +41,14 @@ def summarize(rows):
     usable, skipped, unknown = [], [], []
     for row in rows:
         code = (row.get("student_code") or "").strip() or f"#{len(usable) + len(skipped) + 1}"
-        teacher, juthoor = normalise(row.get("teacher_root")), normalise(row.get("juthoor_root"))
-        if teacher is None or juthoor is None:
+        expert, juthoor = normalise(row.get("expert_root")), normalise(row.get("juthoor_root"))
+        if expert is None or juthoor is None:
             skipped.append(code)
             continue
-        for value in (teacher, juthoor):
+        for value in (expert, juthoor):
             if value.startswith("unknown:"):
                 unknown.append(f"{code}: {value[8:]}")
-        usable.append((code, teacher, juthoor))
+        usable.append((code, expert, juthoor))
     n = len(usable)
     agree = [u for u in usable if u[1] == u[2]]
     # "Adjacent" = one names a direct prerequisite of the other (same chain, one step apart).
@@ -60,15 +60,15 @@ def summarize(rows):
 
 def report(s) -> str:
     if s["n"] == 0:
-        return "No complete rows yet. Fill teacher_root and juthoor_root."
+        return "No complete rows yet. Fill expert_root and juthoor_root."
     lines = [
         f"learners compared: {s['n']}",
         f"exact agreement:   {s['agree']}/{s['n']}",
-        f"one step apart:    {s['adjacent']}/{s['n']} (teacher and Juthoor named neighbouring lessons)",
+        f"one step apart:    {s['adjacent']}/{s['n']} (the expert and Juthoor named neighbouring lessons)",
     ]
     if s["disagreements"]:
-        lines.append("disagreements (review these with the teacher):")
-        lines += [f"  {code}: teacher={t} juthoor={j}" for code, t, j in s["disagreements"]]
+        lines.append("disagreements (review these with the expert):")
+        lines += [f"  {code}: expert={t} juthoor={j}" for code, t, j in s["disagreements"]]
     if s["unknown"]:
         lines.append("unrecognised lesson names: " + "; ".join(s["unknown"]))
     if s["skipped"]:

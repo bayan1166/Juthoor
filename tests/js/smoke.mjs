@@ -6,11 +6,11 @@ const calls = [];
 const state = { role: 'student', plan: 'basic', failNext: null };
 const U = (n, name) => ({ user_id: n, handle: `10${n.length}`, full_name: name, role: 'student', avatar_svg: null });
 const me = () => ({
-  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: state.plan, plan_source: 'own', plan_expires_at: null, trial_days_left: null },
-  teacher: { user_id: 'T1', handle: '7001', email: 't@x.jo', full_name: 'المعلمة سارة', role: 'teacher', plan: 'school', plan_source: 'trial', plan_expires_at: '2026-10-14T00:00:00Z', trial_days_left: 13 },
-  parent: { user_id: 'P1', handle: '7002', email: 'p@x.jo', full_name: 'ولي الأمر', role: 'parent', plan: 'basic', plan_source: 'own', plan_expires_at: null, trial_days_left: null },
+  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: state.plan, plan_source: 'own', plan_expires_at: null },
+  admin: { user_id: 'A1', handle: '7009', email: 'ops@x.jo', full_name: 'فريق الإشراف', role: 'platform_admin', plan: 'basic', plan_source: 'own', plan_expires_at: null },
+  parent: { user_id: 'P1', handle: '7002', email: 'p@x.jo', full_name: 'ولي الأمر', role: 'parent', plan: 'basic', plan_source: 'own', plan_expires_at: null },
 }[state.role]);
-const planSnap = (rem = 18) => ({ plan: 'basic', source: 'own', expires_at: null, trial_days_left: null, limits: { questions_per_day: 20, tutor_per_day: 5, max_friends: 3, history_days: 7, full_gap_report: false, classrooms: false }, usage: { questions: 2, tutor: 1 }, remaining: { questions: rem, tutor: 4 } });
+const planSnap = (rem = 18) => ({ plan: 'basic', source: 'own', expires_at: null, limits: { questions_per_day: 20, tutor_per_day: 5, max_friends: 3, history_days: 7, full_gap_report: false }, usage: { questions: 2, tutor: 1 }, remaining: { questions: rem, tutor: 4 } });
 const skillsState = PY.skills.map((s) => ({ skill_id: s.skill_id, name_ar: s.name_ar, status: 'learning', p_mastery: 0.4, attempts: 3, correct: 2 }));
 const avatar = { gender: 'بنت', skin: 'edb98a', clothing: 'shirtCrewNeck', top: 'none', neck: 'none', accessories: 'blank', hair: 'straight', hair_color: 'black' };
 const catalog = [
@@ -21,31 +21,12 @@ const catalog = [
 ];
 const convs = [{ friendship_id: 'F1', friend: U('U2', 'عمر'), last_message: { message_id: 'M1', sender_id: 'U2', recipient_id: 'S1', body: 'مرحبا ليان', created_at: '2026-10-01T10:00:00Z', read_at: null }, unread: 1 }];
 let msgs = [{ message_id: 'M1', sender_id: 'U2', recipient_id: 'S1', body: 'مرحبا ليان', created_at: '2026-10-01T10:00:00Z', read_at: null }];
-const classRow = { classroom_id: 'C1', name: 'السادس أ', join_code: 'JUTH26', teacher_name: 'سارة', member_count: 2, assignment_count: 1, quiz_count: 1, created_at: '2026-09-20T08:00:00Z' };
-const assignStudent = [{ assignment_id: 'A1', classroom_id: 'C1', classroom_name: 'السادس أ', title: 'تمارين الجمع', description: 'حل خمس مسائل', skill_id: 'adding_integers', skill_name_ar: 'جمع', target_questions: 10, max_score: 100, due_at: '2026-10-04T10:00:00Z', created_at: '2026-10-01T08:00:00Z', state: 'open', submission: null }];
-const quizRow = { quiz_id: 'Z1', classroom_id: 'C1', title: 'سباق الجمع', description: '', mode: 'race', time_limit_seconds: 180, is_open: true, question_count: 3, attempts: 1, created_at: '2026-10-01T08:00:00Z', mine: null };
-const analytics = {
-  classroom: classRow,
-  kpis: { students: 2, avg_tree_health: 0.52, avg_accuracy: 0.7, active_last_7: 2, at_risk: 1 },
-  students: [
-    { user_id: 'U2', handle: '1002', full_name: 'عمر', avatar_svg: null, tree_health: 0.8, mastered: 5, current_skill: 'ضرب', accuracy: 0.9, answered: 40, last_active: '2026-10-01T09:00:00Z', days_since_active: 0, root_gaps: [], root_gap_ids: [], risk: 'low', submissions_done: 1, assignments_total: 1, quiz_points: 500 },
-    { user_id: 'U3', handle: '1003', full_name: 'زياد', avatar_svg: null, tree_health: 0.2, mastered: 1, current_skill: 'جمع', accuracy: 0.4, answered: 30, last_active: '2026-09-25T09:00:00Z', days_since_active: 6, root_gaps: ['القيمة المطلقة'], root_gap_ids: ['absolute_value'], risk: 'high', submissions_done: 0, assignments_total: 1, quiz_points: 0 },
-  ],
-  top_gaps: [{ skill_id: 'absolute_value', name_ar: 'القيمة المطلقة', students: 1 }],
-  skill_mastery: PY.skills.map((s) => ({ skill_id: s.skill_id, name_ar: s.name_ar, avg: 0.5 })),
-  activity: Array.from({ length: 7 }, (_, i) => ({ date: `2026-09-${25 + i}`, answers: i * 4 })),
-};
 const report = { student: { user_id: 'S1', full_name: 'ليان', handle: '4821' }, state: { skills: skillsState, current_skill: 'adding_integers' }, drilldowns: [{ from_skill: 'a', from_name_ar: 'ضرب', to_skill: 'b', to_name_ar: 'جمع', direction: 'back', triggered_by: 'x', depth: 1, created_at: '2026-10-01T09:00:00Z' }], drilldowns_hidden: 2, gap_locked: true, forecast: { skill_id: 'b', name_ar: 'جمع', remaining_correct: 5, per_day: 2.5, days: 2 }, diagnoses: [{ diagnosis_id: 'D1', created_at: '2026-10-01T09:00:00Z', origin_skill: 'mult_div_integers', origin_name_ar: 'ضرب الأعداد الصحيحة', root_skill: 'adding_integers', root_name_ar: 'جمع الأعداد الصحيحة', path: [{ skill: 'mult_div_integers', name_ar: 'ضرب الأعداد الصحيحة' }, { skill: 'adding_integers', name_ar: 'جمع الأعداد الصحيحة' }], confidence: 'متوسطة', confidence_level: 'medium', explanation: 'اخترنا «جمع الأعداد الصحيحة» لأن الإجابات عليه 2 خاطئة و0 صحيحة.', evidence: [{ skill: 'adding_integers', name_ar: 'جمع الأعداد الصحيحة', wrong: 2, right: 0, role: 'root' }], intervention: 'استخدم قطع العد', outcome: { stage: 'remediating', root_status: 'gap', root_after: { right: 2, wrong: 1 }, origin_retry: { right: 0, wrong: 0 } } }], plan: planSnap() };
 const insights = { struggle_alerts: [{ skill_id: 'b', skill_name_ar: 'جمع', severity: 'high', p_mastery: 0.3, consecutive_misses: 3, drill_down_depth_avg: 1, predicted_root_cause_skill: 'a', recommended_action: 'راجع القاعدة' }], engagement: { active_days_last_30: 8, avg_session_minutes: 12, questions_answered_last_7: 31, current_streak: 3 } };
 
-const reportRow = { report_id: 'R1', reason: 'bullying', details: 'يشتمني في الدردشة', status: 'open', created_at: '2026-10-01T09:30:00Z', reporter: { user_id: 'U2', full_name: 'عمر', handle: '1002' }, reported: { user_id: 'U3', full_name: 'زياد', handle: '1003' }, has_message: true, resolution_note: '', resolved_at: null };
 const blockedState = { list: [] };
 const ok = (json, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(json), blob: async () => ({}) });
 const routes = [
-  ['POST', /^\/classrooms\/C1\/remediation/, () => ok({ assignment: { ...assignStudent[0], assignment_id: 'A2', kind: 'remediation', targeted: true, target_count: 1 }, students: [{ user_id: 'U3', full_name: 'زياد' }], count: 1, tip: 'استخدم خط الأعداد الأرضي' })],
-  ['POST', /^\/classrooms\/C1\/safety\/reports\/R1\/resolve/, (b) => ok({ ...reportRow, status: b.action })],
-  ['GET', /^\/classrooms\/C1\/safety\/reports\/R1/, () => ok({ ...reportRow, thread: [{ message_id: 'M7', sender_id: 'U3', sender_name: 'زياد', body: 'أنت مزعج', created_at: '2026-10-01T09:29:00Z', flagged: true }, { message_id: 'M8', sender_id: 'U2', sender_name: 'عمر', body: 'توقف من فضلك', created_at: '2026-10-01T09:29:30Z', flagged: false }] })],
-  ['GET', /^\/classrooms\/C1\/safety\/reports/, () => ok([reportRow])],
   ['POST', /^\/community\/report/, () => ok({ status: 'received', duplicate: false })],
   ['POST', /^\/community\/block\//, () => ok({ status: 'blocked' })],
   ['DELETE', /^\/community\/block\//, () => ok({ status: 'unblocked' })],
@@ -83,26 +64,9 @@ const routes = [
   ['GET', /^\/community\/messages\//, () => ok(msgs)],
   ['POST', /^\/community\/messages\/[^/]+\/read/, () => ok({ marked: 1 })],
   ['POST', /^\/community\/messages\//, (b) => { const m = { message_id: `M${msgs.length + 1}`, sender_id: 'S1', recipient_id: 'U2', body: b.body, created_at: '2026-10-01T10:05:00Z', read_at: null }; msgs = [...msgs, m]; return ok(m); }],
-  ['GET', /^\/classrooms\/assignments\/A1/, () => ok({ ...assignStudent[0], students: [{ user_id: 'U2', handle: '1', full_name: 'عمر', avatar_svg: null, submission: { submission_id: 'SB1', text: 'حليت', file_name: 'h.pdf', has_file: true, submitted_at: '2026-10-01T09:00:00Z', late: false, score: null, feedback: '', graded_at: null } }, { user_id: 'U3', handle: '2', full_name: 'زياد', avatar_svg: null, submission: null }] })],
-  ['GET', /^\/classrooms\/assignments/, () => ok(state.role === 'teacher' ? [{ ...assignStudent[0], submissions: 1, graded: 0, members: 2 }, { ...assignStudent[0], assignment_id: 'A2', title: 'تقوية: القيمة المطلقة', kind: 'remediation', targeted: true, target_count: 1, submissions: 0, graded: 0, members: 1 }] : assignStudent)],
-  ['POST', /^\/classrooms\/assignments\/A1\/submit/, () => ok({ submission_id: 'SB1' })],
-  ['POST', /^\/classrooms\/submissions\/SB1\/grade/, () => ok({ score: 90 })],
-  ['POST', /^\/classrooms\/join/, () => ok(classRow)],
-  ['GET', /^\/classrooms\/C1\/analytics/, () => ok(analytics)],
-  ['GET', /^\/classrooms\/C1\/members/, () => ok([{ user_id: 'U2', handle: '1', full_name: 'عمر', avatar_svg: null }])],
-  ['GET', /^\/classrooms\/C1\/quizzes/, () => ok([quizRow])],
-  ['POST', /^\/classrooms\/C1\/quizzes\/generate/, () => ok(quizRow)],
-  ['POST', /^\/classrooms\/C1\/quizzes/, () => ok(quizRow)],
-  ['POST', /^\/classrooms\/C1\/assignments/, () => ok(assignStudent[0])],
-  ['GET', /^\/classrooms\/C1\/leaderboard/, () => ok({ quiz_count: 1, rows: [{ user_id: 'U2', handle: '1', full_name: 'عمر', avatar_svg: null, score: 500, quizzes_taken: 1, duration_seconds: 50, rank: 1 }] })],
-  ['GET', /^\/classrooms\/quizzes\/Z1\/leaderboard/, () => ok({ quiz: quizRow, rows: [{ user_id: 'U2', handle: '1', full_name: 'عمر', avatar_svg: null, score: 500, correct: 3, total: 3, duration_seconds: 50, rank: 1 }] })],
-  ['POST', /^\/classrooms\/quizzes\/Z1\/start/, () => ok({ quiz_id: 'Z1', title: 'سباق الجمع', mode: 'race', time_limit_seconds: 180, seconds_left: 180, questions: [{ id: 'Q1', position: 0, prompt: '2 + 3', options: ['4', '5'], points: 100 }, { id: 'Q2', position: 1, prompt: '1 + 1', options: ['2', '3'], points: 100 }] })],
-  ['POST', /^\/classrooms\/quizzes\/Z1\/submit/, () => ok({ score: 250, correct: 2, total: 2, base: 200, bonus: 50, duration_seconds: 20, rank: 1, participants: 2, review: [{ id: 'Q1', correct_index: 1, picked: 1 }, { id: 'Q2', correct_index: 0, picked: 0 }] })],
-  ['GET', /^\/classrooms$/, () => ok(state.role === 'student' ? [{ ...classRow, join_code: null }] : [classRow])],
-  ['POST', /^\/classrooms$/, () => ok(classRow)],
   ['GET', /^\/payments\/plans/, () => ok(PY.plans)],
-  ['POST', /^\/payments\/checkout/, () => ok({ session_id: 'abcdef12-0000', provider: 'mock', plan: 'pro', period: 'monthly', amount_minor: 2990, currency: 'JOD', stripe_url: null })],
-  ['POST', /^\/payments\/confirm/, () => ok({ session_id: 'abcdef12-0000', plan: 'pro', period: 'monthly', status: 'succeeded', amount_minor: 2990, currency: 'JOD', provider: 'mock', created_at: '2026-10-01T10:00:00Z' })],
+  ['POST', /^\/payments\/checkout/, () => ok({ session_id: 'abcdef12-0000', provider: 'mock', plan: 'pro', period: 'monthly', amount_minor: 4500, currency: 'JOD', stripe_url: null })],
+  ['POST', /^\/payments\/confirm/, () => ok({ session_id: 'abcdef12-0000', plan: 'pro', period: 'monthly', status: 'succeeded', amount_minor: 4500, currency: 'JOD', provider: 'mock', created_at: '2026-10-01T10:00:00Z' })],
   ['GET', /^\/me\/students/, () => ok([{ student_id: 'S1', full_name: 'ليان', email: 'a@x', grade_level: 6 }])],
 ];
 const fetchMock = async (url, opts = {}) => {
@@ -142,6 +106,12 @@ await run('auth', async () => {
   await authView(ctx);
   check('login renders form', byTag(ctx.root, 'form').length === 1);
   check('login shows demo chips', text(ctx.root).includes('وضع العرض'));
+  const authTheme = find(ctx.root, (e) => e.attrs && e.attrs['aria-label'] === 'تبديل المظهر');
+  check('sign-in page has a light/dark switch', !!authTheme);
+  const themeBefore = document.documentElement.getAttribute('data-theme');
+  authTheme.click();
+  check('the switch toggles the theme', document.documentElement.getAttribute('data-theme') !== themeBefore);
+  authTheme.click();
   const form = byTag(ctx.root, 'form')[0];
   const [email] = byTag(form, 'input');
   type(email, 'a@b.jo');
@@ -151,13 +121,13 @@ await run('auth', async () => {
   check('login error shown (Arabic)', text(ctx.root).includes('البريد الإلكتروني أو كلمة المرور غير صحيحة'));
   pw.value = 'good1234'; submit(form); await tick();
   check('login success calls ctx.login', ctx.loggedIn === 'tok');
-  const omar = byText(ctx.root, 'button', 'طالب (عمر - ضمن صف)')[0];
+  const omar = byText(ctx.root, 'button', 'طالب (عمر - برو)')[0];
   check('omar demo chip exists', !!omar);
   const omarLogin = calls.length;
   omar.click(); await tick(40);
   const posted = calls.slice(omarLogin).find((c) => c.url.includes('/auth/login'));
   check('omar chip logs in with one click', !!posted && posted.body.email === 'student2@demo.jo' && ctx.loggedIn === 'tok');
-  check('omar chip lands straight on practice', ctx.landing === '#/practice');
+  check('omar chip lands on the tree (home), not straight on practice', ctx.landing === undefined || ctx.landing === '#/');
   ctx.landing = undefined;
   byText(ctx.root, 'button', 'طالبة (ليان - برو)')[0].click(); await tick(40);
   check('other chips keep the default landing', ctx.landing === undefined);
@@ -185,9 +155,9 @@ await run('auth', async () => {
   ctx.destroy();
   const reg = mkctx({ mode: 'register' });
   await authView(reg);
-  check('register renders role seg + gender', text(reg.root).includes('اختر الشخصية') && text(reg.root).includes('رمز المدرسة'));
-  byText(reg.root, 'button', 'معلم')[0].click();
-  check('teacher trial note visible', !byClass(reg.root, 'banner')[0].hasAttribute('hidden'));
+  check('register renders role seg + gender', text(reg.root).includes('اختر الشخصية') && text(reg.root).includes('ولي أمر'));
+  check('landing copy is subject- and grade-agnostic and has no teacher dashboard pitch', !/رياضيات|الصف السادس|لوحة معلم|الصفوف/.test(text(reg.root).replace(/المحتوى المتاح حالياً للتجربة:[^\n]*/g, '')) && text(reg.root).includes('اعرف أين بدأت الفجوة'));
+  check('public registration is B2C only: no teacher role, no school code', byText(reg.root, 'button', 'معلم').length === 0 && !text(reg.root).includes('رمز المدرسة') && !text(reg.root).includes('باقة المدرسة'));
   reg.destroy();
 });
 
@@ -199,6 +169,22 @@ await run('tree', async () => {
   check('panel hidden by default', panel.hasAttribute('hidden') && panel.childNodes.length === 0);
   check('scene svg rendered', byClass(host, 'stage')[0].childNodes[0]._html.includes('class="leaf'));
   check('hud shows health + gap', text(host).includes('تابع التدريب') && text(host).includes('الجذر المرصود'));
+  const svg = byClass(host, 'stage')[0].childNodes[0]._html;
+  check('tree encodes mastered / learning / current / diagnosed-root / locked states', ['leaf mastered', 'leaf learning', 'cur', 'gap', 'leaf locked'].every((c) => svg.includes(c)));
+  check('diagnosed-root trace links the current lesson to the root (visible gap only)', svg.includes('class="root-trace"'));
+  check('state key is shown (shape + colour, not colour alone)', text(host).includes('الجذر المرصود') && text(host).includes('أنت هنا') && text(host).includes('متقن'));
+  check('current lesson carries a "you are here" marker', (svg.match(/أنت هنا/g) || []).length === 1);
+  check('root trace follows the tree (leaf -> bough -> leaf), not a straight line', (() => { const m = /class="root-trace" d="([^"]+)"/.exec(svg); return !!m && m[1].split('L').length >= 6; })());
+  check('course label is content metadata from the API, not hard-coded', text(host).includes('المحتوى الحالي: الرياضيات · الصف السادس'));
+  const noCourse = new FEl('div'); body.appendChild(noCourse);
+  const noCourseCtrl = renderTreeStage(noCourse, { ...PY.tree_full, course: undefined }, { studentId: 'S1' });
+  check('without course metadata the shell shows no subject or grade at all', !/الرياضيات|الصف السادس/.test(text(noCourse)));
+  noCourseCtrl.destroy();
+  check('calm scene: no sky, sun, clouds, stars or gradients', !/class="(star|cloud|sun-glow|pollen)|Gradient/.test(svg));
+  const trees = await import('../../app/static/js/tree.js');
+  const wideScene = trees.computeScene(1280, 760, PY.tree_full, 400);
+  const phoneScene = trees.computeScene(390, 780, PY.tree_full);
+  check('tree fits the phone viewport and leaves room for the HUD on desktop', wideScene.ox + wideScene.s * wideScene.bounds.maxX <= 1280 - 400 + 1 && phoneScene.ox + phoneScene.s * phoneScene.bounds.minX >= -1 && phoneScene.ox + phoneScene.s * phoneScene.bounds.maxX <= 391);
   ctrl.select('u1l3');
   check('panel opens only after select', !panel.hasAttribute('hidden') && panel.hidden === false && text(panel).includes('أهم الأفكار'));
   check('panel has start button', text(panel).includes('ابدأ التدريب') || text(panel).includes('راجع بالتدريب'));
@@ -208,6 +194,7 @@ await run('tree', async () => {
   check('panel hidden after close', panel.hasAttribute('hidden'));
   ctrl.update(PY.tree_locked);
   check('locked tree hud nudges upgrade', text(host).includes('اكشف الجذر بباقة برو'));
+  check('locked tree does not draw the hidden root trace', !byClass(host, 'stage')[0].childNodes[0]._html.includes('class="root-trace"'));
   const stage = byClass(host, 'stage')[0];
   const sceneBox = stage.childNodes[0];
   stage.dispatchEvent({ type: 'click', target: new FEl('div') });
@@ -238,7 +225,7 @@ await run('practice', async () => {
   let release;
   routes.unshift(['POST', /\/adaptive\/answer/, () => new Promise((resolve) => { release = () => resolve(ok({ action: 'continue', next_skill: 'adding_integers', next_difficulty: 2, reason: 'r', breadcrumb: null, gap_skill: null, round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: true, correct_answer: '3', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 17 })); })]);
   opts[0].click(); await tick(10);
-  check('analyzing spinner shown immediately while waiting', byClass(ctx.root, 'analyzing').length === 1 && text(ctx.root).includes('المعلم الذكي يقوم بتحليل إجابتك...'));
+  check('analyzing spinner shown immediately while waiting', byClass(ctx.root, 'analyzing').length === 1 && text(ctx.root).includes('المساعد الذكي يقوم بتحليل إجابتك...'));
   release(); await tick(20);
   check('analyzing spinner removed when the answer resolves', byClass(ctx.root, 'analyzing').length === 0 && text(ctx.root).includes('إجابة صحيحة'));
   routes.shift();
@@ -275,7 +262,7 @@ await run('tutor', async () => {
   routes.unshift(['POST', /\/chat\/message/, () => new Promise((resolve) => { releaseTutor = () => resolve(ok({ reply: 'الناتج 3 لأن الإشارتان مختلفتان', gap_detected: true, gap_skill: 'x', drill_down_triggered: true, next_skill: 'x', next_difficulty: 1, breadcrumb: 'مراجعة', remaining_today: 3 })); })]);
   input.value = '5 + (-2)';
   byClass(ctx.root, 'send')[0].click(); await tick(10);
-  check('tutor shows the analysis label while waiting', byClass(ctx.root, 'typing').length === 1 && text(ctx.root).includes('المعلم الذكي يقوم بتحليل إجابتك...'));
+  check('tutor shows the analysis label while waiting', byClass(ctx.root, 'typing').length === 1 && text(ctx.root).includes('المساعد الذكي يقوم بتحليل إجابتك...'));
   releaseTutor(); await tick(20);
   check('tutor indicator removed after the reply', byClass(ctx.root, 'typing').length === 0);
   routes.shift();
@@ -330,42 +317,20 @@ await run('community', async () => {
   ctx.destroy();
 });
 
-await run('classes', async () => {
-  const { classesView } = await import('../../app/static/js/views/classes.js');
-  const ctx = mkctx(); await classesView(ctx); await tick(30);
-  check('assignment card', text(ctx.root).includes('تمارين الجمع') && text(ctx.root).includes('مفتوح'));
-  byText(ctx.root, 'button', 'تسليم الواجب')[0].click();
-  check('submit modal', text(body).includes('إرفاق ملف'));
-  byText(body, 'button', 'تسليم')[byText(body, 'button', 'تسليم').length - 1].click(); await tick(30);
-  check('upload posted', calls.some((c) => c.url.includes('/assignments/A1/submit')));
-  byText(ctx.root, 'button', 'الاختبارات')[0].click(); await tick(30);
-  check('quiz listed', text(ctx.root).includes('سباق الجمع') && text(ctx.root).includes('سباق سرعة'));
-  byText(ctx.root, 'button', 'ابدأ الآن')[0].click(); await tick(40);
-  const overlay = byClass(body, 'quiz-overlay')[0];
-  check('quiz overlay + timer', !!overlay && text(overlay).includes('03:00') || text(overlay).includes('02:5'));
-  byClass(overlay, 'opt')[1].click();
-  byText(overlay, 'button', 'التالي')[0].click();
-  byClass(overlay, 'opt')[0].click();
-  byText(overlay, 'button', 'إنهاء وتسليم')[0].click(); await tick(60);
-  check('quiz result shows score + rank', text(overlay).includes('250 نقطة') && text(overlay).includes('المركز 1'));
-  byText(overlay, 'button', 'إغلاق')[0].click();
-  byText(ctx.root, 'button', 'لوحة الصدارة')[0].click(); await tick(30);
-  ctx.destroy();
-});
-
 await run('plans+checkout', async () => {
   const { plansView, checkoutView, luhn, expiryOk, cardBrand } = await import('../../app/static/js/views/plans.js');
   check('luhn valid/invalid', luhn('4242 4242 4242 4242') && !luhn('4242 4242 4242 4241') && !luhn('123'));
   check('expiry validation', expiryOk('12/30') && !expiryOk('01/20') && !expiryOk('13/30') && cardBrand('4111') === 'Visa');
   const ctx = mkctx(); await plansView(ctx);
   const t = text(ctx.root);
-  check('3 equal plan cards', byClass(ctx.root, 'plan').length === 3);
+  check('3 plan cards: Free, Pro monthly, Pro academic year', byClass(ctx.root, 'plan').length === 3 && t.includes('مجاني') && t.includes('السنة الدراسية'));
+  check('no school/teacher plan or seat copy on the pricing page', !/المدرسة|للمعلم|مقعد/.test(t));
   check('USP block', t.includes('مسح الجذر'));
-  check('pro price monthly 2.99', t.includes('2.99'));
-  byText(ctx.root, 'button', 'سنوياً')[0].click();
-  check('yearly toggles price', text(ctx.root).includes('29.90'));
+  check('locked prices: Pro monthly 4.50 and academic year 32', t.includes('4.50') && t.includes('32.00') && !t.includes('2.99') && !t.includes('29.90') && !t.includes('6.99') && !t.includes('69.90'));
+  check('academic-year plan is the recommended option', text(byClass(ctx.root, 'plan').find((e) => e.attrs['data-plan'] === 'pro-yearly')).includes('الخيار الموصى به'));
+  check('demo provider is disclosed', t.includes('لن يُحصَّل أي مبلغ'));
   check('comparison table', byClass(ctx.root, 'cmp').length === 1);
-  const out = byClass(ctx.root, 'plan')[1];
+  const out = byClass(ctx.root, 'plan')[2];
   check('plan list items wrap', byTag(out, 'li').length >= 4);
   ctx.destroy();
   const co = mkctx({ plan: 'pro' }, { period: 'monthly' }); await checkoutView(co);
@@ -377,51 +342,21 @@ await run('plans+checkout', async () => {
   check('bad luhn blocked', text(co.root).includes('رقم البطاقة غير صحيح'));
   type(number, '4242424242424242'); check('number formatted', number.value === '4242 4242 4242 4242');
   submit(form); await tick(40);
-  check('success screen', text(co.root).includes('تم الاشتراك بنجاح') && co.shellRefreshed === true);
+  check('mock success screen is labelled demo, never a real payment', text(co.root).includes('وضع العرض') && text(co.root).includes('لم تُنفَّذ عملية دفع حقيقية') && co.shellRefreshed === true);
   co.destroy();
-});
-
-await run('teacher', async () => {
-  state.role = 'teacher'; await st.loadMe();
-  const { teacherView } = await import('../../app/static/js/views/teacher.js');
-  const ctx = mkctx(); await teacherView(ctx); await tick(40);
-  check('trial banner', text(ctx.root).includes('تجربتك المجانية') && text(ctx.root).includes('13'));
-  check('KPIs + students table', byClass(ctx.root, 'kpi').length >= 5 && text(ctx.root).includes('زياد'));
-  check('risk labels', text(ctx.root).includes('مرتفعة') && text(ctx.root).includes('منخفضة'));
-  const rows = byClass(ctx.root, 'click');
-  check('table rows clickable', rows.length === 2);
-  rows[0].click(); await tick(40);
-  check('student drawer opens', byClass(body, 'drawer').length === 1 && text(byClass(body, 'drawer')[0]).includes('سلسلة الجذر'));
-  const drawerText = text(byClass(body, 'drawer')[0]);
-  check('teacher sees the diagnosis record with evidence, confidence, intervention and outcome', drawerText.includes('سجل التشخيص') && drawerText.includes('الثقة: متوسطة') && drawerText.includes('التدخل المقترح') && drawerText.includes('العلاج جارٍ') && drawerText.includes('2 صحيحة و1 خاطئة'));
-  byText(body, 'button', 'عرض الشجرة كاملة')[0].click();
-  check('tree modal opens', byClass(body, 'modal').length >= 1 && byClass(body, 'stage').length >= 1);
-  byText(ctx.root, 'button', 'الواجبات')[0].click(); await tick(40);
-  check('assignment list', text(ctx.root).includes('تمارين الجمع') && text(ctx.root).includes('1/2'));
-  byText(ctx.root, 'button', 'فتح وتصحيح')[0].click(); await tick(40);
-  const drawer = byClass(body, 'drawer').pop();
-  check('submissions with download + grade', text(drawer).includes('h.pdf') && text(drawer).includes('لم يسلّم'));
-  const scoreIn = byTag(drawer, 'input').find((i) => i.attrs.type === 'number');
-  scoreIn.value = '90';
-  byText(drawer, 'button', 'حفظ')[0].click(); await tick(30);
-  check('grade posted', calls.some((c) => c.url.includes('/grade') && c.body.score === 90));
-  byText(ctx.root, 'button', 'واجب جديد')[0].click();
-  check('assignment modal', text(body).includes('موعد التسليم'));
-  byText(ctx.root, 'button', 'الاختبارات')[0].click(); await tick(40);
-  check('quiz list teacher', text(ctx.root).includes('سباق الجمع') && text(ctx.root).includes('النتائج'));
-  byText(ctx.root, 'button', 'اختبار جديد')[0].click();
-  check('quiz modal modes', text(body).includes('توليد تلقائي من درس') && text(body).includes('إدخال الأسئلة يدوياً'));
-  byText(ctx.root, 'button', 'لوحة الصدارة')[0].click(); await tick(30);
-  check('leaderboard tab', text(ctx.root).includes('ترتيب الصف'));
-  byText(ctx.root, 'button', 'الصفوف والطلاب')[0].click(); await tick(30);
-  check('classes tab shows code', text(ctx.root).includes('JUTH26'));
-  ctx.destroy();
 });
 
 await run('parent', async () => {
   state.role = 'parent'; await st.loadMe();
-  const { parentView, reportView, chainFrom } = await import('../../app/static/js/views/parent.js');
+  const { parentView, reportView, chainFrom, diagnosisRecord } = await import('../../app/static/js/views/parent.js');
   const ctx = mkctx(); await parentView(ctx); await tick(30);
+  const record = diagnosisRecord({ gap_locked: false, diagnoses: report.diagnoses });
+  const recordText = text(record);
+  check('parent sees the diagnosis record: origin, root, honest confidence, evidence, next step, outcome',
+    record.attrs['data-testid'] === 'diagnosis-record' && recordText.includes('سجل التشخيص') && recordText.includes('التعثّر الظاهر في')
+    && recordText.includes('الثقة: متوسطة') && recordText.includes('الأدلة') && recordText.includes('الخطوة التالية المقترحة') && recordText.includes('بعد التشخيص'));
+  check('the record stays hidden while the gap is locked (Free plan)', diagnosisRecord({ gap_locked: true, diagnoses: report.diagnoses }) === null);
+  check('no diagnosis yet is said honestly', text(diagnosisRecord({ gap_locked: false, diagnoses: [] })).includes('لا يحكم قبل توفر أدلة كافية'));
   check('parent chain + upsell', text(ctx.root).includes('سلسلة الجذر') && text(ctx.root).includes('فعّل برو لابنك'));
   check('tree embedded', byClass(ctx.root, 'stage').length === 1);
   check('chainFrom order', chainFrom([{ from_name_ar: 'ب', to_name_ar: 'ج' }, { from_name_ar: 'أ', to_name_ar: 'ب' }]).join('>') === 'أ>ب>ج');
@@ -595,33 +530,6 @@ await run('whatsapp share', async () => {
   rep.destroy();
 });
 
-await run('teacher remediation + safety', async () => {
-  state.role = 'teacher'; await st.loadMe();
-  const { teacherView } = await import('../../app/static/js/views/teacher.js');
-  const ctx = mkctx(); await teacherView(ctx); await tick(40);
-  const btn = byText(ctx.root, 'button', 'تكليف علاجي')[0];
-  check('remediation button on the top gaps card', !!btn);
-  btn.click(); await tick(30);
-  const confirm = byClass(body, 'modal').pop();
-  check('confirmation lists only the affected students', text(confirm).includes('زياد') && text(confirm).includes('تقوية: القيمة المطلقة') && !text(confirm).includes('عمر'));
-  byText(confirm, 'button', 'إنشاء التكليف')[0].click(); await tick(60);
-  const post = calls.filter((c) => c.method === 'POST' && c.url.includes('/remediation')).pop();
-  check('remediation posted for exactly that skill', !!post && post.body.skill_id === 'absolute_value' && Object.keys(post.body).length === 1);
-  check('result modal shows students and the teaching tip', text(body).includes('تم إنشاء التكليف العلاجي') && text(body).includes('استخدم خط الأعداد الأرضي'));
-  byText(byClass(body, 'modal').pop(), 'button', 'عرض الواجبات')[0].click(); await tick(40);
-  check('assignments tab marks remediation work', text(ctx.root).includes('علاجي') && text(ctx.root).includes('تقوية: القيمة المطلقة'));
-  byText(ctx.root, 'button', 'السلامة')[0].click(); await tick(40);
-  check('safety tab explains the privacy model', text(ctx.root).includes('لا تظهر لك محادثات الطلاب إلا عندما يبلّغ'));
-  check('open report listed with reason and names', text(ctx.root).includes('تنمّر أو إساءة') && text(ctx.root).includes('أبلغ عن'));
-  byText(ctx.root, 'button', 'مراجعة')[0].click(); await tick(40);
-  const drawer = byClass(body, 'drawer').pop();
-  check('thread shows the flagged message and context', text(drawer).includes('الرسالة المُبلَّغ عنها') && text(drawer).includes('أنت مزعج') && text(drawer).includes('توقف من فضلك'));
-  byText(drawer, 'button', 'تمت المعالجة')[0].click(); await tick(40);
-  const res = calls.filter((c) => c.url.includes('/resolve')).pop();
-  check('resolve posted with the decision', !!res && res.body.action === 'resolved');
-  ctx.destroy();
-});
-
 await run('block + report', async () => {
   state.role = 'student'; await st.loadMe();
   const { communityView } = await import('../../app/static/js/views/social.js');
@@ -659,7 +567,7 @@ await run('block + report', async () => {
   const contact = api.toError(422, { detail: 'message_not_allowed:contact' });
   check('chat filter messages are specific', link.message.includes('الروابط') && contact.message.includes('أرقام الهاتف') && link.message !== contact.message);
   check('rate limit messages are friendly', api.toError(429, { detail: 'rate_limited' }).message.includes('طلبات كثيرة') && api.toError(429, { detail: 'too_many_attempts' }).message.includes('انتظر'));
-  check('new error codes are all mapped', ['unblock_first', 'no_students_with_gap', 'not_assigned', 'report_not_found', 'cannot_block_self', 'cannot_report_self', 'not_blocked', 'message_not_found'].every((c) => !api.toError(400, { detail: c }).message.includes('غير متوقع')));
+  check('new error codes are all mapped', ['unblock_first', 'payment_provider_not_configured', 'payment_provider_unavailable', 'pro_plan_for_students', 'report_not_found', 'cannot_block_self', 'cannot_report_self', 'not_blocked', 'message_not_found'].every((c) => !api.toError(400, { detail: c }).message.includes('غير متوقع')));
 });
 
 await run('judge hint + input validation + diagnosis card', async () => {

@@ -100,7 +100,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import close_all_sessions, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app import models
+from app import models  # noqa: F401 (registers every model on Base.metadata)
 from app.database import Base, engine_options, get_db
 from app.main import app
 from tests.helpers import register
@@ -170,6 +170,13 @@ def fresh_db():
     yield
     close_all_sessions()
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def mock_payments_enabled(monkeypatch):
+    # The mock provider never charges anyone; tests exercise it explicitly.
+    from app.config import settings
+    monkeypatch.setattr(settings, "allow_mock_payments", True)
 
 
 @pytest.fixture

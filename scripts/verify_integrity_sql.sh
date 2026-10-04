@@ -13,7 +13,7 @@ CREATE TABLE attempt_logs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), studen
 CREATE TABLE diagnosis_events (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), student_id uuid, origin_skill text, root_skill text, confidence_level text, evidence json, path json);
 CREATE TABLE student_adaptive_states (student_id uuid PRIMARY KEY, current_skill text, difficulty int, consec_wrong int, total_answered int, round_answered int, pending_question json);
 CREATE TABLE answer_receipts (student_id uuid, request_id text);
-INSERT INTO users VALUES ('00000000-0000-0000-0000-000000000001','student'),('00000000-0000-0000-0000-000000000002','teacher');
+INSERT INTO users VALUES ('00000000-0000-0000-0000-000000000001','student'),('00000000-0000-0000-0000-000000000002','parent');
 INSERT INTO student_adaptive_states VALUES ('00000000-0000-0000-0000-000000000001','adding_integers',2,0,3,1,'{"skill":"adding_integers"}');
 INSERT INTO skill_mastery (student_id, skill_id, p_mastery, attempts, correct, status) VALUES
   ('00000000-0000-0000-0000-000000000001','adding_integers',0.6,2,1,'learning'),
@@ -39,7 +39,7 @@ INSERT INTO skill_mastery (student_id, skill_id, p_mastery, attempts, correct, s
   ('00000000-0000-0000-0000-000000000001','comparing_integers',1.0,1,1,'learning'),-- p=1.0
   ('00000000-0000-0000-0000-000000000001','no_such_skill',0.5,1,1,'learning'),     -- unknown skill
   ('99999999-9999-9999-9999-999999999999','absolute_value',0.5,1,1,'learning'),    -- orphan
-  ('00000000-0000-0000-0000-000000000002','absolute_value',0.5,1,1,'learning');    -- owned by a teacher
+  ('00000000-0000-0000-0000-000000000002','absolute_value',0.5,1,1,'learning');    -- owned by a parent (not a learner)
 INSERT INTO attempt_logs (student_id, skill_id) VALUES ('99999999-9999-9999-9999-999999999999','absolute_value');
 INSERT INTO student_adaptive_states VALUES ('00000000-0000-0000-0000-000000000002','nope',9,-1,0,0,'{"skill":"ghost"}');
 INSERT INTO diagnosis_events (student_id, origin_skill, root_skill, confidence_level, evidence, path) VALUES

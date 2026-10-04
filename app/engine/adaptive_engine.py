@@ -81,7 +81,7 @@ STUDENT_MESSAGES = {
     "return_up": "That root is firm now. Back up to where we were.",
     "retry": "One more like this, so we can be sure where the difficulty is.",
     "remediate": "Let's slow down and rebuild this root together.",
-    "park": "We'll save this root for your teacher. Let's grow another branch.",
+    "park": "We'll keep this root in your plan and come back to it. Let's grow another branch.",
     "complete": "Your tree is in full bloom for now.",
 }
 
@@ -109,7 +109,7 @@ def _breadcrumb_root(origin: str, root: str, confidence: str) -> str:
 
 
 def _breadcrumb_park(parked_gap: str, moving_to: str) -> str:
-    return f"سنحفظ «{_name(parked_gap)}» لمعلمك، ونتابع الآن بدرس جديد: «{_name(moving_to)}»."
+    return f"سنحفظ «{_name(parked_gap)}» في خطتك لنعود إليه، ونتابع الآن بدرس جديد: «{_name(moving_to)}»."
 
 
 def _breadcrumb_advance(new_skill: str) -> str:
@@ -440,7 +440,7 @@ def _handle_incorrect(state: StudentState) -> Decision:
                             f"Root gap '{skill}' parked; nothing else unlocked.",
                             gap_skill=skill, round_over=True)
         return _move(state, nxt, config.MIN_DIFFICULTY, "park",
-                     f"Root gap '{skill}' needs the teacher; moving to '{nxt}'.", gap=skill,
+                     f"Root gap '{skill}' parked in the learner's plan; moving to '{nxt}'.", gap=skill,
                      breadcrumb=_breadcrumb_park(skill, nxt))
     state.difficulty = config.MIN_DIFFICULTY
     return Decision("remediate", skill, config.MIN_DIFFICULTY,

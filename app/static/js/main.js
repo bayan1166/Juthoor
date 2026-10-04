@@ -8,29 +8,33 @@ import { practiceView } from './views/practice.js';
 import { tutorView } from './views/tutor.js';
 import { shopView } from './views/shop.js';
 import { communityView } from './views/social.js';
-import { classesView } from './views/classes.js';
-import { teacherView } from './views/teacher.js';
 import { parentView, reportView } from './views/parent.js';
 import { plansView, checkoutView } from './views/plans.js';
 import { errorPanel } from './views/shared.js';
 
-const STAFF = ['teacher', 'org_admin', 'platform_admin'];
+// B2C roles. platform_admin is an internal moderation account with no learning screens.
+const INTERNAL = ['platform_admin'];
 
 const ROUTES = [
   { path: '/login', public: true, view: authView, params: { mode: 'login' } },
   { path: '/register', public: true, view: authView, params: { mode: 'register' } },
   { path: '/', roles: ['student'], view: homeView },
-  { path: '/', roles: STAFF, view: teacherView },
+  { path: '/', roles: INTERNAL, view: internalView },
   { path: '/', roles: ['parent'], view: parentView },
   { path: '/practice', roles: ['student'], view: practiceView },
   { path: '/tutor', roles: ['student'], view: tutorView },
   { path: '/shop', roles: ['student'], view: shopView },
-  { path: '/classes', roles: ['student'], view: classesView },
   { path: '/community', roles: ['*'], view: communityView },
   { path: '/plans', roles: ['*'], view: plansView },
   { path: '/checkout/:plan', roles: ['*'], view: checkoutView },
   { path: '/report/:id', roles: ['*'], view: reportView },
 ];
+
+function internalView(ctx) {
+  ctx.root.appendChild(h('div', { class: 'page page-enter' }, h('div', { class: 'empty card' }, ico('shield'),
+    h('h3', null, 'حساب تشغيلي داخلي'),
+    h('p', { class: 'muted' }, 'هذا الحساب مخصص لفريق الإشراف في جذور، ولا يملك واجهة تعلّم أو اشتراك.'))));
+}
 
 let app = null;
 let navHost = null;
@@ -40,7 +44,8 @@ let current = null;
 let summaryTimer = null;
 let navOffs = [];
 
-export const JUDGE_HIDDEN = ['/community', '/shop', '/plans'];
+// Judge mode keeps the demo focused on the diagnosis flow; the Pro/upgrade entry is never hidden.
+export const JUDGE_HIDDEN = ['/community', '/shop'];
 
 export function linksFor(role) {
   const all = baseLinks(role);
@@ -48,9 +53,9 @@ export function linksFor(role) {
 }
 
 function baseLinks(role) {
-  if (role === 'student') return [['/', 'الشجرة', 'tree'], ['/practice', 'التدريب', 'pencil'], ['/tutor', 'المعلم الذكي', 'spark'], ['/classes', 'صفوفي', 'book'], ['/community', 'المجتمع', 'chat'], ['/shop', 'المتجر', 'bag'], ['/plans', 'الباقات', 'card']];
-  if (role === 'parent') return [['/', 'أبنائي', 'users'], ['/community', 'المجتمع', 'chat'], ['/plans', 'الباقات', 'card']];
-  return [['/', 'لوحة المعلم', 'chart'], ['/community', 'المجتمع', 'chat'], ['/plans', 'الباقات', 'card']];
+  if (role === 'student') return [['/', 'الرئيسية', 'tree'], ['/practice', 'التدريب', 'pencil'], ['/tutor', 'المساعد الذكي', 'spark'], ['/community', 'المجتمع', 'chat'], ['/shop', 'المتجر', 'bag'], ['/plans', 'برو', 'bolt']];
+  if (role === 'parent') return [['/', 'أبنائي', 'users'], ['/community', 'المجتمع', 'chat'], ['/plans', 'برو', 'bolt']];
+  return [];
 }
 
 export function parseHash(hash) {
@@ -96,6 +101,7 @@ function paintNav() {
   if (!store.me) return;
   const me = store.me;
   const links = linksFor(me.role);
+  const isInternalRole = INTERNAL.includes(me.role);
   const { path } = parseHash(location.hash);
   const linkEls = [];
   const tabEls = [];
@@ -133,6 +139,9 @@ function paintNav() {
     loadBoot().then(paintWallet).catch(() => null);
   }
 
+  const upgradeBtn = !isInternalRole && me.plan !== 'pro'
+    ? h('a', { class: 'btn btn-primary btn-sm upgrade-cta', href: '#/plans', 'data-testid': 'upgrade-cta' }, ico('bolt'), h('span', null, 'ترقية إلى برو'))
+    : null;
   const themeBtn = h('button', { class: 'icon-btn', 'aria-label': 'تبديل المظهر' }, ico(getTheme() === 'dark' ? 'sun' : 'moon'));
   themeBtn.addEventListener('click', () => {
     const next = getTheme() === 'dark' ? 'light' : 'dark';
@@ -167,12 +176,12 @@ function paintNav() {
       closeMenu();
       return;
     }
-    const planText = me.plan_source === 'trial' ? `تجربة المدرسة: ${me.trial_days_left} يوماً` : me.plan_source === 'class' ? 'برو عبر الصف' : planLabel(me.plan);
+    const planText = isInternalRole ? 'حساب داخلي' : planLabel(me.plan);
     menu = h('div', { class: 'menu', role: 'menu' },
       h('div', { class: 'col', style: { gap: '4px', padding: '4px 4px 0' } }, h('b', null, me.full_name), h('span', { class: 'small muted' }, me.email),
         h('div', { class: 'row', style: { marginTop: '6px' } }, h('span', { class: ['chip', me.plan === 'basic' ? '' : 'green'] }, planText), me.handle ? h('span', { class: 'chip ltr' }, `#${me.handle}`) : null)),
       h('hr'),
-      store.health && store.health.judge ? null : h('a', { class: 'item', href: '#/plans', onclick: closeMenu }, ico('card'), 'الباقات والاشتراك'),
+      isInternalRole ? null : h('a', { class: 'item', href: '#/plans', onclick: closeMenu }, ico('card'), me.plan === 'pro' ? 'اشتراك برو' : 'ترقية إلى برو'),
       h('button', { class: 'item', onclick: () => { closeMenu(); logout(); paintNav(); clearInterval(summaryTimer); go('#/login'); } }, ico('logout'), 'تسجيل الخروج'));
     menuWrap.appendChild(menu);
   });
@@ -181,7 +190,7 @@ function paintNav() {
   navHost.appendChild(h('nav', { class: 'nav', 'aria-label': 'التنقل الرئيسي' },
     h('a', { class: 'brand', href: '#/', html: brandHtml() }),
     h('div', { class: 'nav-links' }, linkEls),
-    h('div', { class: 'nav-right' }, wallet, themeBtn, menuWrap)));
+    h('div', { class: 'nav-right' }, wallet, upgradeBtn, themeBtn, menuWrap)));
   tabHost.appendChild(h('div', { class: 'tabbar' }, tabEls));
   paintDots();
 }

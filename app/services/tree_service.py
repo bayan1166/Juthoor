@@ -1,10 +1,12 @@
 from app.engine import adaptive_engine as ae
+from app.engine import config as ecfg
 from app.engine import knowledge_graph as kg
 from app.services import curriculum_map as cur
 
 
 def public_map() -> dict:
     return {
+        "course": ecfg.course_meta(),
         "units": [
             {
                 "no": u.no,
@@ -59,6 +61,7 @@ def build_tree(state, full_gap_access: bool) -> dict:
             })
         units.append({"no": u.no, "title": u.title, "lessons": lessons})
     return {
+        "course": ecfg.course_meta(),
         "units": units,
         "summary": cur.summary(state),
         "tree_health": round(ae.tree_health(state), 3),

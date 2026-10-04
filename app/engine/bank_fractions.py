@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import random
 from fractions import Fraction
 
 from app.engine.offline_bank import PATTERNS, _q, _tf, tpl, E, M, L, N, MINUS

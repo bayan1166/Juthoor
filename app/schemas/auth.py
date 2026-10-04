@@ -6,22 +6,22 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.engine import config as ecfg
 from app.models.org import UserRole
 
-SELF_REGISTER_ROLES = {UserRole.student, UserRole.parent, UserRole.teacher}
+# B2C: only learners and their parents/guardians can create accounts.
+SELF_REGISTER_ROLES = {UserRole.student, UserRole.parent}
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
     full_name: str = Field(min_length=1, max_length=150)
+    # Only student/parent: any other value (including "platform_admin" or the retired "teacher") is a 422.
     role: UserRole = UserRole.student
-    org_slug: str | None = None
-    # Proof of membership. Required for teachers, and for anyone joining an organization that issued a code.
-    org_code: str | None = Field(default=None, max_length=64)
     guardian_id: uuid.UUID | None = None
     guardian_email: EmailStr | None = None
-    grade_level: int = Field(default=6, ge=1, le=12)
+    grade_level: int = Field(default=ecfg.COURSE["grade"], ge=1, le=12)
     gender: Literal["ولد", "بنت"] | None = None
 
     @field_validator("email")
@@ -39,7 +39,7 @@ class RegisterRequest(BaseModel):
 
     @field_validator("role")
     @classmethod
-    def _no_admin_signup(cls, v: UserRole) -> UserRole:
+    def _only_b2c_roles(cls, v: UserRole) -> UserRole:
         if v not in SELF_REGISTER_ROLES:
             raise ValueError("this role cannot be self-registered")
         return v
@@ -68,13 +68,10 @@ class MeOut(BaseModel):
     email: str
     full_name: str
     role: UserRole
-    organization_id: uuid.UUID | None = None
-    organization_name: str | None = None
     grade_level: int
     plan: str = "basic"
     plan_source: str = "own"
     plan_expires_at: OptUtcDateTime = None
-    trial_days_left: int | None = None
 
 
 class ForgotPasswordRequest(BaseModel):

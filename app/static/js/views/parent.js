@@ -47,6 +47,37 @@ function chainEl(report, rootName) {
   return wrap;
 }
 
+const STAGE = {
+  pending: 'لم يبدأ العلاج بعد',
+  remediating: 'العلاج جارٍ',
+  resolved: 'أُغلقت الفجوة',
+};
+
+function tally(t) {
+  return `${t.right} صحيحة و${t.wrong} خاطئة`;
+}
+
+// The explainable diagnosis record for the parent: where the gap started, the evidence, the honest
+// confidence level, the suggested intervention and what happened after it (remediation, retry).
+export function diagnosisRecord(report) {
+  if (report.gap_locked) return null;
+  const list = report.diagnoses || [];
+  if (!list.length) return h('div', { class: 'card', 'data-testid': 'diagnosis-record' }, h('h3', null, 'سجل التشخيص'), h('p', { class: 'muted' }, 'لم يُسمَّ جذر بعد: جذور لا يحكم قبل توفر أدلة كافية.'));
+  return h('div', { class: 'card', 'data-testid': 'diagnosis-record' }, h('h3', null, 'سجل التشخيص'),
+    list.slice(0, 3).map((dg) => h('div', { class: 'diag', style: { marginBottom: '10px' } },
+      h('div', { class: 'diag-path' }, (dg.path || []).map((p, i) => [i ? h('span', { class: 'diag-arrow' }, ico('chevl')) : null,
+        h('span', { class: ['chip', p.skill === dg.root_skill ? 'red' : ''] }, p.name_ar)])),
+      h('div', { class: 'small' }, h('b', null, 'التعثّر الظاهر في: '), dg.origin_name_ar),
+      h('div', { class: 'small' }, h('b', null, 'الجذر الأرجح: '), dg.root_name_ar, ` | الثقة: ${dg.confidence}`, ` | ${timeAgo(dg.created_at)}`),
+      dg.explanation ? h('div', { class: 'small' }, dg.explanation) : null,
+      (dg.evidence || []).length ? h('div', { class: 'small muted' }, 'الأدلة: ', dg.evidence.map((e) => `${e.name_ar}: ${e.wrong} خاطئة و${e.right} صحيحة`).join(' | ')) : null,
+      dg.intervention ? h('div', { class: 'small' }, h('b', null, 'الخطوة التالية المقترحة: '), dg.intervention) : null,
+      h('div', { class: 'small' }, h('b', null, 'بعد التشخيص: '), STAGE[dg.outcome.stage] || dg.outcome.stage,
+        ` | على الجذر: ${tally(dg.outcome.root_after)}`,
+        dg.origin_skill !== dg.root_skill ? ` | إعادة المحاولة على «${dg.origin_name_ar}»: ${tally(dg.outcome.origin_retry)}` : ''))),
+    h('p', { class: 'small muted', style: { margin: 0 } }, 'التشخيص تقدير مبني على الأدلة، والثقة مستوى وليست نسبة احتمال.'));
+}
+
 function forecastEl(f) {
   if (!f) return null;
   return h('div', { class: 'banner' }, ico('clock'), h('div', null, h('b', null, `توقّع سدّ الفجوة في «${f.name_ar}»: `),
@@ -101,7 +132,7 @@ export async function parentView(ctx) {
       ]);
       if (ctx.destroyed) return;
       const holder = h('div');
-      const planChip = h('span', { class: ['chip', report.plan.plan === 'basic' ? '' : 'green'] }, report.plan.plan === 'basic' ? 'الباقة الأساسية' : report.plan.source === 'class' ? 'برو عبر الصف' : 'برو');
+      const planChip = h('span', { class: ['chip', report.plan.plan === 'basic' ? '' : 'green'] }, report.plan.plan === 'basic' ? 'الباقة المجانية' : 'برو');
       mount(body,
         holder,
         h('div', { class: 'card' }, h('div', { class: 'card-title' }, h('h3', null, `سلسلة الجذر لدى ${kid.full_name}`), h('div', { class: 'row' }, planChip, h('a', { class: 'btn btn-ghost btn-sm', href: `#/report/${childId}` }, ico('print'), 'تقرير قابل للطباعة'),
@@ -112,6 +143,7 @@ export async function parentView(ctx) {
           text: 'نرصد أن هناك درساً سابقاً وراء التعثّر الحالي. باقة برو تكشف السلسلة كاملة، وتعطيك تقريراً مطبوعاً وتوقعاً للمدة اللازمة لسدّ الفجوة.',
           cta: 'فعّل برو لابنك', href: `#/checkout/pro?period=monthly&for=${childId}`,
         }) : null,
+        diagnosisRecord(report),
         h('div', { class: 'card' }, h('div', { class: 'card-title' }, h('h3', null, 'تنبيهات التعثّر')), alertsEl(insights)),
         h('div', { class: 'grid g3' },
           h('div', { class: 'card kpi' }, h('span', { class: 'v' }, String(insights.engagement.current_streak)), h('span', { class: 'l' }, 'أيام متتالية من التدريب')),
@@ -164,6 +196,7 @@ export async function reportView(ctx) {
         tree.root_gap.found && !tree.root_gap.locked ? h('p', { style: { marginTop: '10px' } }, `الجذر المرصود: ${tree.root_gap.name_ar}، على بعد ${tree.root_gap.steps_back} خطوات من الدرس الحالي.`) : null,
         report.gap_locked ? h('div', { class: 'banner no-print' }, ico('lock'), h('div', null, 'سلسلة الجذر الكاملة متاحة في باقة برو.', ' ', h('a', { href: '#/plans' }, 'اعرف المزيد'))) : null,
         report.forecast ? h('div', { style: { marginTop: '14px' } }, forecastEl(report.forecast)) : null,
+        diagnosisRecord(report) ? h('div', { style: { marginTop: '18px' } }, diagnosisRecord(report)) : null,
         h('h3', { style: { marginTop: '24px' } }, 'تنبيهات التعثّر'), alertsEl(insights),
         h('h3', { style: { marginTop: '24px' } }, 'النشاط'),
         h('p', null, `${insights.engagement.questions_answered_last_7} سؤالاً خلال آخر 7 أيام، و${insights.engagement.active_days_last_30} يوم نشاط خلال 30 يوماً، وسلسلة حالية ${insights.engagement.current_streak} أيام.`),

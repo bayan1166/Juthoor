@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from app.engine import config
 from app.engine import knowledge_graph as kg
 
 

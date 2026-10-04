@@ -4,7 +4,7 @@ Covers: repeated workflows (10/50/100 and a long soak), many students interleave
 (no shared mutable state, no cross-student contamination), state round-trips through the same JSON
 the database stores, and the state invariant checker after every answer.
 
-NOT covered here (needs PostgreSQL + the API, see tests/test_stability_db.py and TASKS/01_STABILITY.md):
+NOT covered here (needs PostgreSQL + the API, see tests/test_stability_db.py):
 concurrent submissions against the database, transaction rollback and restart persistence.
 """
 import random

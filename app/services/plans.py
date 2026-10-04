@@ -6,40 +6,25 @@ from sqlalchemy.orm import Session
 
 from app.models.adaptive import AttemptLog
 from app.models.chat import ChatMessage, ChatRole, ChatSession
-from app.models.classroom import Classroom, ClassroomMember
 from app.models.community import Friendship, FriendshipStatus
-from app.models.org import PlanTierUser, User, UserRole
+from app.models.org import User, UserRole
 from app.services.plan_rules import (
-    LIMITS, LOCAL_UTC_OFFSET_HOURS, PERIOD_DAYS, PLAN_CATALOG, STUDENTS_PER_SEAT, TRIAL_DAYS, USP, PlanState,
-    day_start_utc, forecast_days, limits_for, mask_drilldowns, plan_from_fields, price_for, trial_days_left,
+    LIMITS, LOCAL_UTC_OFFSET_HOURS, PERIOD_DAYS, PLAN_CATALOG, USP, PlanState,  # noqa: F401 (re-exported)
+    day_start_utc, forecast_days, limits_for, mask_drilldowns, plan_from_fields, price_for,  # noqa: F401
 )
 
-STAFF_ROLES = (UserRole.teacher, UserRole.org_admin, UserRole.platform_admin)
-
-
-def _class_sponsored(db: Session, student_id, now: datetime) -> bool:
-    row = db.scalar(
-        select(func.count(ClassroomMember.id))
-        .join(Classroom, Classroom.id == ClassroomMember.classroom_id)
-        .join(User, User.id == Classroom.teacher_id)
-        .where(
-            ClassroomMember.student_id == student_id,
-            User.plan == PlanTierUser.school,
-            or_(User.plan_expires_at.is_(None), User.plan_expires_at > now),
-        )
-    )
-    return bool(row)
+# Roles that buy Pro (B2C): the learner, or the parent/guardian for their own child.
+BUYER_ROLES = (UserRole.student, UserRole.parent)
+# Internal operations account (support/moderation); not a customer and not a product role.
+INTERNAL_ROLES = (UserRole.platform_admin,)
 
 
 def effective_plan(db: Session, user: User, now: datetime | None = None) -> PlanState:
     now = now or datetime.utcnow()
     own = plan_from_fields(user.plan, user.plan_expires_at, now)
     if own != "basic":
-        left = trial_days_left(user.trial_ends_at, now)
-        return PlanState(own, "trial" if left else "own", user.plan_expires_at, left)
-    if user.role == UserRole.student and _class_sponsored(db, user.id, now):
-        return PlanState("pro", "class", None, None)
-    return PlanState("basic", "own", None, None)
+        return PlanState(own, "own", user.plan_expires_at)
+    return PlanState("basic", "own", None)
 
 
 def usage_today(db: Session, user_id, now: datetime | None = None) -> dict:
@@ -68,7 +53,6 @@ def snapshot(db: Session, user: User) -> dict:
         "plan": state.plan,
         "source": state.source,
         "expires_at": state.expires_at.isoformat() + "Z" if state.expires_at else None,
-        "trial_days_left": state.trial_days_left,
         "limits": limits,
         "usage": used,
         "remaining": {
@@ -87,16 +71,9 @@ def require_quota(db: Session, student: User, kind: str) -> None:
 
 
 def has_full_gap_access(db: Session, viewer: User, student: User) -> bool:
-    if viewer.role in STAFF_ROLES:
+    if viewer.role in INTERNAL_ROLES:
         return True
     return LIMITS[effective_plan(db, student).plan]["full_gap_report"]
-
-
-def require_school(db: Session, user: User) -> None:
-    if user.role == UserRole.platform_admin:
-        return
-    if effective_plan(db, user).plan != "school":
-        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "plan_upgrade_required:school")
 
 
 def friend_cap_reached(db: Session, user: User) -> bool:

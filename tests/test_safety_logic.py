@@ -1,7 +1,4 @@
-import random
-from datetime import datetime
-
-from app.services import breaker, chat_safety, ratelimit_core, remediation, secrets_check
+from app.services import breaker, chat_safety, ratelimit_core, secrets_check
 
 
 class Clock:
@@ -84,18 +81,6 @@ def test_secret_strength_rules():
     assert secrets_check.weak_secret_reason("a" * 40)
     assert secrets_check.weak_secret_reason("skadjbkhabsuibdckbaskbkdjbckdsjabvhaiuuWDBXHsdjbvaedskhbvQEjabchvsfjk") is None
     assert secrets_check.weak_secret_reason(secrets_check.suggestion()) is None
-
-
-def test_remediation_targets_only_students_with_the_gap():
-    def overview(status):
-        return {"skills": [{"skill_id": "adding_integers", "status": status}, {"skill_id": "absolute_value", "status": "mastered"}]}
-    overviews = {"a": overview("gap"), "b": overview("learning"), "c": overview("gap")}
-    assert remediation.students_with_gap(overviews, "adding_integers") == ["a", "c"]
-    assert remediation.students_with_gap(overviews, "absolute_value") == []
-    built = remediation.build_remediation("adding_integers", datetime(2026, 10, 1, 9, 0), due_days=3)
-    assert built["kind"] == "remediation" and built["title"].startswith("تقوية")
-    assert built["due_at"] == datetime(2026, 10, 4, 9, 0) and built["tip"]
-    assert "الباقة" not in built["description"]
 
 
 def test_breaker_opens_after_repeated_failures_and_recovers():

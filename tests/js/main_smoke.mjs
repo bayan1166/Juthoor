@@ -4,8 +4,7 @@ const PY = JSON.parse(fs.readFileSync(new URL('./fixtures/py.json', import.meta.
 let role = 'student';
 const ok = (json, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(json) });
 const users = {
-  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: 'basic', plan_source: 'own', plan_expires_at: null, trial_days_left: null },
-  teacher: { user_id: 'T1', handle: '7001', email: 't@x.jo', full_name: 'سارة', role: 'teacher', plan: 'school', plan_source: 'trial', plan_expires_at: null, trial_days_left: 13 },
+  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: 'basic', plan_source: 'own', plan_expires_at: null },
 };
 const fetchMock = async (url) => {
   const p = url.split('?')[0];
@@ -16,7 +15,6 @@ const fetchMock = async (url) => {
   if (p.endsWith('/adaptive/tree')) return ok(PY.tree_full);
   if (p.endsWith('/adaptive/bootstrap')) return ok({ state: { current_skill: 'adding_integers', skills: [] }, wallet: { coins: 120, gems: 3 }, avatar: {}, avatar_svg: '<svg id="me"></svg>', drilldowns: [], drilldowns_hidden: 0, plan: { plan: 'basic', limits: { questions_per_day: 20 }, remaining: { questions: 18, tutor: 5 } } });
   if (p === '/community/summary') return ok({ unread_messages: 2, pending_requests: 1 });
-  if (p === '/classrooms') return ok([]);
   if (p === '/payments/plans') return ok(PY.plans);
   return ok({ detail: 'no_mock' }, 404);
 };
@@ -30,19 +28,20 @@ const check = (n, c, x = '') => { results.push([c, n, x]); if (!c) failures += 1
 const main = await import('../../app/static/js/main.js');
 await tick(120);
 check('splash dismissed', splash.classList.contains('done'));
-check('student nav has 7 links', byClass(app, 'nav-link').length === 7);
+check('student nav has 6 links (no classes), Pro included', byClass(app, 'nav-link').length === 6 && !text(app).includes('صفوفي') && text(app).includes('برو'));
 check('mobile tabbar present', byClass(app, 'tabbar').length === 1);
 check('home tree is first content', byClass(app, 'view-root')[0] && byClass(app, 'stage').length === 1);
 check('community badge shows 3', text(app).includes('3'));
 check('wallet pill', text(app).includes('120'));
 check('route table: student /practice', !!main.matchRoute('/practice', 'student'));
-check('route table: teacher blocked from /practice', main.matchRoute('/practice', 'teacher') === null);
+check('route table: the internal account has no learning routes', main.matchRoute('/practice', 'platform_admin') === null);
+check('route table: there is no teacher product', main.matchRoute('/', 'teacher') === null && main.matchRoute('/', 'org_admin') === null);
 check('route table: params', main.matchRoute('/report/abc', 'parent').params.id === 'abc' && main.matchRoute('/checkout/pro', 'student').params.plan === 'pro');
-check('route table: / differs by role', main.matchRoute('/', 'teacher').route.view.name === 'teacherView' && main.matchRoute('/', 'parent').route.view.name === 'parentView' && main.matchRoute('/', 'student').route.view.name === 'homeView');
+check('route table: / differs by role', main.matchRoute('/', 'platform_admin').route.view.name === 'internalView' && main.matchRoute('/', 'parent').route.view.name === 'parentView' && main.matchRoute('/', 'student').route.view.name === 'homeView');
 check('parseHash query', main.parseHash('#/plans?paid=1&x=2').query.paid === '1' && main.parseHash('').path === '/');
-check('links per role', main.linksFor('teacher').length === 3 && main.linksFor('parent')[0][1] === 'أبنائي');
+check('links per role', main.linksFor('platform_admin').length === 0 && main.linksFor('teacher').length === 0 && main.linksFor('parent')[0][1] === 'أبنائي');
 location.hash = '#/plans'; window.__fire('hashchange'); await tick(60);
-check('navigates to plans', text(app).includes('قارن الباقات'));
+check('navigates to plans', text(app).includes('قارن بين المجاني وبرو'));
 check('active link highlighted', byClass(app, 'nav-link').filter((e) => e.classList.contains('on')).length === 1);
 location.hash = '#/nope'; window.__fire('hashchange'); await tick(30);
 check('unknown path redirects home', location.hash === '#/');

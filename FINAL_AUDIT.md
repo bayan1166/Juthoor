@@ -1,3 +1,5 @@
+> **Historical / internal document.** Written before the locked positioning. Where it describes teachers, schools, classrooms, a school pilot or Juthoor as a Grade 6 mathematics product, it is superseded: Juthoor is a general B2C learning platform (student = user, parent = buyer) and Grade 6 mathematics is only the current demo content. Educators appear only as internal reviewers. Current reference: `docs/POSITIONING.md`.
+
 # Final audit
 
 Team TechSparks - Juthoor. Written from the commands actually run; anything not run is marked **BLOCKED** with the reason.

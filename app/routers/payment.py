@@ -19,15 +19,15 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 
 @router.get("/plans")
 def catalogue():
-    return {"plans": [{**p, "limits": plans.LIMITS[p["id"]]} for p in plans.PLAN_CATALOG], "usp": plans.USP, "currency": "JOD"}
+    return {
+        "plans": [{**p, "limits": plans.LIMITS[p["id"]]} for p in plans.PLAN_CATALOG], "usp": plans.USP, "currency": "JOD",
+        "provider": "stripe" if settings.stripe_secret_key else ("mock" if _mock_allowed() else "none"),
+    }
 
 
 def _beneficiary(db: Session, payload: CheckoutStartRequest, user: User) -> User:
-    if payload.plan == "school":
-        if user.role not in plans.STAFF_ROLES:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "school_plan_for_teachers")
-        return user
-    if user.role in plans.STAFF_ROLES:
+    # B2C only: the learner buys for themselves, or a parent buys for their own child. No other account pays.
+    if user.role not in plans.BUYER_ROLES:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "pro_plan_for_students")
     if user.role == UserRole.parent:
         if payload.for_student_id is None:
@@ -39,16 +39,19 @@ def _beneficiary(db: Session, payload: CheckoutStartRequest, user: User) -> User
     return user
 
 
+def _mock_allowed() -> bool:
+    return bool(settings.demo_mode or settings.allow_mock_payments)
+
+
 def _grant(db: Session, row: CheckoutSession) -> None:
     target = db.get(User, row.beneficiary_id or row.user_id)
     now = datetime.utcnow()
     current = target.plan.value if hasattr(target.plan, "value") else str(target.plan)
     start = now
-    if current == row.plan and target.plan_expires_at and target.plan_expires_at > now and target.trial_ends_at is None:
+    if current == row.plan and target.plan_expires_at and target.plan_expires_at > now:
         start = target.plan_expires_at
     target.plan = PlanTierUser(row.plan)
     target.plan_expires_at = start + timedelta(days=plans.PERIOD_DAYS[row.period])
-    target.trial_ends_at = None
     row.status = CheckoutStatus.succeeded
 
 
@@ -71,6 +74,8 @@ def start_checkout(payload: CheckoutStartRequest, db: Session = Depends(get_db),
     target = _beneficiary(db, payload, user)
     amount = plans.price_for(payload.plan, payload.period)
     provider, ref, url = "mock", None, None
+    if not settings.stripe_secret_key and not _mock_allowed():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "payment_provider_not_configured")
     if settings.stripe_secret_key:
         try:
             import stripe
@@ -87,12 +92,13 @@ def start_checkout(payload: CheckoutStartRequest, db: Session = Depends(get_db),
                     "quantity": 1,
                 }],
                 success_url=f"{settings.public_url}/app/#/plans?paid=1",
-                cancel_url=f"{settings.public_url}/app/#/plans",
+                cancel_url=f"{settings.public_url}/app/#/plans?canceled=1",
                 metadata={"user_id": str(user.id), "plan": payload.plan},
             )
             provider, ref, url = "stripe", session.id, session.url
         except Exception:
-            provider, ref, url = "mock", None, None
+            # A configured real gateway that fails must never silently fall back to the mock.
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "payment_provider_unavailable")
     row = CheckoutSession(
         user_id=user.id, beneficiary_id=target.id, plan=payload.plan, period=payload.period,
         amount_minor=amount, currency="JOD", provider=provider, provider_ref=ref, status=CheckoutStatus.pending,
@@ -111,6 +117,8 @@ def confirm_checkout(payload: CheckoutConfirmRequest, db: Session = Depends(get_
     row = _own(db, payload.session_id, user)
     if row.provider != "mock":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "confirm_only_for_mock_provider")
+    if not _mock_allowed():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "payment_provider_not_configured")
     if row.status != CheckoutStatus.pending:
         raise HTTPException(status.HTTP_409_CONFLICT, "session_not_pending")
     if len(payload.card_last4) != 4 or not payload.card_last4.isdigit() or not payload.card_holder.strip():

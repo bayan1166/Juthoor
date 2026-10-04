@@ -57,3 +57,8 @@ class ReportIn(BaseModel):
     reason: Literal["bullying", "inappropriate", "contact_info", "spam", "other"]
     details: str = Field(default="", max_length=1000)
     also_block: bool = False
+
+
+class ReportResolve(BaseModel):
+    action: Literal["resolved", "dismissed"]
+    note: str = Field(default="", max_length=1000)

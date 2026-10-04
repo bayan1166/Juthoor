@@ -1,8 +1,6 @@
 import uuid
 
-from sqlalchemy import select
-
-from app.models.org import PlanTierUser, User
+from app.models.org import PlanTierUser, User, UserRole
 
 _counter = {"n": 0}
 
@@ -22,7 +20,14 @@ def set_plan(db, user_id, plan):
     user = db.get(User, uuid.UUID(str(user_id)))
     user.plan = PlanTierUser(plan)
     user.plan_expires_at = None
-    user.trial_ends_at = None
+    db.commit()
+    return user
+
+
+def make_internal_admin(db, user_id):
+    """Turn a registered account into the internal operations (moderation) account. It cannot be self-registered."""
+    user = db.get(User, uuid.UUID(str(user_id)))
+    user.role = UserRole.platform_admin
     db.commit()
     return user
 

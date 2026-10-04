@@ -32,18 +32,18 @@ export function upsellCard({ title, text, cta = 'عرض الباقات', href = 
 export function openUpsellModal(err) {
   const kind = err.upsell && err.upsell.type;
   const copy = {
-    quota: ['وصلت إلى حدّك اليومي', 'الباقة الأساسية تمنحك عدداً محدداً من الأسئلة ورسائل المعلم الذكي كل يوم. افتح الاستخدام غير المحدود مع باقة برو.'],
+    quota: ['وصلت إلى حدّك اليومي', 'الباقة المجانية تمنحك عدداً محدداً من الأسئلة ورسائل المساعد الذكي كل يوم. افتح الاستخدام غير المحدود مع باقة برو.'],
     plan: ['ميزة متاحة في باقة أعلى', err.message],
-    friends: ['أضف المزيد من الأصدقاء', 'الباقة الأساسية تسمح بثلاثة أصدقاء. باقة برو تفتح الأصدقاء بلا حد.'],
+    friends: ['أضف المزيد من الأصدقاء', 'الباقة المجانية تسمح بثلاثة أصدقاء. باقة برو تفتح الأصدقاء بلا حد.'],
   }[kind] || ['ميزة مدفوعة', err.message];
-  const target = err.upsell && err.upsell.plan === 'school' ? '#/plans' : '#/plans';
+  const target = '#/plans';
   const modal = openModal({
     title: copy[0],
     content: h('div', { class: 'col' }, h('p', null, copy[1]),
-      h('ul', { style: { margin: 0, paddingInlineStart: '20px' } }, h('li', null, 'كشف سلسلة الجذر كاملة'), h('li', null, 'تدريب ومعلم ذكي بلا حد يومي'), h('li', null, 'تقرير فجوة قابل للطباعة'))),
+      h('ul', { style: { margin: 0, paddingInlineStart: '20px' } }, h('li', null, 'كشف سلسلة الجذر كاملة'), h('li', null, 'تدريب ومساعد ذكي بلا حد يومي'), h('li', null, 'تقرير فجوة قابل للطباعة'))),
     actions: [
       { label: 'لاحقاً', kind: 'ghost' },
-      { label: 'عرض الباقات', kind: 'primary', onClick: () => { location.hash = target; } },
+      { label: 'ترقية إلى برو', kind: 'primary', onClick: () => { location.hash = target; } },
     ],
   });
   return modal;

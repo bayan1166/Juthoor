@@ -41,7 +41,7 @@ def submit_challenge(student_id: uuid.UUID, payload: ChallengeSubmitRequest, db:
 def create_challenge(season_id: uuid.UUID, skill_id: str, difficulty: int = 2, question_count: int = 10,
                       time_limit_seconds: int = 120, db: Session = Depends(get_db),
                       user: User = Depends(get_current_user)):
-    if user.role.value not in ("org_admin", "platform_admin", "teacher"):
+    if user.role.value != "platform_admin":  # challenges are created by Juthoor's internal content team
         raise HTTPException(status.HTTP_403_FORBIDDEN, "insufficient_role")
     season = db.get(EsportsSeason, season_id)
     if season is None:
