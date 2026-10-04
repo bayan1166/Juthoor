@@ -16,6 +16,21 @@ def register(client, role="student", **extra):
             "headers": {"Authorization": f"Bearer {data['access_token']}"}}
 
 
+def child_id_of(client, student):
+    """The Child ID shown in the learner's account (what a parent must enter to sign up)."""
+    code = client.get("/auth/me", headers=student["headers"]).json()["child_id"]
+    assert code, "learners always have a Child ID"
+    return code
+
+
+def register_parent(client, child=None, **extra):
+    """A parent account can only be created with a valid Child ID: registers the child first when none is given."""
+    child = child or register(client)
+    parent = register(client, role="parent", child_id=child_id_of(client, child), **extra)
+    parent["child"] = child
+    return parent
+
+
 def set_plan(db, user_id, plan):
     user = db.get(User, uuid.UUID(str(user_id)))
     user.plan = PlanTierUser(plan)

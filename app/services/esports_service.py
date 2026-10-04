@@ -4,10 +4,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
-from app.models.economy import Currency, TxnReason
 from app.models.esports import ChallengeAttempt, ChallengeStatus, EsportsChallenge
 from app.models.org import User
-from app.services.economy_service import apply_txn, get_or_create_wallet
 
 ACCURACY_WEIGHT = 0.7
 SPEED_WEIGHT = 0.3
@@ -36,16 +34,12 @@ def submit_attempt(db: Session, student_id: uuid.UUID, challenge_id: uuid.UUID,
         challenge_id=challenge_id, student_id=student_id, correct_count=correct_count,
         total_count=total_count, duration_seconds=duration_seconds, score=score,
     ))
-
-    wallet = get_or_create_wallet(db, student_id)
-    coins = 15 + round(score / 10)
-    apply_txn(db, wallet, Currency.coins, coins, TxnReason.challenge_reward, reference_id=str(challenge_id))
     db.commit()
 
     higher_count = len(db.scalars(select(ChallengeAttempt.id).where(
         ChallengeAttempt.challenge_id == challenge_id, ChallengeAttempt.score > score,
     )).all())
-    return {"score": score, "coins_awarded": coins, "rank_in_challenge": higher_count + 1}
+    return {"score": score, "rank_in_challenge": higher_count + 1}
 
 
 def leaderboard(db: Session, challenge_id: uuid.UUID, limit: int = 50) -> list[dict]:

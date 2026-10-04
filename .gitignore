@@ -5,5 +5,3 @@ __pycache__/
 chroma_store/
 node_modules/
 .pytest_cache/
-
-venv/

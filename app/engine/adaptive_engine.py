@@ -458,13 +458,35 @@ def decide_next(state: StudentState, is_correct: bool) -> Decision:
     state.p_mastery[skill] = bkt_update(state.mastery(skill), is_correct)
 
     decision = _handle_correct(state) if is_correct else _handle_incorrect(state)
-    if state.round_answered >= config.SESSION_LENGTH:
+    if round_over(state):
         decision.round_over = True
     return decision
 
 
+# At most this many answers past SESSION_LENGTH: enough to climb from the lowest to the highest difficulty once
+# (each correct answer raises the level by one, and a correct answer at the top level confirms mastery).
+ROUND_EXTENSION = config.MAX_DIFFICULTY - config.MIN_DIFFICULTY + 1
+
+
+def finishing_remediation(state: StudentState) -> bool:
+    """True while the learner is closing a named root gap: the current skill is that root, it is not yet
+    confirmed mastered, and its BKT estimate is above REMEDIATION_CONTINUE_P. Pacing only; BKT, the thresholds
+    and the diagnosis are untouched."""
+    skill = state.current_skill
+    return (skill in state.gaps and not state.is_mastered(skill)
+            and state.mastery(skill) > config.REMEDIATION_CONTINUE_P)
+
+
 def round_over(state: StudentState) -> bool:
-    return state.round_answered >= config.SESSION_LENGTH
+    """A round closes after SESSION_LENGTH answers, except that it stays open (for at most ROUND_EXTENSION more
+    answers) while the learner is finishing the remediation of a named root (see finishing_remediation). The exit
+    is the engine's own: mastery confirmed at the top level, an answer that drops the estimate to the threshold
+    or below, a park, or the cap."""
+    if state.round_answered < config.SESSION_LENGTH:
+        return False
+    if finishing_remediation(state) and state.round_answered < config.SESSION_LENGTH + ROUND_EXTENSION:
+        return False
+    return True
 
 
 def start_round(state: StudentState) -> None:

@@ -18,7 +18,7 @@ from app.main import app
 from app.models.adaptive import AttemptLog, DiagnosisEvent, SkillMastery, StudentAdaptiveState
 from app.models.org import User
 from scripts import seed_demo
-from tests.helpers import register, set_plan
+from tests.helpers import register, register_parent, set_plan
 
 
 def misconception_answer(db, s) -> str:
@@ -59,8 +59,8 @@ def play(client, db, s, ok: bool) -> dict:
 @pytest.fixture
 def omar(client, db):
     """A learner (Pro, bought by the parent) who has really mastered the first two lessons, now on multiplication."""
-    parent = register(client, role="parent")
-    s = register(client, guardian_id=parent["id"])
+    s = register(client)
+    parent = register_parent(client, s)
     set_plan(db, s["id"], "pro")
     user = db.get(User, uuid.UUID(s["id"]))
     seed_demo.prepare_story_student(db, user, "mult_div_integers")
@@ -261,7 +261,7 @@ def test_i_parent_sees_evidence_and_others_cannot(client, db, omar):
     causes = {a["skill_id"]: a["predicted_root_cause_skill"] for a in insights["struggle_alerts"]}
     assert causes.get("adding_integers") == "adding_integers"
 
-    stranger_parent = register(client, role="parent")
+    stranger_parent = register_parent(client)  # a parent of another child
     other_student = register(client)
     assert client.get(f"/students/{s['id']}/adaptive/diagnoses", headers=stranger_parent["headers"]).status_code == 403
     assert client.get(f"/students/{s['id']}/adaptive/diagnoses", headers=other_student["headers"]).status_code == 403
@@ -395,9 +395,10 @@ def test_r_failure_mid_answer_rolls_back_and_the_answer_can_be_resent(client, db
     before = db.get(StudentAdaptiveState, sid).total_answered
 
     def down(*_, **__):
-        raise OperationalError("UPDATE wallets", {}, Exception("connection lost"))
+        raise OperationalError("SELECT diagnosis_events", {}, Exception("connection lost"))
 
-    monkeypatch.setattr(engine_bridge, "grant_reward", down)
+    # fails after the state, attempt and drill-down rows were added, before the commit
+    monkeypatch.setattr(engine_bridge, "workflow_status", down)
     r = answer(client, student, right)
     assert r.status_code == 503 and r.json() == {"detail": "database_unavailable"}
     db.expire_all()

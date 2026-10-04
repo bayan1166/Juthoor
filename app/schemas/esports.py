@@ -30,7 +30,6 @@ class ChallengeSubmitRequest(BaseModel):
 
 class ChallengeSubmitResponse(BaseModel):
     score: float
-    coins_awarded: int
     rank_in_challenge: int
 
 

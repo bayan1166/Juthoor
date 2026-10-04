@@ -88,9 +88,13 @@ def history():
         status = ae.skill_status(state, d["root_skill"])
         stage = "resolved" if status == "mastered" else ("remediating" if on_root else "pending")
         tally = lambda rows: {"right": sum(r["ok"] for r in rows), "wrong": sum(not r["ok"] for r in rows)}  # noqa: E731
+        # same live fields as engine_bridge.diagnosis_history (recomputed from the current state on every call)
         out.append({**{k: v for k, v in d.items() if k != "at"},
-                    "outcome": {"stage": stage, "root_status": status, "root_after": tally(on_root),
-                                "origin_retry": tally(on_origin)}})
+                    "outcome": {"stage": stage, "root_status": status,
+                                "origin_status": ae.skill_status(state, d["origin_skill"]),
+                                "root_mastery": round(state.mastery(d["root_skill"]), 3),
+                                "origin_mastery": round(state.mastery(d["origin_skill"]), 3),
+                                "root_after": tally(on_root), "origin_retry": tally(on_origin)}})
     return out
 
 
@@ -155,7 +159,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/auth/me":
             return self._send(200, {**user, "email": next(k for k, v in USERS.items() if v is user), "grade_level": 6,
                                     "plan": "basic" if user["role"] == "parent" else os.environ.get("SIM_PLAN", "pro"),
-                                    "plan_source": "own", "plan_expires_at": None})
+                                    "plan_source": "own", "plan_expires_at": None,
+                                    "child_id": "1002-SIMULATE" if user["role"] == "student" else None})
         if path == "/me/students":
             if user["role"] != "parent":
                 return self._send(403, {"detail": "insufficient_role"})
@@ -166,7 +171,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, {"unread": 0, "requests": 0, "reports_open": 0})
         base = f"/students/{OMAR}/adaptive"
         if path == f"{base}/bootstrap":
-            return self._send(200, {"state": overview(), "wallet": {"coins": 50, "gems": 0}, "avatar": {}, "avatar_svg": "",
+            return self._send(200, {"state": overview(), "avatar": {}, "avatar_svg": "",
                                     "drilldowns": [], "drilldowns_hidden": 0, "plan": plan()})
         if path == f"{base}/state":
             return self._send(200, overview())
@@ -220,9 +225,10 @@ class Handler(BaseHTTPRequestHandler):
                                   "confidence": d["confidence"], "confidence_level": d["confidence_level"],
                                   "explanation": d["explanation"],
                                   "evidence": [{**e, "name_ar": name(e["skill"])} for e in d["evidence"]],
-                                  "intervention": d["intervention"]})
+                                  "intervention": d["intervention"],
+                                  "competing": [{"skill": s, "name_ar": name(s)} for s in d.get("competing") or []]})
             last = latest()
-            r.update(coins_awarded=0, gems_awarded=0, new_gaps=sorted(set(state.gaps) - before), gap_locked=False,
+            r.update(new_gaps=sorted(set(state.gaps) - before), gap_locked=False,
                      remaining_questions=None,
                      workflow=wf.workflow(state, last and {"origin": last["origin_skill"], "root": last["root_skill"],
                                                            "confidence": last["confidence"]}, r, pending["skill"]))

@@ -201,6 +201,7 @@ export async function authView(ctx) {
     const pw = passwordField('كلمة المرور (6 أحرف على الأقل)', 'new-password');
     const meterFill = h('i');
     const guardian = h('input', { class: 'input', type: 'email', placeholder: 'اختياري', dir: 'ltr' });
+    const childId = h('input', { class: 'input', required: true, dir: 'ltr', autocomplete: 'off', maxlength: '40', placeholder: '4821-K7Q2M9XD', 'aria-label': 'رمز الطالب (Child ID)', 'data-testid': 'child-id' });
     const err = errBox();
     const extra = h('div', { class: 'col' });
     pw.input.addEventListener('input', () => {
@@ -224,7 +225,11 @@ export async function authView(ctx) {
           row.appendChild(b);
         }
         genderRow.appendChild(row);
-        extra.appendChild(h('div', { class: 'field' }, h('label', null, 'بريد ولي الأمر (ليتابع تقريرك ويشترك لك في برو)'), guardian));
+        extra.appendChild(h('div', { class: 'field' }, h('label', null, 'بريد ولي الأمر إن كان لديه حساب في جذور (اختياري)'), guardian));
+      } else {
+        // A parent account is created only together with the link to the child (checked by the server).
+        extra.appendChild(h('div', { class: 'field' }, h('label', null, 'رمز الطالب (Child ID)'), childId,
+          h('div', { class: 'small muted' }, 'مطلوب لإنشاء حساب ولي الأمر. يجده ابنك في حسابه على جذور: قائمة الحساب أعلى الصفحة ← «رمز الطالب لولي الأمر».')));
       }
     }
     for (const k of Object.keys(labels)) {
@@ -247,6 +252,13 @@ export async function authView(ctx) {
       if (role === 'student') {
         body.gender = gender;
         if (guardian.value.trim()) body.guardian_email = guardian.value.trim();
+      } else {
+        if (!childId.value.trim()) {
+          err.textContent = 'أدخل رمز الطالب (Child ID) الذي يظهر في حساب ابنك.';
+          childId.focus();
+          return;
+        }
+        body.child_id = childId.value.trim();
       }
       await withBusy(submit, async () => {
         try {

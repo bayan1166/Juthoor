@@ -23,8 +23,7 @@ from app.schemas.auth import (
     ResetTokenOut, TokenResponse, VerifyCodeRequest,
 )
 from app.security import create_access_token, hash_password, verify_password
-from app.services import identity, plans
-from app.services.economy_service import get_or_create_wallet
+from app.services import child_link, identity, plans
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger("juthoor.auth")
@@ -76,16 +75,29 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
     if db.scalar(select(User).where(User.email == email)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "email_already_registered")
 
-    guardian_id = payload.guardian_id
-    if payload.guardian_email is not None and guardian_id is None:
-        found = db.scalar(select(User).where(User.email == str(payload.guardian_email).lower()))
-        if found is None or found.role != UserRole.parent:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "guardian_must_be_existing_parent")
-        guardian_id = found.id
-    if guardian_id is not None:
-        guardian = db.get(User, guardian_id)
-        if guardian is None or guardian.role != UserRole.parent:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "guardian_must_be_existing_parent")
+    guardian_id = None
+    child = None
+    if payload.role == UserRole.parent:
+        # A parent/guardian account is created only together with its link to an existing learner, so the
+        # database never holds a parent without a child. Everything is checked before any row is written.
+        if not child_link.normalise(payload.child_id):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "child_id_required")
+        child = child_link.resolve(db, payload.child_id, lock=True)
+        if child is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "child_id_invalid")
+        if child.guardian_id is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "child_already_linked")
+    else:
+        guardian_id = payload.guardian_id
+        if payload.guardian_email is not None and guardian_id is None:
+            found = db.scalar(select(User).where(User.email == str(payload.guardian_email).lower()))
+            if found is None or found.role != UserRole.parent:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "guardian_must_be_existing_parent")
+            guardian_id = found.id
+        if guardian_id is not None:
+            guardian = db.get(User, guardian_id)
+            if guardian is None or guardian.role != UserRole.parent:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "guardian_must_be_existing_parent")
 
     user = User(
         email=email,
@@ -99,13 +111,14 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
     db.add(user)
     db.flush()
 
+    if child is not None:
+        child.guardian_id = user.id  # same transaction as the parent row: both are saved or neither is
     if payload.role == UserRole.student:
         db.add(StudentAdaptiveState(student_id=user.id, current_skill="absolute_value", difficulty=1))
         cfg = AvatarConfig(student_id=user.id)
         if payload.gender:
             cfg.gender = payload.gender
         db.add(cfg)
-        get_or_create_wallet(db, user.id)
     db.commit()
     return _token_for(user)
 
@@ -132,7 +145,7 @@ def me(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return MeOut(
         user_id=user.id, handle=user.handle, email=user.email, full_name=user.full_name, role=user.role,
         grade_level=user.grade_level, plan=state.plan, plan_source=state.source,
-        plan_expires_at=state.expires_at,
+        plan_expires_at=state.expires_at, child_id=child_link.child_id_for(user),
     )
 
 

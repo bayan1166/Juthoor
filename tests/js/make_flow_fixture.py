@@ -45,7 +45,7 @@ def _step(sess, rng, answer_for, latest):
     if result["diagnosis"]:
         d = result["diagnosis"]
         latest = {"origin": d["origin"], "root": d["root"], "confidence": d["confidence"]}
-    result.update(coins_awarded=0, gems_awarded=0, new_gaps=found, gap_locked=False, remaining_questions=None,
+    result.update(new_gaps=found, gap_locked=False, remaining_questions=None,
                   workflow=wf.workflow(sess.state, latest, result, q["skill"]))
     question = {k: q.get(k) for k in QUESTION_KEYS}
     if result["round_over"]:

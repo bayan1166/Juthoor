@@ -1,7 +1,7 @@
 import uuid
 
 from app.models.adaptive import StudentAdaptiveState
-from tests.helpers import register, set_plan
+from tests.helpers import register, register_parent, set_plan
 
 
 def q_url(s):
@@ -102,16 +102,15 @@ def test_question_shape_and_no_answer_leak(client, student, db):
             assert q["options"] == []
 
 
-def test_correct_answer_rewards_and_levels_up(client, student, db):
+def test_correct_answer_levels_up_without_any_coin_reward(client, student, db):
     get_question(client, student)
     r = answer(client, student, served_answer(db, student))
     assert r.status_code == 200, r.text
     d = r.json()
     assert d["is_correct"] is True
     assert d["action"] == "level_up"
-    assert d["coins_awarded"] > 0
-    wallet = client.get(f"/students/{student['id']}/economy/wallet", headers=student["headers"]).json()
-    assert wallet["coins"] >= d["coins_awarded"]
+    assert "coins_awarded" not in d and "gems_awarded" not in d
+    assert client.get(f"/students/{student['id']}/economy/wallet", headers=student["headers"]).status_code == 404
 
 
 def test_wrong_answer_returns_feedback_and_starts_remediation(client, student, db):
@@ -153,7 +152,7 @@ def test_answer_without_question_is_rejected(client, student):
     assert answer(client, student, "1").status_code == 409
 
 
-def test_cannot_replay_an_answer_for_coins(client, student, db):
+def test_cannot_replay_an_answer(client, student, db):
     get_question(client, student)
     right = served_answer(db, student)
     assert answer(client, student, right).status_code == 200
@@ -223,8 +222,8 @@ def test_curriculum_skills(client):
 
 
 def test_parent_sees_only_their_children(client):
-    parent = register(client, role="parent")
-    kid = register(client, guardian_id=parent["id"])
+    kid = register(client)
+    parent = register_parent(client, kid)
     register(client)
     roster = client.get("/me/students", headers=parent["headers"]).json()
     assert [r["student_id"] for r in roster] == [kid["id"]]
@@ -234,8 +233,8 @@ def test_parent_sees_only_their_children(client):
 
 def test_parent_report_is_the_buyer_view_of_the_child(client, db):
     """B2C: the parent (buyer) reads the child's report; Pro unlocks the root chain there, never a teacher."""
-    parent = register(client, role="parent")
-    kid = register(client, guardian_id=parent["id"])
+    kid = register(client)
+    parent = register_parent(client, kid)
     free = client.get(f"/students/{kid['id']}/adaptive/report", headers=parent["headers"]).json()
     assert free["plan"]["plan"] == "basic" and free["diagnoses"] == []
     set_plan(db, kid["id"], "pro")
@@ -276,7 +275,7 @@ def test_demo_seed_script_runs(db, session_factory, monkeypatch):
     seed.main()
     seed.main()
     from app.models.org import User
-    assert db.query(User).count() == 7
+    assert db.query(User).count() == 8
 
 
 def test_tutor_detected_gap_becomes_next_question(client, student, db):
@@ -289,12 +288,14 @@ def test_tutor_detected_gap_becomes_next_question(client, student, db):
 
 
 def test_auth_me_and_guardian_email(client):
-    parent = register(client, role="parent")
-    kid = register(client, guardian_email=parent["email"])
+    parent = register_parent(client)
+    first = parent["child"]
+    kid = register(client, guardian_email=parent["email"])  # a second child links to the existing parent
     me = client.get("/auth/me", headers=kid["headers"]).json()
-    assert me["role"] == "student" and me["email"] == kid["email"]
+    assert me["role"] == "student" and me["email"] == kid["email"] and me["child_id"]
+    assert client.get("/auth/me", headers=parent["headers"]).json()["child_id"] is None
     roster = client.get("/me/students", headers=parent["headers"]).json()
-    assert [r["student_id"] for r in roster] == [kid["id"]]
+    assert sorted(r["student_id"] for r in roster) == sorted([first["id"], kid["id"]])
     bad = client.post("/auth/register", json={"email": "k2@test.com", "password": "secret123", "full_name": "K",
                                               "guardian_email": "nobody@test.com"})
     assert bad.status_code == 400
@@ -312,12 +313,11 @@ def test_avatar_requires_ownership(client, student, db):
     wearing = {**cfg, paid.cat: paid.id}
     assert client.put(f"{base}/avatar", json=wearing, headers=student["headers"]).status_code == 403
 
-    from app.models.economy import Currency, TxnReason
-    from app.services.economy_service import apply_txn, get_or_create_wallet
-    wallet = get_or_create_wallet(db, uuid.UUID(student["id"]))
-    apply_txn(db, wallet, Currency.coins, 10_000, TxnReason.admin_grant)
-    db.commit()
+    # The shop is gone: there is no way to buy the item any more, and an item already owned can still be worn.
     buy = client.post(f"{base}/purchase", json={"item_id": paid.id, "currency": "coins"}, headers=student["headers"])
-    assert buy.status_code == 200 and buy.json()["success"]
+    assert buy.status_code in (404, 405)
+    from app.models.economy import Currency, InventoryItem
+    db.add(InventoryItem(student_id=uuid.UUID(student["id"]), item_id=paid.id, currency_spent=Currency.coins, price_paid=0))
+    db.commit()
     assert client.put(f"{base}/avatar", json=wearing, headers=student["headers"]).status_code == 200
     assert client.get(f"{base}/avatar", headers=student["headers"]).json()[paid.cat] == paid.id

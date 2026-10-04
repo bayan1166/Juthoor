@@ -7,6 +7,13 @@ SESSION_LENGTH = 5
 
 MASTERY_THRESHOLD = 0.85
 
+# Round pacing only (never used by the diagnosis): a round normally closes after SESSION_LENGTH answers. While a
+# named root gap is being remediated and its BKT mastery estimate is already above this value, but the engine has
+# not yet confirmed mastery (that still needs a correct answer at MAX_DIFFICULTY with p >= MASTERY_THRESHOLD), the
+# round is kept open so a learner who is doing well keeps getting questions instead of a "round finished" screen.
+# The extension is bounded (see adaptive_engine.ROUND_EXTENSION).
+REMEDIATION_CONTINUE_P = 0.95
+
 
 BKT = {
     "p_init": 0.3,

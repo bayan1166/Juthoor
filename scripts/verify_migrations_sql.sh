@@ -44,6 +44,8 @@ check "old: correct>attempts repaired"             "$(q juthoor_mig_old "select 
 check "old: valid row preserved exactly"           "$(q juthoor_mig_old "select p_mastery||'/'||attempts||'/'||correct from skill_mastery where id='10000000-0000-0000-0000-000000000005'")" "0.4/1/1"
 check "old: diagnosis row preserved"               "$(q juthoor_mig_old "select count(*) from diagnosis_events")" "1"
 check "old: diagnosis_events gained explanation"   "$(q juthoor_mig_old "select count(*) from information_schema.columns where table_name='diagnosis_events' and column_name in ('confidence_level','explanation')")" "2"
+check "old: 0005 adds diagnosis_events.competing (nullable)" "$(q juthoor_mig_old "select is_nullable from information_schema.columns where table_name='diagnosis_events' and column_name='competing'")" "YES"
+check "old: 0005 keeps the existing diagnosis row" "$(q juthoor_mig_old "select count(*) from diagnosis_events where competing is null")" "1"
 check "old: retired 0004 leaves the legacy organizations table untouched" "$(q juthoor_mig_old "select count(*) from information_schema.columns where table_name='organizations' and column_name='join_code_hash'")" "0"
 check "old: legacy organizations rows are not destroyed" "$(q juthoor_mig_old "select count(*) from organizations")" "1"
 check "old: answer_receipts exists"                "$(q juthoor_mig_old "select to_regclass('answer_receipts') is not null")" "t"
@@ -66,7 +68,7 @@ CREATE TABLE skill_mastery (id uuid PRIMARY KEY, student_id uuid REFERENCES user
   CONSTRAINT uq_skill_mastery_student_skill UNIQUE (student_id, skill_id),
   CONSTRAINT ck_skill_mastery_p_open_interval CHECK (p_mastery > 0 AND p_mastery < 1),
   CONSTRAINT ck_skill_mastery_counts CHECK (attempts >= 0 AND correct >= 0 AND correct <= attempts));
-CREATE TABLE diagnosis_events (id uuid PRIMARY KEY, student_id uuid REFERENCES users(id), root_skill text, confidence_level varchar(10), explanation text);
+CREATE TABLE diagnosis_events (id uuid PRIMARY KEY, student_id uuid REFERENCES users(id), root_skill text, confidence_level varchar(10), explanation text, competing json);
 CREATE TABLE answer_receipts (student_id uuid NOT NULL REFERENCES users(id), request_id varchar(64) NOT NULL, response json NOT NULL, created_at timestamp NOT NULL DEFAULT now(), PRIMARY KEY (student_id, request_id));
 SQL
 run_all juthoor_mig_fresh

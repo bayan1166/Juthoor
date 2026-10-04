@@ -58,7 +58,7 @@ def get_db():
 # columns to an existing table, so an older database would fail at query time. Each entry is
 # additive and nullable, which keeps the upgrade safe to run on every start.
 ADDED_COLUMNS = {
-    "diagnosis_events": {"confidence_level": "VARCHAR(10)", "explanation": "TEXT"},
+    "diagnosis_events": {"confidence_level": "VARCHAR(10)", "explanation": "TEXT", "competing": "JSON"},
 }
 
 

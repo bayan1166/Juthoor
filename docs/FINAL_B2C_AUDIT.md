@@ -58,7 +58,7 @@ Pro is owned by the learner, or bought by a parent for their own child.
 - Mock checkout only in demo mode or with `ALLOW_MOCK_PAYMENTS`; a failing real provider never falls back to the mock.
 
 ### Product surfaces kept (checked, coherent with B2C)
-- **Community** (friends, messages, blocking, reporting) and the **avatar shop**: existing student features, hidden in judge mode,
+- **Community** (friends, messages, blocking, reporting): an existing student feature, hidden in judge mode (the avatar shop and the coin/gem economy were removed later, see `docs/UI_BEHAVIOUR_CHANGES.md`),
   no teacher/school dependency. Safety reports are now reviewed by the internal moderation account.
 - **Parent report** now includes the explainable diagnosis record (origin, root, ordinal confidence, evidence, next step, outcome).
 

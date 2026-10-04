@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from app.config import settings
-from tests.helpers import handle_of, make_internal_admin, register, set_plan
+from tests.helpers import handle_of, make_internal_admin, register, register_parent, set_plan
 
 STUDENT_QUESTIONS_LIMIT = 20
 TUTOR_LIMIT = 5
@@ -154,8 +154,8 @@ def test_plan_purchase_rules_by_role(client, db):
 
 
 def test_parent_buys_pro_for_child(client):
-    parent = register(client, "parent")
-    child = register(client, "student", guardian_email=parent["email"])
+    parent = register_parent(client)
+    child = parent["child"]
     stranger = register(client)
     assert client.post("/payments/checkout", json={"plan": "pro"}, headers=parent["headers"]).status_code == 400
     assert client.post("/payments/checkout", json={"plan": "pro", "for_student_id": stranger["id"]}, headers=parent["headers"]).status_code == 403
@@ -211,10 +211,11 @@ def test_avatar_options_previews_and_ownership(client):
     assert options["skins"] and options["hair_styles"] and options["hair_colors"]
     previews = client.get(f"{base}/previews", headers=student["headers"]).json()
     assert any(k.startswith("skin:") for k in previews) and all("svg" in v for v in previews.values())
-    catalog = client.get(f"{base}/catalog", headers=student["headers"]).json()
-    locked = next(item for item in catalog if not item["owned"] and item["category"] == "clothing")
+    from app.engine import avatar_items as ai
+    assert client.get(f"{base}/catalog", headers=student["headers"]).status_code == 404  # the coin shop is gone
+    locked = next(item for item in ai.CATALOG if item.cat == "clothing" and item.price > 0)
     avatar = client.get(f"{base}/avatar", headers=student["headers"]).json()
-    res = client.put(f"{base}/avatar", json={**avatar, "clothing": locked["id"]}, headers=student["headers"])
+    res = client.put(f"{base}/avatar", json={**avatar, "clothing": locked.id}, headers=student["headers"])
     assert res.status_code == 403
     saved = client.put(f"{base}/avatar", json={**avatar, "skin": options["skins"][-1]["id"]}, headers=student["headers"])
     assert saved.status_code == 200 and saved.json()["svg"].startswith("<svg")
@@ -347,7 +348,7 @@ def test_report_flow_and_internal_moderation_review(client, db):
     rid = reports[0]["report_id"]
     thread = client.get(f"/moderation/reports/{rid}", headers=moderator["headers"]).json()["thread"]
     assert any(m["flagged"] and m["body"] == "you are annoying" for m in thread)
-    parent = register(client, role="parent")
+    parent = register_parent(client)
     for outsider in (parent, a, b):
         assert client.get("/moderation/reports", headers=outsider["headers"]).status_code == 403
         assert client.post(f"/moderation/reports/{rid}/resolve", json={"action": "resolved"}, headers=outsider["headers"]).status_code == 403
@@ -363,8 +364,8 @@ def test_a_named_gap_reaches_the_learner_and_their_parent_only(client, db):
     from app.models.adaptive import StudentAdaptiveState
     from app.models.org import User
     from scripts import seed_demo
-    parent = register(client, role="parent")
-    kid = register(client, guardian_id=parent["id"])
+    kid = register(client)
+    parent = register_parent(client, kid)
     set_plan(db, kid["id"], "pro")
     row = db.get(StudentAdaptiveState, uuid.UUID(kid["id"]))
     row.current_skill = "mult_div_integers"
@@ -377,7 +378,7 @@ def test_a_named_gap_reaches_the_learner_and_their_parent_only(client, db):
     assert tree["root_gap"]["found"] and not tree["root_gap"]["locked"] and tree["root_gap"]["skill"] in gaps
     report = client.get(f"/students/{kid['id']}/adaptive/report", headers=parent["headers"]).json()
     assert report["gap_locked"] is False and report["plan"]["plan"] == "pro"
-    stranger = register(client, role="parent")
+    stranger = register_parent(client)  # parent of another child
     assert client.get(f"/students/{kid['id']}/adaptive/tree", headers=stranger["headers"]).status_code == 403
 
 

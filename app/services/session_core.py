@@ -11,7 +11,6 @@ from app.engine import offline_bank as ob
 from app.engine import practice as pr
 
 RECENT_LIMIT = 12
-CORRECT_COINS_NORMAL = "normal"
 
 
 @dataclass

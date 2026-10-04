@@ -15,7 +15,6 @@ from app.models.adaptive import (AnswerReceipt, AttemptLog, DiagnosisEvent, Dril
                                  StudentAdaptiveState)
 from app.schemas.common import z
 from app.services import workflow as wf
-from app.services.economy_service import grant_reward
 
 logger = logging.getLogger("juthoor.engine")
 
@@ -260,13 +259,13 @@ def submit_answer(db: Session, student_id: uuid.UUID, selected: str, is_remedial
         db.add(DiagnosisEvent(
             created_at=now, student_id=student_id, origin_skill=found["origin"], root_skill=found["root"],
             confidence=found["confidence"], confidence_level=found.get("confidence_level"),
-            explanation=found.get("explanation"), p_gap=found["p_gap"], evidence=found["evidence"], path=found["path"]))
+            explanation=found.get("explanation"), p_gap=found["p_gap"], evidence=found["evidence"], path=found["path"],
+            competing=list(found.get("competing") or [])))
 
-    reward = grant_reward(db, student_id, is_correct=result["is_correct"], action=result["action"])
     db.flush()  # autoflush is off: make the new rows visible to the workflow query below
     result.pop("events")
     result.pop("engine_action")
-    result.update(coins_awarded=reward.coins, gems_awarded=reward.gems, new_gaps=sorted(new_gaps),
+    result.update(new_gaps=sorted(new_gaps),
                   workflow=workflow_status(db, student_id, sess.state, result, answered_skill=pending["skill"]))
     if request_id:
         db.add(AnswerReceipt(student_id=student_id, request_id=request_id,
@@ -296,8 +295,10 @@ def _tally(rows) -> dict:
 def diagnosis_history(db: Session, student_id: uuid.UUID, limit: int = 10) -> list[dict]:
     """Persisted diagnoses with their evidence and what happened afterwards.
 
-    The outcome is computed from the attempt log after each diagnosis: answers on the root
-    (remediation) and answers on the original lesson (the retry), plus the root's current status.
+    The diagnosis itself (origin, root, confidence, evidence, competing candidates) is what the engine decided at
+    the time. Everything about *now* is recomputed on every call from the live learner state and the attempt log:
+    answers on the root (remediation) and on the original lesson (the retry), the current status and BKT mastery
+    estimate of both, so a report always reflects where the learner is today.
     """
     events = db.scalars(select(DiagnosisEvent).where(DiagnosisEvent.student_id == student_id)
                         .order_by(DiagnosisEvent.created_at.desc()).limit(limit)).all()
@@ -315,6 +316,7 @@ def diagnosis_history(db: Session, student_id: uuid.UUID, limit: int = 10) -> li
         on_root = [a for a in after if a.skill_id == ev.root_skill]
         on_origin = [a for a in after if a.skill_id == ev.origin_skill] if ev.origin_skill != ev.root_skill else []
         root_status = ae.skill_status(state, ev.root_skill) if ev.root_skill in kg.SKILLS else "unknown"
+        origin_status = ae.skill_status(state, ev.origin_skill) if ev.origin_skill in kg.SKILLS else "unknown"
         if root_status in ("mastered",):
             stage = "resolved"
         elif on_root:
@@ -332,9 +334,14 @@ def diagnosis_history(db: Session, student_id: uuid.UUID, limit: int = 10) -> li
             "explanation": ev.explanation or "",
             "evidence": evidence,
             "intervention": kg.SKILLS[ev.root_skill].intervention if ev.root_skill in kg.SKILLS else "",
+            "competing": [{"skill": s, "name_ar": _name_ar(s)} for s in (ev.competing or []) if isinstance(s, str)],
             "outcome": {
                 "stage": stage,
                 "root_status": root_status,
+                "origin_status": origin_status,
+                # live BKT mastery estimates (the engine's own p_mastery), not a separate percentage
+                "root_mastery": round(state.mastery(ev.root_skill), 3) if ev.root_skill in kg.SKILLS else None,
+                "origin_mastery": round(state.mastery(ev.origin_skill), 3) if ev.origin_skill in kg.SKILLS else None,
                 "root_after": _tally(on_root),
                 "origin_retry": _tally(on_origin),
             },

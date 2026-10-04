@@ -57,6 +57,18 @@ function tally(t) {
   return `${t.right} صحيحة و${t.wrong} خاطئة`;
 }
 
+const LESSON_STATUS = { mastered: 'متقن', gap: 'فجوة قيد العلاج', learning: 'قيد التعلّم', untouched: 'لم يبدأ بعد' };
+
+// Live part of a record (recomputed by the backend on every request): current mastery of the root and status
+// of the original lesson, so the report follows the learner instead of freezing at the moment of diagnosis.
+function liveLine(dg) {
+  const o = dg.outcome || {};
+  const parts = [];
+  if (typeof o.root_mastery === 'number') parts.push(`إتقان «${dg.root_name_ar}» الآن: ${Math.round(o.root_mastery * 100)}%`);
+  if (dg.origin_skill !== dg.root_skill && o.origin_status) parts.push(`الدرس الأصلي «${dg.origin_name_ar}»: ${LESSON_STATUS[o.origin_status] || o.origin_status}`);
+  return parts.length ? h('div', { class: 'small', 'data-testid': 'diagnosis-live' }, h('b', null, 'الحالة الآن: '), parts.join(' | ')) : null;
+}
+
 // The explainable diagnosis record for the parent: where the gap started, the evidence, the honest
 // confidence level, the suggested intervention and what happened after it (remediation, retry).
 export function diagnosisRecord(report) {
@@ -71,10 +83,12 @@ export function diagnosisRecord(report) {
       h('div', { class: 'small' }, h('b', null, 'الجذر الأرجح: '), dg.root_name_ar, ` | الثقة: ${dg.confidence}`, ` | ${timeAgo(dg.created_at)}`),
       dg.explanation ? h('div', { class: 'small' }, dg.explanation) : null,
       (dg.evidence || []).length ? h('div', { class: 'small muted' }, 'الأدلة: ', dg.evidence.map((e) => `${e.name_ar}: ${e.wrong} خاطئة و${e.right} صحيحة`).join(' | ')) : null,
+      (dg.competing || []).length ? h('div', { class: 'small' }, h('b', null, 'مرشح آخر محتمل: '), dg.competing.map((c) => `«${c.name_ar}»`).join('، '), '، لذلك خُفّضت الثقة.') : null,
       dg.intervention ? h('div', { class: 'small' }, h('b', null, 'الخطوة التالية المقترحة: '), dg.intervention) : null,
       h('div', { class: 'small' }, h('b', null, 'بعد التشخيص: '), STAGE[dg.outcome.stage] || dg.outcome.stage,
         ` | على الجذر: ${tally(dg.outcome.root_after)}`,
-        dg.origin_skill !== dg.root_skill ? ` | إعادة المحاولة على «${dg.origin_name_ar}»: ${tally(dg.outcome.origin_retry)}` : ''))),
+        dg.origin_skill !== dg.root_skill ? ` | إعادة المحاولة على «${dg.origin_name_ar}»: ${tally(dg.outcome.origin_retry)}` : ''),
+      liveLine(dg))),
     h('p', { class: 'small muted', style: { margin: 0 } }, 'التشخيص تقدير مبني على الأدلة، والثقة مستوى وليست نسبة احتمال.'));
 }
 
@@ -122,15 +136,18 @@ export async function parentView(ctx) {
   let ctrl = null;
   ctx.onDestroy(() => { if (ctrl) ctrl.destroy(); });
 
-  async function load() {
+  async function load(silent = false) {
     const kid = kids.find((k) => k.student_id === childId);
-    if (ctrl) { ctrl.destroy(); ctrl = null; }
-    mount(body, skeleton(4, true));
+    if (!silent) {
+      if (ctrl) { ctrl.destroy(); ctrl = null; }
+      mount(body, skeleton(4, true));
+    }
     try {
       const [tree, report, insights] = await Promise.all([
         api.get(`/students/${childId}/adaptive/tree`), api.get(`/students/${childId}/adaptive/report`), api.get(`/students/${childId}/insights`),
       ]);
       if (ctx.destroyed) return;
+      if (ctrl) { ctrl.destroy(); ctrl = null; }
       const holder = h('div');
       const planChip = h('span', { class: ['chip', report.plan.plan === 'basic' ? '' : 'green'] }, report.plan.plan === 'basic' ? 'الباقة المجانية' : 'برو');
       mount(body,
@@ -151,9 +168,17 @@ export async function parentView(ctx) {
           h('div', { class: 'card kpi' }, h('span', { class: 'v' }, String(insights.engagement.active_days_last_30)), h('span', { class: 'l' }, 'يوم نشاط خلال 30 يوماً'))));
       ctrl = renderTreeStage(holder, tree, { embedded: true, canPractice: false, studentId: childId, title: `صحة شجرة ${kid.full_name}` });
     } catch (err) {
-      mount(body, errorPanel(err, load));
+      if (!silent) mount(body, errorPanel(err, () => load()));
     }
   }
+
+  // The report follows the child: coming back to this tab re-reads the live state (mastery, remediation,
+  // retry outcome) instead of keeping what was loaded earlier.
+  const onVisible = () => {
+    if (!document.hidden && !ctx.destroyed) load(true);
+  };
+  document.addEventListener('visibilitychange', onVisible);
+  ctx.onDestroy(() => document.removeEventListener('visibilitychange', onVisible));
 
   picker.addEventListener('change', () => {
     childId = picker.value;
@@ -185,8 +210,8 @@ export async function reportView(ctx) {
           h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => shareOnWhatsApp(reportText({ name: report.student.full_name, tree, report, insights })) }, ico('send'), 'مشاركة عبر واتساب'),
           h('button', { class: 'btn btn-primary', onclick: () => window.print() }, ico('print'), 'طباعة التقرير'))),
       h('div', { class: 'report' },
-        h('div', { class: 'row between' }, h('div', null, h('h1', { style: { marginBottom: '2px' } }, 'تقرير مسح الجذر'), h('div', { class: 'muted' }, `${report.student.full_name} | ${fmtDate(new Date().toISOString())}`)), h('b', { style: { fontSize: '1.6rem', color: '#12684A' } }, 'جذور')),
-        h('hr', { style: { border: 'none', borderTop: '1px solid #DCE8E0', margin: '18px 0' } }),
+        h('div', { class: 'row between' }, h('div', null, h('h1', { style: { marginBottom: '2px' } }, 'تقرير مسح الجذر'), h('div', { class: 'muted' }, `${report.student.full_name} | ${fmtDate(new Date().toISOString())}`)), h('b', { class: 'report-brand' }, 'جذور')),
+        h('hr', { class: 'report-rule' }),
         h('div', { class: 'grid g3' },
           h('div', { class: 'kpi' }, h('span', { class: 'v' }, `${Math.round(tree.tree_health * 100)}%`), h('span', { class: 'l' }, 'صحة الشجرة')),
           h('div', { class: 'kpi' }, h('span', { class: 'v' }, `${s.mastered}/${s.live}`), h('span', { class: 'l' }, 'دروس متقنة')),

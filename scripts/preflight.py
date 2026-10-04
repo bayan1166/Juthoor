@@ -258,6 +258,35 @@ def main(argv=None):
         rooms = call(base, "GET", "/classrooms", token=ctx["omar"][0])[0]
         return reg == 422 and rooms == 404, f"teacher signup {reg}, /classrooms {rooms}"
     check("no teacher/school product: teacher signup refused and no classroom API", no_teacher_product)
+
+    def parent_needs_child_id():
+        token, uid = ctx["omar"]
+        code = call(base, "GET", "/auth/me", token=token)[1].get("child_id")
+        body = {"password": "check1234", "full_name": "Preflight Parent", "role": "parent"}
+        missing = call(base, "POST", "/auth/register", {**body, "email": f"preflight-p1{stamp}@check.jo"})
+        wrong = call(base, "POST", "/auth/register", {**body, "email": f"preflight-p2{stamp}@check.jo", "child_id": "1000-AAAAAAAA"})
+        taken = call(base, "POST", "/auth/register", {**body, "email": f"preflight-p3{stamp}@check.jo", "child_id": code})
+        ok = (bool(code) and (missing[0], missing[1].get("detail")) == (400, "child_id_required")
+              and (wrong[0], wrong[1].get("detail")) == (400, "child_id_invalid")
+              and (taken[0], taken[1].get("detail")) == (409, "child_already_linked"))
+        return ok, f"no Child ID {missing[0]}, wrong Child ID {wrong[0]}, already-linked child {taken[0]}"
+    check("parent signup needs a valid, unclaimed Child ID (no parent account without a child)", parent_needs_child_id)
+
+    def no_economy():
+        token, uid = ctx["omar"]
+        wallet = call(base, "GET", f"/students/{uid}/economy/wallet", token=token)[0]
+        boot = call(base, "GET", f"/students/{uid}/adaptive/bootstrap", token=token)[1]
+        return wallet == 404 and "wallet" not in boot, f"wallet API {wallet}, bootstrap has wallet: {'wallet' in boot}"
+    check("no coins, gems or shop: the wallet API is gone and the learner payload has no wallet", no_economy)
+
+    if ctx.get("parent"):
+        def live_record():
+            pt, child_id, _ = ctx["parent"]
+            records = call(base, "GET", f"/students/{child_id}/adaptive/diagnoses", token=pt)[1].get("diagnoses") or []
+            o = records[0]["outcome"] if records else {}
+            return isinstance(o.get("root_mastery"), (int, float)) and "origin_status" in o, \
+                f"root_mastery={o.get('root_mastery')} origin_status={o.get('origin_status')}"
+        check("the diagnosis record carries the live mastery of the root (the report follows the learner)", live_record)
     return finish()
 
 
