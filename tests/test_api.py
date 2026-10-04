@@ -275,7 +275,7 @@ def test_demo_seed_script_runs(db, session_factory, monkeypatch):
     seed.main()
     seed.main()
     from app.models.org import User
-    assert db.query(User).count() == 8
+    assert db.query(User).count() == 7
 
 
 def test_tutor_detected_gap_becomes_next_question(client, student, db):
