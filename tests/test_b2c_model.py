@@ -9,7 +9,7 @@ import pytest
 
 from app.config import settings
 from app.services import plan_rules
-from tests.helpers import make_internal_admin, register
+from tests.helpers import make_internal_admin, register, register_parent
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -59,8 +59,8 @@ def test_only_students_and_parents_can_buy(client, db):
 
 
 def test_parent_is_the_buyer_and_only_for_their_own_child(client):
-    parent = register(client, "parent")
-    child = register(client, "student", guardian_email=parent["email"])
+    parent = register_parent(client)
+    child = parent["child"]
     stranger = register(client)
     assert client.post("/payments/checkout", json={"plan": "pro", "for_student_id": stranger["id"]},
                        headers=parent["headers"]).status_code == 403
@@ -76,8 +76,8 @@ def test_parent_is_the_buyer_and_only_for_their_own_child(client):
 
 
 def test_subscription_is_owned_by_the_learner_or_bought_by_their_parent(client):
-    parent = register(client, "parent")
-    child = register(client, guardian_id=parent["id"])
+    parent = register_parent(client)
+    child = parent["child"]
     own = register(client)
     for buyer, body, beneficiary in ((parent, {"plan": "pro", "for_student_id": child["id"]}, child), (own, {"plan": "pro"}, own)):
         sid = client.post("/payments/checkout", json=body, headers=buyer["headers"]).json()["session_id"]

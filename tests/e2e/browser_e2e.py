@@ -45,6 +45,9 @@ class DbOracle:
                 raise SystemExit("Omar's demo account is missing: run python run_demo.py --reset first")
             self.student_id = user.id
 
+    def student_id_for_report(self) -> str:
+        return str(self.student_id)
+
     def pending(self) -> dict:
         from app.models.adaptive import StudentAdaptiveState
         with self.Session() as db:
@@ -71,8 +74,36 @@ class SimOracle:
     def persisted(self):
         return None
 
+    def student_id_for_report(self) -> str:
+        return "00000000-0000-4000-8000-000000000002"
+
 
 results = []
+
+# Smallest WCAG contrast ratio among visible text inside the given selectors (fg vs the first opaque background
+# up the tree). Elements on gradient/brand surfaces (.upsell, buttons) and SVG text are skipped.
+CONTRAST_JS = """(sel) => {
+  const parse = (s) => { const m = s && s.match(/rgba?\\(([^)]+)\\)/); if (!m) return null;
+    const p = m[1].split(',').map((x) => parseFloat(x)); return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 }; };
+  const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+  const bgOf = (el) => { for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor);
+    if (c && c.a > 0.5) return c; } return parse(getComputedStyle(document.body).backgroundColor); };
+  let worst = 99, sample = '', n = 0;
+  for (const host of document.querySelectorAll(sel)) {
+    for (const el of host.querySelectorAll('*')) {
+      if (el.closest('.upsell, svg, button, .btn, .chip.lime')) continue;
+      const own = Array.from(el.childNodes).some((t) => t.nodeType === 3 && t.textContent.trim());
+      if (!own || !el.getClientRects().length) continue;
+      const fg = parse(getComputedStyle(el).color), bg = bgOf(el);
+      if (!fg || !bg) continue;
+      const a = lum(fg), b = lum(bg), ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      n += 1;
+      if (ratio < worst) { worst = ratio; sample = el.textContent.trim().slice(0, 40) + ' [' + getComputedStyle(el).color + ' on ' + JSON.stringify(bg) + ']'; }
+    }
+  }
+  return { worst: Math.round(worst * 100) / 100, sample, n };
+}"""
 
 
 def check(name, ok, note=""):
@@ -131,16 +162,21 @@ def run(base: str, oracle, headed: bool, shots: Path) -> int:
         page.wait_for_selector("svg.scene .leaf", timeout=15000)
         check("demo login lands on the learner's tree first", page.evaluate("location.hash") in ("#/", "") and page.locator(".leaf.cur").count() == 1,
               page.evaluate("location.hash"))
+        nav = page.locator("nav").first.inner_text()
+        check("no coins, gems, wallet or shop in the learner's navigation",
+              page.locator(".pill.coin, .pill.gem").count() == 0 and "المتجر" not in nav, nav[:120])
         page.get_by_role("link", name="تابع التدريب").first.click()
         page.wait_for_selector(".q-card", timeout=15000)
         page.wait_for_selector("[data-testid=workflow]", timeout=10000)
         check("learner opens practice; diagnosis stepper visible", stage(page) in ("practising", "gathering_evidence"), stage(page))
         check("current lesson is shown on the question", ORIGIN_NAME in page.locator(".q-card").inner_text())
 
-        stages, diagnosed = [], False
+        stages, diagnosed, early_ctas = [], False, 0
         for n in range(10):
             answer(page, oracle.pending(), mistake=True)
             stages.append(stage(page))
+            if stages[-1] != "root_identified":
+                early_ctas += page.locator("[data-testid=root-cta]").count()
             if n == 0:
                 page.get_by_role("button", name="اعرض الشرح").first.click()
                 explain = page.locator(".explain").first.inner_text()
@@ -152,10 +188,19 @@ def run(base: str, oracle, headed: bool, shots: Path) -> int:
                 break
             next_question(page)
         check("wrong answers gather evidence before any diagnosis", diagnosed and all(s == "gathering_evidence" for s in stages[:-1]), stages)
+        check("no «root found» button while the evidence is insufficient", early_ctas == 0, early_ctas)
         card = page.wait_for_selector("[data-testid=diagnosis-card]", timeout=15000)
         text = card.inner_text()
         check("diagnosis card: root, confidence, evidence, why, remediation",
               all(k in text for k in (ROOT_NAME, "الثقة", "الأدلة", "لماذا هذا الدرس؟", "الخطة العلاجية")), text[:160])
+        cta = page.locator("[data-testid=root-cta]")
+        check("root identified -> one clear «ظهر جذر المشكلة» button", cta.count() == 1 and "ظهر جذر المشكلة" in cta.first.inner_text(),
+              cta.count())
+        cta.first.click()
+        panel = page.wait_for_selector("[data-testid=root-diagnosis]", timeout=10000).inner_text()
+        check("the button opens the diagnosis card: problem, root, why, confidence, mastery %, next step",
+              all(k in panel for k in (ORIGIN_NAME, ROOT_NAME, "لماذا", "مستوى الثقة", "%", "ماذا سنفعل الآن")), panel[:200])
+        first_mastery = int(page.inner_text("[data-testid=dx-mastery]").split("%")[0])
         page.screenshot(path=str(shots / "1_diagnosis.png"), full_page=True)
 
         seen, posts_before = [], None
@@ -189,6 +234,16 @@ def run(base: str, oracle, headed: bool, shots: Path) -> int:
             else:
                 answer(page, pending, mistake=False)
             current = stage(page)
+            if i == 3:
+                # The card is read from the backend each time it is opened: mastery follows the learner.
+                flow_cta = page.locator("[data-testid=root-cta]")
+                check("the «root found» button stays available during remediation / retry", flow_cta.count() == 1, (current, flow_cta.count()))
+                if flow_cta.count():
+                    flow_cta.first.click()
+                    page.wait_for_selector("[data-testid=dx-mastery]", timeout=10000)
+                    later = int(page.inner_text("[data-testid=dx-mastery]").split("%")[0])
+                    check("the diagnosis card shows the CURRENT mastery (it rose after correct answers)", later > first_mastery,
+                          f"{first_mastery}% -> {later}%")
             if not seen or seen[-1] != current:
                 seen.append(current)
             if current == "resolved":
@@ -200,6 +255,7 @@ def run(base: str, oracle, headed: bool, shots: Path) -> int:
         page.wait_for_selector("[data-testid=workflow]", timeout=15000)
         page.wait_for_function("document.querySelector('[data-testid=workflow]').dataset.stage === 'resolved'", timeout=10000)
         check("refresh keeps the learner state (served from the backend)", stage(page) == "resolved")
+        check("no «root found» button once the gap is closed", page.locator("[data-testid=root-cta]").count() == 0)
 
         page.evaluate("localStorage.removeItem('juthoor.token')")
         page.goto(base + "/app/#/login")
@@ -213,7 +269,23 @@ def run(base: str, oracle, headed: bool, shots: Path) -> int:
         record = page.locator("[data-testid=diagnosis-record]").inner_text()
         check("parent report shows origin, root, confidence, evidence, next step and outcome",
               all(k in record for k in ("التعثّر الظاهر في", ROOT_NAME, "الثقة", "الأدلة", "الخطوة التالية المقترحة", "أُغلقت الفجوة")), record[:200])
+        live = page.locator("[data-testid=diagnosis-live]").first.inner_text()
+        check("parent record shows the live state (current mastery and the original lesson)", "%" in live and ORIGIN_NAME in live, live)
+        light = page.evaluate(CONTRAST_JS, "[data-testid=diagnosis-record], main .card:not(.upsell)")
+        check("light mode: report text contrast >= 4.5", light["worst"] >= 4.5 and light["n"] > 10, light)
         page.screenshot(path=str(shots / "3_parent.png"), full_page=True)
+        page.get_by_role("button", name="تبديل المظهر").click()
+        page.wait_for_function("document.documentElement.dataset.theme === 'dark'", timeout=5000)
+        dark = page.evaluate(CONTRAST_JS, "[data-testid=diagnosis-record], main .card:not(.upsell)")
+        check("dark mode: report text contrast >= 4.5 (no dark text on dark cards)", dark["worst"] >= 4.5 and dark["n"] > 10, dark)
+        page.wait_for_timeout(700)  # let the page-enter animation finish before the screenshot
+        page.screenshot(path=str(shots / "4_parent_dark.png"), full_page=True)
+        page.goto(base + f"/app/#/report/{oracle.student_id_for_report()}")
+        page.wait_for_selector(".report [data-testid=diagnosis-record]", timeout=15000)
+        printable = page.evaluate(CONTRAST_JS, ".report")
+        check("dark mode: printable report text contrast >= 4.5", printable["worst"] >= 4.5 and printable["n"] > 10, printable)
+        page.wait_for_timeout(700)  # let the page-enter animation finish before the screenshot
+        page.screenshot(path=str(shots / "5_report_dark.png"), full_page=True)
         browser.close()
 
     check("no uncaught JavaScript errors", not errors, errors[:5])

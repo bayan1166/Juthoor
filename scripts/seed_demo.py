@@ -17,7 +17,6 @@ from app.models.org import PlanTierUser, User, UserRole
 from app.models.safety import UserReport
 from app.security import hash_password, verify_password
 from app.services import engine_bridge, identity
-from app.services.economy_service import get_or_create_wallet
 
 PASSWORD = "demo1234"
 # Juthoor is B2C: learners and one parent/guardian (who buys Pro for a child). No teacher/school accounts.
@@ -76,7 +75,6 @@ def make_user(db, email, name, role, plan="basic", guardian=None, gender="ولد
     if role == UserRole.student:
         db.add(StudentAdaptiveState(student_id=user.id, current_skill="absolute_value", difficulty=1))
         db.add(AvatarConfig(student_id=user.id, gender=gender, skin=skin))
-        get_or_create_wallet(db, user.id)
     return user
 
 

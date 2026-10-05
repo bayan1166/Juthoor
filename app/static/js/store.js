@@ -84,12 +84,6 @@ export function patchBoot(patch) {
   emit('boot', store.boot);
 }
 
-export function addWallet(coins = 0, gems = 0) {
-  if (!store.boot || (!coins && !gems)) return;
-  const wallet = { coins: store.boot.wallet.coins + coins, gems: store.boot.wallet.gems + gems };
-  patchBoot({ wallet });
-}
-
 export async function refreshSummary() {
   if (!store.me) return;
   try {

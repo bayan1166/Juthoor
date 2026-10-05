@@ -43,8 +43,6 @@ class DecisionOut(BaseModel):
     breadcrumb: str = ""
     gap_skill: str | None = None
     round_over: bool = False
-    coins_awarded: int = 0
-    gems_awarded: int = 0
     is_correct: bool = False
     correct_answer: str = ""
     misconception: str = ""

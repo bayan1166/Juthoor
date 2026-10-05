@@ -7,7 +7,7 @@ import uuid
 
 import pytest
 
-from tests.helpers import make_internal_admin, register
+from tests.helpers import make_internal_admin, register, register_parent
 
 
 def _read(client, actor, path):
@@ -34,12 +34,12 @@ def world(client, db):
         "a_student": register(client),
         "b_student": register(client),
         "loner": register(client),
-        "stranger_parent": register(client, role="parent"),
+        "stranger_parent": register_parent(client),  # a parent of some other child
         "admin": register(client),
     }
     make_internal_admin(db, w["admin"]["id"])
-    w["parent"] = register(client, role="parent")
-    w["child"] = register(client, guardian_id=w["parent"]["id"])
+    w["child"] = register(client)
+    w["parent"] = register_parent(client, w["child"])  # parent accounts exist only with a linked child
     w["sibling"] = register(client, guardian_email=w["parent"]["email"])
     return w
 
@@ -73,7 +73,8 @@ def test_parent_reads_their_children_but_not_other_learners(client, world, path)
 def test_roster_is_scoped_to_the_parent_s_own_children(client, world):
     roster = client.get("/me/students", headers=world["parent"]["headers"]).json()
     assert {r["student_id"] for r in roster} == {world["child"]["id"], world["sibling"]["id"]}
-    assert client.get("/me/students", headers=world["stranger_parent"]["headers"]).json() == []
+    stranger = client.get("/me/students", headers=world["stranger_parent"]["headers"]).json()
+    assert [r["student_id"] for r in stranger] == [world["stranger_parent"]["child"]["id"]]
     assert client.get("/me/students", headers=world["a_student"]["headers"]).status_code == 403
 
 

@@ -1,3 +1,9 @@
+"""Avatar configuration, plus the legacy coin/gem economy tables.
+
+Coins, gems, the wallet and the avatar shop were removed from the product. Wallet, WalletTransaction, ShopItem
+and InventoryItem stay defined only so existing databases (and their history) remain valid; the application no
+longer writes coins or gems anywhere. ShopItem/InventoryItem still tell which avatar outfits a learner may wear.
+"""
 import enum
 import uuid
 from datetime import datetime

@@ -19,8 +19,11 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=1, max_length=150)
     # Only student/parent: any other value (including "platform_admin" or the retired "teacher") is a 422.
     role: UserRole = UserRole.student
+    # Learners only: link to a parent/guardian who already has an account.
     guardian_id: uuid.UUID | None = None
     guardian_email: EmailStr | None = None
+    # Parents only, and required for them: the Child ID shown in the learner's account (see services/child_link.py).
+    child_id: str | None = Field(default=None, max_length=40)
     grade_level: int = Field(default=ecfg.COURSE["grade"], ge=1, le=12)
     gender: Literal["ولد", "بنت"] | None = None
 
@@ -72,6 +75,8 @@ class MeOut(BaseModel):
     plan: str = "basic"
     plan_source: str = "own"
     plan_expires_at: OptUtcDateTime = None
+    # Learners only: the code their parent/guardian enters when creating the parent account.
+    child_id: str | None = None
 
 
 class ForgotPasswordRequest(BaseModel):

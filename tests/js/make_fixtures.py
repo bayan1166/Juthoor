@@ -34,5 +34,8 @@ data["skills"] = [
     {k: (i if k == "skill_id" else getattr(kg.SKILLS[i], k, None)) for k in sample}
     for i in kg.ordered_skills()
 ]
+from app.services import plan_rules as pr  # noqa: E402
+data["plans"] = {"plans": [{**plan, "limits": pr.LIMITS[plan["id"]]} for plan in pr.PLAN_CATALOG], "usp": pr.USP,
+                 "currency": "JOD", "provider": "mock"}
 path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 print("fixtures refreshed:", len(data["skills"]), "skills")

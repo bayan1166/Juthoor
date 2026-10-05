@@ -1,4 +1,4 @@
-import { h, ico, mount, clear, toast, countTo } from './dom.js';
+import { h, ico, mount, clear, toast, copyText } from './dom.js';
 import { setToken, setExpiredHandler, getToken } from './api.js';
 import { store, on, applyTheme, getTheme, setTheme, loadHealth, loadMe, loadBoot, refreshSummary, logout, planLabel, isStudent } from './store.js';
 import { brandHtml } from './icons.js';
@@ -6,7 +6,6 @@ import { authView } from './views/auth.js';
 import { homeView } from './views/home.js';
 import { practiceView } from './views/practice.js';
 import { tutorView } from './views/tutor.js';
-import { shopView } from './views/shop.js';
 import { communityView } from './views/social.js';
 import { parentView, reportView } from './views/parent.js';
 import { plansView, checkoutView } from './views/plans.js';
@@ -23,7 +22,6 @@ const ROUTES = [
   { path: '/', roles: ['parent'], view: parentView },
   { path: '/practice', roles: ['student'], view: practiceView },
   { path: '/tutor', roles: ['student'], view: tutorView },
-  { path: '/shop', roles: ['student'], view: shopView },
   { path: '/community', roles: ['*'], view: communityView },
   { path: '/plans', roles: ['*'], view: plansView },
   { path: '/checkout/:plan', roles: ['*'], view: checkoutView },
@@ -45,7 +43,7 @@ let summaryTimer = null;
 let navOffs = [];
 
 // Judge mode keeps the demo focused on the diagnosis flow; the Pro/upgrade entry is never hidden.
-export const JUDGE_HIDDEN = ['/community', '/shop'];
+export const JUDGE_HIDDEN = ['/community'];
 
 export function linksFor(role) {
   const all = baseLinks(role);
@@ -53,7 +51,7 @@ export function linksFor(role) {
 }
 
 function baseLinks(role) {
-  if (role === 'student') return [['/', 'الرئيسية', 'tree'], ['/practice', 'التدريب', 'pencil'], ['/tutor', 'المساعد الذكي', 'spark'], ['/community', 'المجتمع', 'chat'], ['/shop', 'المتجر', 'bag'], ['/plans', 'برو', 'bolt']];
+  if (role === 'student') return [['/', 'الرئيسية', 'tree'], ['/practice', 'التدريب', 'pencil'], ['/tutor', 'المساعد الذكي', 'spark'], ['/community', 'المجتمع', 'chat'], ['/plans', 'برو', 'bolt']];
   if (role === 'parent') return [['/', 'أبنائي', 'users'], ['/community', 'المجتمع', 'chat'], ['/plans', 'برو', 'bolt']];
   return [];
 }
@@ -126,19 +124,6 @@ function paintNav() {
   };
   navOffs.push(on('summary', paintDots));
 
-  const coinEl = h('b', null, '0');
-  const gemEl = h('b', null, '0');
-  const wallet = isStudent() ? h('div', { class: 'row nowrap', style: { gap: '8px' } }, h('span', { class: 'pill coin', title: 'العملات' }, ico('coin'), coinEl), h('span', { class: 'pill gem hide-sm', title: 'الجواهر' }, ico('gem'), gemEl)) : null;
-  const paintWallet = () => {
-    if (!store.boot) return;
-    countTo(coinEl, store.boot.wallet.coins, 500);
-    countTo(gemEl, store.boot.wallet.gems, 500);
-  };
-  if (wallet) {
-    navOffs.push(on('boot', paintWallet));
-    loadBoot().then(paintWallet).catch(() => null);
-  }
-
   const upgradeBtn = !isInternalRole && me.plan !== 'pro'
     ? h('a', { class: 'btn btn-primary btn-sm upgrade-cta', href: '#/plans', 'data-testid': 'upgrade-cta' }, ico('bolt'), h('span', null, 'ترقية إلى برو'))
     : null;
@@ -158,7 +143,10 @@ function paintNav() {
     else avatarBtn.appendChild(ico('user'));
   };
   paintAvatar();
-  if (wallet) navOffs.push(on('boot', paintAvatar));
+  if (isStudent()) {
+    navOffs.push(on('boot', paintAvatar));
+    loadBoot().catch(() => null);
+  }
   let menu = null;
   const closeMenu = () => {
     if (menu) {
@@ -180,6 +168,7 @@ function paintNav() {
     menu = h('div', { class: 'menu', role: 'menu' },
       h('div', { class: 'col', style: { gap: '4px', padding: '4px 4px 0' } }, h('b', null, me.full_name), h('span', { class: 'small muted' }, me.email),
         h('div', { class: 'row', style: { marginTop: '6px' } }, h('span', { class: ['chip', me.plan === 'basic' ? '' : 'green'] }, planText), me.handle ? h('span', { class: 'chip ltr' }, `#${me.handle}`) : null)),
+      me.child_id ? childIdBlock(me.child_id) : null,
       h('hr'),
       isInternalRole ? null : h('a', { class: 'item', href: '#/plans', onclick: closeMenu }, ico('card'), me.plan === 'pro' ? 'اشتراك برو' : 'ترقية إلى برو'),
       h('button', { class: 'item', onclick: () => { closeMenu(); logout(); paintNav(); clearInterval(summaryTimer); go('#/login'); } }, ico('logout'), 'تسجيل الخروج'));
@@ -190,9 +179,19 @@ function paintNav() {
   navHost.appendChild(h('nav', { class: 'nav', 'aria-label': 'التنقل الرئيسي' },
     h('a', { class: 'brand', href: '#/', html: brandHtml() }),
     h('div', { class: 'nav-links' }, linkEls),
-    h('div', { class: 'nav-right' }, wallet, upgradeBtn, themeBtn, menuWrap)));
+    h('div', { class: 'nav-right' }, upgradeBtn, themeBtn, menuWrap)));
   tabHost.appendChild(h('div', { class: 'tabbar' }, tabEls));
   paintDots();
+}
+
+// The learner's Child ID: the parent/guardian needs it to create their account (no parent account without a child).
+export function childIdBlock(code) {
+  return h('div', { class: 'child-id', 'data-testid': 'child-id-menu' },
+    h('span', { class: 'small muted' }, 'رمز الطالب لولي الأمر (Child ID)'),
+    h('div', { class: 'row nowrap', style: { gap: '8px' } }, h('b', { class: 'ltr' }, code),
+      h('button', { class: 'icon-btn', type: 'button', style: { width: '30px', height: '30px' }, 'aria-label': 'نسخ رمز الطالب',
+        onclick: async () => { toast((await copyText(code)) ? 'تم نسخ رمز الطالب.' : `رمز الطالب: ${code}`, 'info'); } }, ico('copy'))),
+    h('span', { class: 'small muted' }, 'يُدخله ولي أمرك عند إنشاء حسابه ليتابع تقريرك.'));
 }
 
 function startSummary() {

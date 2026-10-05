@@ -106,6 +106,8 @@ class DiagnosisEvent(Base):
     p_gap: Mapped[float] = mapped_column(Float, default=0.0)
     evidence: Mapped[list] = mapped_column(JSON, default=list)
     path: Mapped[list] = mapped_column(JSON, default=list)
+    # Other eligible root candidates with enough errors (they lowered the confidence); shown, never hidden.
+    competing: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 

@@ -1,6 +1,7 @@
 # Handoff
 
-README.md is the full reference; `docs/FINAL_B2C_AUDIT.md` records the B2C cleanup and what changed in each round.
+README.md is the full reference; `docs/FINAL_B2C_AUDIT.md` records the B2C cleanup and `docs/UI_BEHAVIOUR_CHANGES.md`
+the latest round (economy removed, parent Child ID, dark mode, «ظهر جذر المشكلة», round pacing, live report).
 This file records the current state and exactly what has been verified, where, and what was **not**.
 
 ## What the product is
@@ -15,7 +16,9 @@ confidence level (or an explicit "insufficient evidence" with what would settle 
 of the original lesson -> mastery update -> the parent report shows where the gap started, the evidence and what happened.
 
 Roles: `student` and `parent` (self-registration); `platform_admin` is an internal moderation account for community
-safety reports (`/moderation/*`), cannot be self-registered and has no product screen.
+safety reports (`/moderation/*`), cannot be self-registered and has no product screen. A parent account can only be
+created with the learner's Child ID (shown in the learner's account menu), so no parent exists without a child.
+There are no coins, gems, wallet or shop.
 
 ## Honest headline numbers (synthetic learners only)
 `python scripts/diagnostic_benchmark.py --reps 5`: root correct when committed 97.1 % (89.8 % of all gap cases), wrong root
@@ -26,11 +29,12 @@ the time; no real-student data exists.
 | Check | Where | Result |
 |---|---|---|
 | Full `python -m pytest -q` (PostgreSQL), revision before the teacher/school removal | team machine | 798 passed, 1 failed: `test_stability_db.py::test_reusing_a_request_id_…` was flaky (it assumed every first question has options; typed-input questions have none). Test fixed; product unchanged |
-| Full `python -m pytest -q` on **this** revision (teacher/school subsystem removed, tests rewritten for B2C) | - | **NOT RUN here** (the build sandbox cannot install FastAPI/SQLAlchemy/psycopg2). Please run and send the output |
+| Full `python -m pytest -q` on **this** revision (economy removed, Child ID, round pacing, live record; 382 test functions, was 351) | - | **NOT RUN here** (the build sandbox cannot install FastAPI/SQLAlchemy/psycopg2). Please run and send the output |
 | `python scripts/preflight.py` on this revision | - | **NOT RUN here** (needs PostgreSQL + the app) |
-| Pure-Python checks run here: finance tests, pilot/agreement tests, positioning tests, static import/undefined-name check over app/scripts/tests/finance | build sandbox | pass (see `docs/FINAL_B2C_AUDIT.md`) |
-| `node tests/js/judge_smoke.mjs`, `smoke.mjs`, `main_smoke.mjs` | build sandbox | 10/10, 167/167, 21/21 |
-| Real-browser E2E (`tests/e2e/browser_e2e.py --oracle sim`) against the simulated backend (real engine) | build sandbox | 15/15 |
+| pytest files that run without FastAPI/SQLAlchemy (engine, benchmark, round pacing, dark-mode contrast, no-economy static checks, finance, …) | build sandbox | 574 passed, 2 skipped; the rest need FastAPI/SQLAlchemy |
+| `scripts/verify_{migrations,integrity,state_creation,locking}_sql.sh` (incl. migration 0005) | build sandbox, PostgreSQL 16 | all pass |
+| `node tests/js/judge_smoke.mjs`, `smoke.mjs`, `main_smoke.mjs` | build sandbox | 11/11, 189/189, 23/23 |
+| Real-browser E2E (`tests/e2e/browser_e2e.py --oracle sim`) against the simulated backend (real engine) | build sandbox | 26/26 |
 | `python -m compileall -q app scripts tests finance` | build sandbox | pass |
 
 ## Before judging (on the team machine)

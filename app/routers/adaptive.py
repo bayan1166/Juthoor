@@ -12,7 +12,7 @@ from app.models.adaptive import AttemptLog
 from app.models.economy import AvatarConfig
 from app.models.org import User
 from app.schemas.adaptive import AnswerRequest, DecisionOut, DrillDownOut, QuestionOut, StudentStateOut
-from app.services import avatar_render, economy_service, engine_bridge, plans, tree_service
+from app.services import avatar_render, engine_bridge, plans, tree_service
 
 router = APIRouter(prefix="/students/{student_id}/adaptive", tags=["adaptive"])
 
@@ -128,13 +128,11 @@ def bootstrap(student_id: uuid.UUID, db: Session = Depends(get_db), user: User =
     _provision_own_state(db, user, student_id)
     student = _student(db, student_id)
     full = plans.has_full_gap_access(db, user, student)
-    wallet = economy_service.get_or_create_wallet(db, student_id)
     row = _avatar_row(db, student_id)
     db.commit()
     events, hidden = plans.mask_drilldowns(engine_bridge.drilldown_history(db, student_id), full)
     return {
         "state": _mask_state(engine_bridge.state_overview(db, student_id), full),
-        "wallet": {"coins": wallet.coins, "gems": wallet.gems},
         "avatar": avatar_render.config_dict(row),
         "avatar_svg": avatar_render.render(row, "me"),
         "drilldowns": events,

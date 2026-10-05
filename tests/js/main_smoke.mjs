@@ -4,7 +4,7 @@ const PY = JSON.parse(fs.readFileSync(new URL('./fixtures/py.json', import.meta.
 let role = 'student';
 const ok = (json, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(json) });
 const users = {
-  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: 'basic', plan_source: 'own', plan_expires_at: null },
+  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: 'basic', plan_source: 'own', plan_expires_at: null, child_id: '4821-K7Q2M9XD' },
 };
 const fetchMock = async (url) => {
   const p = url.split('?')[0];
@@ -13,7 +13,7 @@ const fetchMock = async (url) => {
   if (p === '/curriculum/map') return ok(PY.map);
   if (p === '/curriculum/skills') return ok(PY.skills);
   if (p.endsWith('/adaptive/tree')) return ok(PY.tree_full);
-  if (p.endsWith('/adaptive/bootstrap')) return ok({ state: { current_skill: 'adding_integers', skills: [] }, wallet: { coins: 120, gems: 3 }, avatar: {}, avatar_svg: '<svg id="me"></svg>', drilldowns: [], drilldowns_hidden: 0, plan: { plan: 'basic', limits: { questions_per_day: 20 }, remaining: { questions: 18, tutor: 5 } } });
+  if (p.endsWith('/adaptive/bootstrap')) return ok({ state: { current_skill: 'adding_integers', skills: [] }, avatar: {}, avatar_svg: '<svg id="me"></svg>', drilldowns: [], drilldowns_hidden: 0, plan: { plan: 'basic', limits: { questions_per_day: 20 }, remaining: { questions: 18, tutor: 5 } } });
   if (p === '/community/summary') return ok({ unread_messages: 2, pending_requests: 1 });
   if (p === '/payments/plans') return ok(PY.plans);
   return ok({ detail: 'no_mock' }, 404);
@@ -28,11 +28,12 @@ const check = (n, c, x = '') => { results.push([c, n, x]); if (!c) failures += 1
 const main = await import('../../app/static/js/main.js');
 await tick(120);
 check('splash dismissed', splash.classList.contains('done'));
-check('student nav has 6 links (no classes), Pro included', byClass(app, 'nav-link').length === 6 && !text(app).includes('صفوفي') && text(app).includes('برو'));
+check('student nav has 5 links (no classes, no shop), Pro included', byClass(app, 'nav-link').length === 5 && !text(app).includes('صفوفي') && !text(app).includes('المتجر') && text(app).includes('برو'));
 check('mobile tabbar present', byClass(app, 'tabbar').length === 1);
 check('home tree is first content', byClass(app, 'view-root')[0] && byClass(app, 'stage').length === 1);
 check('community badge shows 3', text(app).includes('3'));
-check('wallet pill', text(app).includes('120'));
+check('no coin/gem wallet in the header', byClass(app, 'pill').length === 0 && !text(app).includes('العملات') && !text(app).includes('الجواهر'));
+check('the avatar still loads for the account button', byClass(app, 'menu-wrap')[0].childNodes[0]._html.includes('id="me"'));
 check('route table: student /practice', !!main.matchRoute('/practice', 'student'));
 check('route table: the internal account has no learning routes', main.matchRoute('/practice', 'platform_admin') === null);
 check('route table: there is no teacher product', main.matchRoute('/', 'teacher') === null && main.matchRoute('/', 'org_admin') === null);
@@ -50,6 +51,8 @@ check('logged-in user bounced from login', location.hash === '#/');
 const avatarBtn = byClass(app, 'menu-wrap')[0].childNodes[0];
 avatarBtn.click();
 check('account menu opens', byClass(app, 'menu').length === 1 && text(app).includes('تسجيل الخروج'));
+const childMenu = find(app, (e) => e.attrs && e.attrs['data-testid'] === 'child-id-menu');
+check('the learner sees their Child ID (for the parent signup) with a copy button', !!childMenu && text(childMenu).includes('4821-K7Q2M9XD') && !!find(childMenu, (e) => e.attrs && e.attrs['aria-label'] === 'نسخ رمز الطالب'));
 byText(app, 'button', 'تسجيل الخروج')[0].click(); await tick(30);
 check('logout goes to login', location.hash === '#/login' && byClass(app, 'nav').length === 0);
 window.__fire('hashchange'); await tick(60);

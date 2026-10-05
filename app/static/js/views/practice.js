@@ -1,8 +1,9 @@
 import { h, ico, mount, clear, toast, skeleton } from '../dom.js';
 import { api } from '../api.js';
-import { store, loadBoot, addWallet, patchBoot } from '../store.js';
+import { store, loadBoot, patchBoot } from '../store.js';
 import { errorPanel, upsellCard, skillNames, handleError } from './shared.js';
 import { renderTreeStage } from '../tree.js';
+import { rootCta, hasActiveRoot } from './diagnosis.js';
 
 const LEVELS = ['', 'سهل', 'متوسط', 'متقدم'];
 
@@ -82,9 +83,14 @@ export async function practiceView(ctx) {
   page.appendChild(area);
   ctx.root.appendChild(page);
 
-  function paintFlow(w) {
+  // The "root found" entry point is shown only when the backend reports a named root (never for
+  // insufficient evidence, never for a masked/Basic workflow).
+  let lastFlow = null;
+  let ctaInFeedback = false;
+  function paintFlow(w, opts = {}) {
     if (!w || !w.stage) return;
-    mount(flowEl, flowCard(w));
+    lastFlow = w;
+    mount(flowEl, flowCard(w), hasActiveRoot(w) && opts.cta !== false ? rootCta({ uid, names }) : null);
   }
 
   let q = null;
@@ -136,7 +142,7 @@ export async function practiceView(ctx) {
   function showLimit() {
     mount(area, upsellCard({
       title: 'انتهت أسئلة اليوم',
-      text: 'استخدمت أسئلتك اليومية في الباقة المجانية. يتجدد رصيدك عند منتصف الليل، أو تابع الآن بلا حد مع باقة برو واكشف جذر تعثّرك كاملاً.',
+      text: 'استخدمت أسئلتك اليومية في الباقة المجانية. تتجدد أسئلتك عند منتصف الليل، أو تابع الآن بلا حد مع باقة برو واكشف جذر تعثّرك كاملاً.',
       cta: 'افتح التدريب غير المحدود',
       secondary: { label: 'العودة إلى الشجرة', href: '#/' },
     }));
@@ -144,6 +150,10 @@ export async function practiceView(ctx) {
 
   async function loadQuestion() {
     destroyScan();
+    if (ctaInFeedback) {
+      ctaInFeedback = false;
+      paintFlow(lastFlow);
+    }
     locked = false;
     answered = false;
     nextAction = null;
@@ -250,7 +260,6 @@ export async function practiceView(ctx) {
     answered = true;
     trackChain(d);
     store.treeStale = true;
-    addWallet(d.coins_awarded, d.gems_awarded);
     if (store.boot && d.remaining_questions !== null && d.remaining_questions !== undefined) {
       patchBoot({ plan: { ...store.boot.plan, remaining: { ...store.boot.plan.remaining, questions: d.remaining_questions } } });
       paintQuota();
@@ -258,7 +267,8 @@ export async function practiceView(ctx) {
     const good = optEls.find((o) => o.text === d.correct_answer);
     if (good) good.el.classList.add('good');
     if (picked && !d.is_correct) picked.el.classList.add('bad');
-    paintFlow(d.workflow);
+    ctaInFeedback = !!(d.diagnosis && d.diagnosis.root);
+    paintFlow(d.workflow, { cta: !ctaInFeedback });
     paintFeedback(d);
   }
 
@@ -352,11 +362,11 @@ export async function practiceView(ctx) {
     const verdict = d.is_correct
       ? h('div', { class: 'verdict good' },
         h('svg', { class: 'check-draw', viewBox: '0 0 34 34' }, h('path', { d: 'M7 18l7 7 13-14', fill: 'none', stroke: 'currentColor', 'stroke-width': '4', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })),
-        h('div', { class: 'grow' }, 'إجابة صحيحة، أحسنت.'),
-        d.coins_awarded ? h('span', { class: 'chip lime' }, ico('coin'), `+${d.coins_awarded}`) : null,
-        d.gems_awarded ? h('span', { class: 'chip lime' }, ico('gem'), `+${d.gems_awarded}`) : null)
+        h('div', { class: 'grow' }, 'إجابة صحيحة، أحسنت.'))
       : h('div', { class: 'verdict bad' }, ico('x'), h('div', { class: 'grow' }, 'إجابة غير صحيحة. الصواب: ', h('bdi', { class: 'm' }, d.correct_answer)));
     box.appendChild(verdict);
+    // The backend has just named a root (status root_identified): make it impossible to miss.
+    if (d.diagnosis && d.diagnosis.root) box.appendChild(rootCta({ uid, live: d.diagnosis, names, fresh: true }));
 
     if (!d.is_correct && d.mistake_card) {
       const card = d.mistake_card;

@@ -6,22 +6,16 @@ const calls = [];
 const state = { role: 'student', plan: 'basic', failNext: null };
 const U = (n, name) => ({ user_id: n, handle: `10${n.length}`, full_name: name, role: 'student', avatar_svg: null });
 const me = () => ({
-  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: state.plan, plan_source: 'own', plan_expires_at: null },
+  student: { user_id: 'S1', handle: '4821', email: 's@x.jo', full_name: 'ليان', role: 'student', plan: state.plan, plan_source: 'own', plan_expires_at: null, child_id: '4821-K7Q2M9XD' },
   admin: { user_id: 'A1', handle: '7009', email: 'ops@x.jo', full_name: 'فريق الإشراف', role: 'platform_admin', plan: 'basic', plan_source: 'own', plan_expires_at: null },
   parent: { user_id: 'P1', handle: '7002', email: 'p@x.jo', full_name: 'ولي الأمر', role: 'parent', plan: 'basic', plan_source: 'own', plan_expires_at: null },
 }[state.role]);
 const planSnap = (rem = 18) => ({ plan: 'basic', source: 'own', expires_at: null, limits: { questions_per_day: 20, tutor_per_day: 5, max_friends: 3, history_days: 7, full_gap_report: false }, usage: { questions: 2, tutor: 1 }, remaining: { questions: rem, tutor: 4 } });
 const skillsState = PY.skills.map((s) => ({ skill_id: s.skill_id, name_ar: s.name_ar, status: 'learning', p_mastery: 0.4, attempts: 3, correct: 2 }));
 const avatar = { gender: 'بنت', skin: 'edb98a', clothing: 'shirtCrewNeck', top: 'none', neck: 'none', accessories: 'blank', hair: 'straight', hair_color: 'black' };
-const catalog = [
-  { id: 'tee1', category: 'clothing', group: 'tees', name: 'تيشيرت أخضر', gender: null, price_coins: 40, price_gems: 0, is_premium: false, owned: true, bundle: [] },
-  { id: 'tee2', category: 'clothing', group: 'tees', name: 'تيشيرت مخطط', gender: null, price_coins: 60, price_gems: 0, is_premium: false, owned: false, bundle: [] },
-  { id: 'engineer', category: 'clothing', group: 'jobs', name: 'مهندس', gender: null, price_coins: 0, price_gems: 5, is_premium: true, owned: false, bundle: [['top', 'hardHat']] },
-  { id: 'cap1', category: 'top', group: 'caps', name: 'قبعة', gender: null, price_coins: 30, price_gems: 0, is_premium: false, owned: false, bundle: [] },
-];
 const convs = [{ friendship_id: 'F1', friend: U('U2', 'عمر'), last_message: { message_id: 'M1', sender_id: 'U2', recipient_id: 'S1', body: 'مرحبا ليان', created_at: '2026-10-01T10:00:00Z', read_at: null }, unread: 1 }];
 let msgs = [{ message_id: 'M1', sender_id: 'U2', recipient_id: 'S1', body: 'مرحبا ليان', created_at: '2026-10-01T10:00:00Z', read_at: null }];
-const report = { student: { user_id: 'S1', full_name: 'ليان', handle: '4821' }, state: { skills: skillsState, current_skill: 'adding_integers' }, drilldowns: [{ from_skill: 'a', from_name_ar: 'ضرب', to_skill: 'b', to_name_ar: 'جمع', direction: 'back', triggered_by: 'x', depth: 1, created_at: '2026-10-01T09:00:00Z' }], drilldowns_hidden: 2, gap_locked: true, forecast: { skill_id: 'b', name_ar: 'جمع', remaining_correct: 5, per_day: 2.5, days: 2 }, diagnoses: [{ diagnosis_id: 'D1', created_at: '2026-10-01T09:00:00Z', origin_skill: 'mult_div_integers', origin_name_ar: 'ضرب الأعداد الصحيحة', root_skill: 'adding_integers', root_name_ar: 'جمع الأعداد الصحيحة', path: [{ skill: 'mult_div_integers', name_ar: 'ضرب الأعداد الصحيحة' }, { skill: 'adding_integers', name_ar: 'جمع الأعداد الصحيحة' }], confidence: 'متوسطة', confidence_level: 'medium', explanation: 'اخترنا «جمع الأعداد الصحيحة» لأن الإجابات عليه 2 خاطئة و0 صحيحة.', evidence: [{ skill: 'adding_integers', name_ar: 'جمع الأعداد الصحيحة', wrong: 2, right: 0, role: 'root' }], intervention: 'استخدم قطع العد', outcome: { stage: 'remediating', root_status: 'gap', root_after: { right: 2, wrong: 1 }, origin_retry: { right: 0, wrong: 0 } } }], plan: planSnap() };
+const report = { student: { user_id: 'S1', full_name: 'ليان', handle: '4821' }, state: { skills: skillsState, current_skill: 'adding_integers' }, drilldowns: [{ from_skill: 'a', from_name_ar: 'ضرب', to_skill: 'b', to_name_ar: 'جمع', direction: 'back', triggered_by: 'x', depth: 1, created_at: '2026-10-01T09:00:00Z' }], drilldowns_hidden: 2, gap_locked: true, forecast: { skill_id: 'b', name_ar: 'جمع', remaining_correct: 5, per_day: 2.5, days: 2 }, diagnoses: [{ diagnosis_id: 'D1', created_at: '2026-10-01T09:00:00Z', origin_skill: 'mult_div_integers', origin_name_ar: 'ضرب الأعداد الصحيحة', root_skill: 'adding_integers', root_name_ar: 'جمع الأعداد الصحيحة', path: [{ skill: 'mult_div_integers', name_ar: 'ضرب الأعداد الصحيحة' }, { skill: 'adding_integers', name_ar: 'جمع الأعداد الصحيحة' }], confidence: 'متوسطة', confidence_level: 'medium', explanation: 'اخترنا «جمع الأعداد الصحيحة» لأن الإجابات عليه 2 خاطئة و0 صحيحة.', evidence: [{ skill: 'adding_integers', name_ar: 'جمع الأعداد الصحيحة', wrong: 2, right: 0, role: 'root' }], intervention: 'استخدم قطع العد', competing: [{ skill: 'comparing_integers', name_ar: 'مقارنة الأعداد الصحيحة' }], outcome: { stage: 'remediating', root_status: 'gap', origin_status: 'learning', root_mastery: 0.62, origin_mastery: 0.3, root_after: { right: 2, wrong: 1 }, origin_retry: { right: 0, wrong: 0 } } }], plan: planSnap() };
 const insights = { struggle_alerts: [{ skill_id: 'b', skill_name_ar: 'جمع', severity: 'high', p_mastery: 0.3, consecutive_misses: 3, drill_down_depth_avg: 1, predicted_root_cause_skill: 'a', recommended_action: 'راجع القاعدة' }], engagement: { active_days_last_30: 8, avg_session_minutes: 12, questions_answered_last_7: 31, current_streak: 3 } };
 
 const blockedState = { list: [] };
@@ -34,27 +28,23 @@ const routes = [
   ['GET', /^\/health/, () => ok({ status: 'ok', ai_tutor: 'offline_fallback', demo: true })],
   ['GET', /^\/auth\/me/, () => ok(me())],
   ['POST', /^\/auth\/login/, (b) => (b.password === 'bad' ? ok({ detail: 'invalid_credentials' }, 401) : ok({ access_token: 'tok', token_type: 'bearer', user_id: 'S1' }))],
-  ['POST', /^\/auth\/register/, () => ok({ access_token: 'tok', user_id: 'S1', role: 'student' })],
+  ['POST', /^\/auth\/register/, (b) => (b.role === 'parent' && b.child_id === 'BAD-ID' ? ok({ detail: 'child_id_invalid' }, 400) : ok({ access_token: 'tok', user_id: b.role === 'parent' ? 'P9' : 'S1', role: b.role || 'student' }))],
   ['POST', /^\/auth\/forgot-password/, () => ok({ status: 'sent', demo_code: '123456' })],
   ['POST', /^\/auth\/verify-reset-code/, (b) => (b.code === '123456' ? ok({ reset_token: 'rt' }) : ok({ detail: 'invalid_or_expired_code' }, 400))],
   ['POST', /^\/auth\/reset-password/, () => ok({ access_token: 'tok2', user_id: 'S1' })],
   ['GET', /^\/curriculum\/map/, () => ok(PY.map)],
   ['GET', /^\/curriculum\/skills/, () => ok(PY.skills)],
   ['GET', /\/adaptive\/tree/, () => ok(PY.tree_full)],
-  ['GET', /\/adaptive\/bootstrap/, () => ok({ state: { current_skill: 'adding_integers', skills: skillsState }, wallet: { coins: 120, gems: 3 }, avatar, avatar_svg: '<svg id="me"></svg>', drilldowns: [], drilldowns_hidden: 0, plan: planSnap() })],
+  ['GET', /\/adaptive\/bootstrap/, () => ok({ state: { current_skill: 'adding_integers', skills: skillsState }, avatar, avatar_svg: '<svg id="me"></svg>', drilldowns: [], drilldowns_hidden: 0, plan: planSnap() })],
   ['GET', /\/adaptive\/question/, () => (state.qSkill ? ok({ question: 'س', hint: 'ت', skill: state.qSkill(), difficulty: 1, pattern: 'p', source: 'offline', remedial: null, banner: null, guided: false, type: 'mcq', options: ['3', '-3', '7', '2'], skill_name: 'x' }) : state.failNext === 'quota' ? ok({ detail: 'daily_limit_reached:questions' }, 402) : ok({ question: 'أوجد ناتج: 5 + (-2)', hint: 'انظر للإشارة', skill: 'adding_integers', difficulty: 2, pattern: 'p', source: 'offline', remedial: null, banner: 'مرحباً', guided: false, type: 'mcq', options: ['3', '-3', '7', '2'], skill_name: 'جمع الأعداد الصحيحة' }))],
-  ['POST', /\/adaptive\/answer/, (b) => ok({ action: 'continue', next_skill: 'adding_integers', next_difficulty: 2, reason: 'r', breadcrumb: 'سنراجع الفكرة', gap_skill: null, round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: b.selected_answer === '3', correct_answer: '3', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: { title: 'جمع بإشارتين', rule: 'اطرح القيمتين', example: '5 + (-2) = 3', why: 'جمعت القيمتين', chosen: b.selected_answer, correct: '3', solution: 'الحل 3' }, gap_locked: true, remaining_questions: 17 })],
+  ['POST', /\/adaptive\/answer/, (b) => ok({ action: 'continue', next_skill: 'adding_integers', next_difficulty: 2, reason: 'r', breadcrumb: 'سنراجع الفكرة', gap_skill: null, round_over: false, is_correct: b.selected_answer === '3', correct_answer: '3', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: { title: 'جمع بإشارتين', rule: 'اطرح القيمتين', example: '5 + (-2) = 3', why: 'جمعت القيمتين', chosen: b.selected_answer, correct: '3', solution: 'الحل 3' }, gap_locked: true, remaining_questions: 17 })],
   ['POST', /\/adaptive\/round/, () => ok({})],
   ['GET', /\/adaptive\/report/, () => ok(report)],
   ['GET', /\/insights/, () => ok(insights)],
   ['POST', /\/chat\/start/, () => ok({ session_id: 'sess1', opening_message: 'أهلاً بك' })],
   ['GET', /\/chat\/sessions\//, () => ok([])],
   ['POST', /\/chat\/message/, () => (state.failNext === 'tutor' ? ok({ detail: 'daily_limit_reached:tutor' }, 402) : ok({ reply: 'الناتج 3 لأن الإشارتان مختلفتان', gap_detected: true, gap_skill: 'x', drill_down_triggered: true, next_skill: 'x', next_difficulty: 1, breadcrumb: 'مراجعة', remaining_today: 3 }))],
-  ['GET', /\/economy\/catalog/, () => ok(catalog)],
-  ['GET', /\/economy\/options/, () => ok({ skins: [{ id: 'f8d25c', name: 'فاتح' }, { id: 'edb98a', name: 'حنطي' }], hair_styles: [{ id: 'straight', name: 'ستريت', gender: null }, { id: 'buzz', name: 'قصير', gender: 'ولد' }], hair_colors: [{ id: 'black', name: 'أسود', hex: '#2A1B15' }] })],
-  ['GET', /\/economy\/previews/, () => ok({ 'i:tee1': { svg: '<svg id="ptee1"></svg>', uid: 'ptee1' }, 'i:tee2': { svg: '<svg id="ptee2"></svg>', uid: 'ptee2' }, 'skin:f8d25c': { svg: '<svg id="pskin_f8d25c"></svg>', uid: 'pskin_f8d25c' } })],
-  ['PUT', /\/economy\/avatar/, () => ok({ status: 'saved', svg: '<svg id="me2"></svg>' })],
-  ['POST', /\/economy\/purchase/, () => ok({ success: true, message: 'ok', wallet: { coins: 60, gems: 3 } })],
+  ['GET', /\/adaptive\/diagnoses/, () => ok({ locked: false, diagnoses: report.diagnoses })],
   ['GET', /^\/community\/summary/, () => ok({ unread_messages: 1, pending_requests: 1 })],
   ['GET', /^\/community\/conversations/, () => ok(convs)],
   ['GET', /^\/community\/requests/, () => ok([{ friendship_id: 'F9', friend: U('U9', 'هبة'), status: 'pending', is_incoming: true, created_at: '2026-10-01T09:00:00Z' }])],
@@ -158,6 +148,23 @@ await run('auth', async () => {
   check('register renders role seg + gender', text(reg.root).includes('اختر الشخصية') && text(reg.root).includes('ولي أمر'));
   check('landing copy is subject- and grade-agnostic and has no teacher dashboard pitch', !/رياضيات|الصف السادس|لوحة معلم|الصفوف/.test(text(reg.root).replace(/المحتوى المتاح حالياً للتجربة:[^\n]*/g, '')) && text(reg.root).includes('اعرف أين بدأت الفجوة'));
   check('public registration is B2C only: no teacher role, no school code', byText(reg.root, 'button', 'معلم').length === 0 && !text(reg.root).includes('رمز المدرسة') && !text(reg.root).includes('باقة المدرسة'));
+  check('student signup has no Child ID field', !find(reg.root, (e) => e.attrs && e.attrs['data-testid'] === 'child-id'));
+  byText(reg.root, 'button', 'ولي أمر')[0].click();
+  const childInput = find(reg.root, (e) => e.attrs && e.attrs['data-testid'] === 'child-id');
+  check('parent signup asks for the Child ID and says where to find it', !!childInput && text(reg.root).includes('رمز الطالب (Child ID)') && text(reg.root).includes('رمز الطالب لولي الأمر'));
+  const regForm = byTag(reg.root, 'form')[0];
+  const [nm, em] = byTag(regForm, 'input');
+  type(nm, 'ولي أمر جديد'); type(em, 'newparent@x.jo');
+  find(regForm, (e) => e.attrs && e.attrs.autocomplete === 'new-password').value = 'secret123';
+  const before = calls.filter((c) => c.url.includes('/auth/register')).length;
+  submit(regForm); await tick(30);
+  check('parent signup without a Child ID is stopped before any request', calls.filter((c) => c.url.includes('/auth/register')).length === before && text(reg.root).includes('أدخل رمز الطالب'));
+  type(childInput, 'BAD-ID'); submit(regForm); await tick(30);
+  const badPost = calls.filter((c) => c.url.includes('/auth/register')).pop();
+  check('the server decides: an invalid Child ID is refused with a clear message', !!badPost && badPost.body.child_id === 'BAD-ID' && badPost.body.role === 'parent' && text(reg.root).includes('رمز الطالب غير صحيح') && !reg.loggedIn);
+  type(childInput, ' 4821-K7Q2M9XD '); submit(regForm); await tick(30);
+  const goodPost = calls.filter((c) => c.url.includes('/auth/register')).pop();
+  check('a parent signs up with the Child ID (no guardian e-mail field sent)', goodPost.body.child_id === '4821-K7Q2M9XD' && !('guardian_email' in goodPost.body) && reg.loggedIn === 'tok');
   reg.destroy();
 });
 
@@ -223,7 +230,7 @@ await run('practice', async () => {
   check('4 options', opts.length === 4);
   check('no analyzing indicator before answering', byClass(ctx.root, 'analyzing').length === 0);
   let release;
-  routes.unshift(['POST', /\/adaptive\/answer/, () => new Promise((resolve) => { release = () => resolve(ok({ action: 'continue', next_skill: 'adding_integers', next_difficulty: 2, reason: 'r', breadcrumb: null, gap_skill: null, round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: true, correct_answer: '3', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 17 })); })]);
+  routes.unshift(['POST', /\/adaptive\/answer/, () => new Promise((resolve) => { release = () => resolve(ok({ action: 'continue', next_skill: 'adding_integers', next_difficulty: 2, reason: 'r', breadcrumb: null, gap_skill: null, round_over: false, is_correct: true, correct_answer: '3', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 17 })); })]);
   opts[0].click(); await tick(10);
   check('analyzing spinner shown immediately while waiting', byClass(ctx.root, 'analyzing').length === 1 && text(ctx.root).includes('المساعد الذكي يقوم بتحليل إجابتك...'));
   release(); await tick(20);
@@ -277,22 +284,24 @@ await run('tutor', async () => {
   state.failNext = null; ctx.destroy();
 });
 
-await run('shop', async () => {
-  const { shopView } = await import('../../app/static/js/views/shop.js');
-  const ctx = mkctx(); await shopView(ctx); await tick(30);
-  check('items render with previews', byClass(ctx.root, 'item-card').length >= 2 && byClass(ctx.root, 'pv')[0]._html.includes('ptee1'));
-  const owned = byClass(ctx.root, 'item-card').find((c) => text(c).includes('تيشيرت أخضر'));
-  owned.click(); await tick(30);
-  check('owned item equips instantly + PUT sent', calls.some((c) => c.method === 'PUT' && c.body.clothing === 'tee1'));
-  check('preview svg refreshed from server', byClass(ctx.root, 'preview-av')[0]._html.includes('me2'));
-  const locked = byClass(ctx.root, 'item-card').find((c) => text(c).includes('تيشيرت مخطط'));
-  locked.click();
-  check('buy modal opens', text(body).includes('اشترِ وارتدِ'));
-  const buyBtn = byText(body, 'button', 'اشترِ وارتدِ')[0];
-  buyBtn.click(); await tick(40);
-  check('purchase posted with coins', calls.some((c) => c.url.includes('/economy/purchase') && c.body.currency === 'coins'));
-  byText(ctx.root, 'button', 'المظهر')[0].click();
-  check('look tab swatches', byClass(ctx.root, 'sw').length >= 3);
+await run('no coins, gems or shop', async () => {
+  const main = await import('../../app/static/js/main.js');
+  const store = await import('../../app/static/js/store.js');
+  const icons = await import('../../app/static/js/icons.js');
+  const studentLinks = main.linksFor('student').map(([to, label]) => `${to} ${label}`).join(' | ');
+  check('the learner navigation has no shop', !/\/shop|المتجر/.test(studentLinks), studentLinks);
+  check('the /shop route no longer exists', !main.matchRoute('/shop', 'student'));
+  check('the store has no wallet helper', !('addWallet' in store));
+  check('coin, gem and bag icons are gone', ['coin', 'gem', 'bag'].every((n) => icons.iconSvg(n) === icons.iconSvg('info')));
+  const shopCodes = ['insufficient_coins', 'premium_item_requires_gems', 'insufficient_balance', 'already_owned', 'item_not_found', 'item_not_owned'];
+  check('no shop/coin error messages remain', shopCodes.every((code) => !/العملات|الجواهر|المتجر|القطعة/.test(api.toError(400, { detail: code }).message)));
+  state.role = 'student'; await st.loadMe();
+  const { practiceView } = await import('../../app/static/js/views/practice.js');
+  routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'level_up', next_skill: 'adding_integers', next_difficulty: 3, reason: 'r', breadcrumb: '', gap_skill: null, round_over: false, is_correct: true, correct_answer: '3', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: null, mistake_card: null, gap_locked: false, remaining_questions: 14, coins_awarded: 4, gems_awarded: 1 })]);
+  const ctx = mkctx(); await practiceView(ctx);
+  byClass(ctx.root, 'opt')[0].click(); await tick(60);
+  check('a correct answer shows no coin or gem reward, even if an old server still sends one', text(ctx.root).includes('إجابة صحيحة') && !text(ctx.root).includes('+4') && !text(ctx.root).includes('+1') && byClass(ctx.root, 'lime').length === 0);
+  routes.shift();
   ctx.destroy();
 });
 
@@ -357,12 +366,15 @@ await run('parent', async () => {
     && recordText.includes('الثقة: متوسطة') && recordText.includes('الأدلة') && recordText.includes('الخطوة التالية المقترحة') && recordText.includes('بعد التشخيص'));
   check('the record stays hidden while the gap is locked (Free plan)', diagnosisRecord({ gap_locked: true, diagnoses: report.diagnoses }) === null);
   check('no diagnosis yet is said honestly', text(diagnosisRecord({ gap_locked: false, diagnoses: [] })).includes('لا يحكم قبل توفر أدلة كافية'));
+  check('the record shows the live state: current mastery of the root and the original lesson', recordText.includes('الحالة الآن') && recordText.includes('62%') && recordText.includes('قيد التعلّم'));
+  check('the record names the competing candidate', recordText.includes('مرشح آخر محتمل') && recordText.includes('مقارنة الأعداد الصحيحة'));
   check('parent chain + upsell', text(ctx.root).includes('سلسلة الجذر') && text(ctx.root).includes('فعّل برو لابنك'));
   check('tree embedded', byClass(ctx.root, 'stage').length === 1);
   check('chainFrom order', chainFrom([{ from_name_ar: 'ب', to_name_ar: 'ج' }, { from_name_ar: 'أ', to_name_ar: 'ب' }]).join('>') === 'أ>ب>ج');
   ctx.destroy();
   const rep = mkctx({ id: 'S1' }); await reportView(rep); await tick(30);
   check('report renders', text(rep.root).includes('تقرير مسح الجذر') && text(rep.root).includes('طباعة التقرير'));
+  check('printable report has no hard-coded colours (theme-aware in dark mode)', all(rep.root, (e) => e.attrs && /#[0-9a-f]{3,6}|black|rgb\(/i.test(String(e.attrs.style || ''))).length === 0 && !!find(rep.root, (e) => e.classList && e.classList.contains('report-brand')));
   byText(rep.root, 'button', 'طباعة التقرير')[0].click();
   check('print invoked', globalThis.__printed === true);
   rep.destroy();
@@ -396,7 +408,7 @@ await run('practice scan', async () => {
   check('basic plan scan ends at a hidden root', text(ctx.root).includes('جذر مخفي'));
   check('locked scan offers the upgrade link', byText(ctx.root, 'a', 'اكشف الجذر').length >= 1);
   ctx.destroy();
-  routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'remediate', next_skill: 'absolute_value', next_difficulty: 1, reason: 'r', breadcrumb: 'الأرجح أن «القيمة المطلقة» هو الجذر', gap_skill: 'absolute_value', round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: false, correct_answer: '3', misconception: '', explanation: '', new_gaps: ['absolute_value'], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 16, diagnosis: { root: 'absolute_value', origin: 'adding_integers', path: ['adding_integers', 'comparing_integers', 'absolute_value'], confidence: 'متوسطة', p_gap: 0.77, evidence: [{ skill: 'adding_integers', wrong: 1, right: 0 }, { skill: 'absolute_value', wrong: 2, right: 0 }] } })]);
+  routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'remediate', next_skill: 'absolute_value', next_difficulty: 1, reason: 'r', breadcrumb: 'الأرجح أن «القيمة المطلقة» هو الجذر', gap_skill: 'absolute_value', round_over: false, is_correct: false, correct_answer: '3', misconception: '', explanation: '', new_gaps: ['absolute_value'], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 16, diagnosis: { root: 'absolute_value', origin: 'adding_integers', path: ['adding_integers', 'comparing_integers', 'absolute_value'], confidence: 'متوسطة', p_gap: 0.77, evidence: [{ skill: 'adding_integers', wrong: 1, right: 0 }, { skill: 'absolute_value', wrong: 2, right: 0 }] } })]);
   const full = mkctx(); await practiceView(full);
   byClass(full.root, 'opt')[1].click(); await tick(60);
   await tick(2600);
@@ -404,9 +416,42 @@ await run('practice scan', async () => {
   check('pro plan shows the diagnosis card with confidence and evidence', text(full.root).includes('نتيجة التشخيص') && text(full.root).includes('الثقة متوسطة') && text(full.root).includes('الأدلة') && text(full.root).includes('2 خاطئة'));
   check('diagnosis card states it is an estimate', text(full.root).includes('تقدير'));
   check('no upsell link when the root is found', byText(full.root, 'a', 'اكشف الجذر').length === 0);
+  const ctas = () => all(full.root, (e) => e.attrs && e.attrs['data-testid'] === 'root-cta');
+  check('root_identified -> exactly one clear «ظهر جذر المشكلة» button', ctas().length === 1 && text(ctas()[0]).includes('ظهر جذر المشكلة'), ctas().length);
+  check('the card is closed until the learner asks for it', !find(full.root, (e) => e.attrs && e.attrs['data-testid'] === 'root-diagnosis'));
+  const dxCalls = calls.length;
+  ctas()[0].click(); await tick(40);
+  const panel = find(full.root, (e) => e.attrs && e.attrs['data-testid'] === 'root-diagnosis');
+  const pt = panel ? text(panel) : '';
+  check('the card is read from the backend when opened', calls.slice(dxCalls).some((c) => c.url.includes('/adaptive/diagnoses')));
+  check('card: current problem, root, why (evidence), confidence (High/Medium/Low), mastery %, next step',
+    pt.includes('المشكلة الحالية') && pt.includes('ضرب الأعداد الصحيحة') && pt.includes('جذر المشكلة') && pt.includes('جمع الأعداد الصحيحة')
+    && pt.includes('لماذا') && pt.includes('2 خاطئة و0 صحيحة') && pt.includes('متوسطة (Medium)') && pt.includes('62%') && pt.includes('ماذا سنفعل الآن'), pt.slice(0, 160));
+  check('card shows the competing candidate instead of hiding it', pt.includes('مرشح آخر محتمل') && pt.includes('مقارنة الأعداد الصحيحة'));
+  check('card next step comes from the live outcome (remediate, then return to the original lesson)', pt.includes('ثم نعود إلى «ضرب الأعداد الصحيحة»'));
+  ctas()[0].click();
+  check('the button closes the card again', all(full.root, (e) => e.classList && e.classList.contains('dx-slot'))[0].hasAttribute('hidden'));
   routes.shift();
   full.destroy();
-  const calm = mkctx(); routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'continue', next_skill: 'adding_integers', next_difficulty: 2, reason: 'r', breadcrumb: null, gap_skill: null, round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: true, correct_answer: '3', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 15 })]);
+  const dx = await import('../../app/static/js/views/diagnosis.js');
+  check('no root entry point while evidence is insufficient or the plan hides the root', !dx.hasActiveRoot({ stage: 'gathering_evidence', root: null }) && !dx.hasActiveRoot({ stage: 'remediation', root: 'adding_integers', locked: true }) && !dx.hasActiveRoot(null));
+  check('the entry point stays during remediation and retry, not after the gap is closed', dx.hasActiveRoot({ stage: 'remediation', root: 'a' }) && dx.hasActiveRoot({ stage: 'retry', root: 'a' }) && !dx.hasActiveRoot({ stage: 'resolved', root: 'a' }));
+  const firm = { ...report.diagnoses[0], outcome: { ...report.diagnoses[0].outcome, root_status: 'mastered', origin_status: 'learning', root_mastery: 0.97 } };
+  check('when the root is firm the card says we go back to the original lesson', dx.nextStep(firm).includes('نعود إلى الدرس الأصلي'));
+  check('when both are mastered the card says the gap is closed', dx.nextStep({ ...firm, outcome: { ...firm.outcome, origin_status: 'mastered' } }).includes('أُغلقت الفجوة'));
+  check('no invented mastery: missing data is said plainly', text(dx.diagnosisPanel({ ...report.diagnoses[0], outcome: { stage: 'pending' } })).includes('تعذّر تحميل نسبة الإتقان'));
+  routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'retry', next_skill: 'adding_integers', next_difficulty: 1, reason: 'r', breadcrumb: '', gap_skill: null, round_over: false, is_correct: false, correct_answer: '3', misconception: 'x', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 14, diagnosis: null, evidence_status: { status: 'insufficient_evidence', reason: 'too_few_errors', origin: 'adding_integers', leading_candidate: null, message: 'الأدلة غير كافية بعد', evidence_needed: [] }, workflow: { stage: 'gathering_evidence', current_skill: 'adding_integers', current_name_ar: 'جمع', root: null, step: 1 } })]);
+  const unsure = mkctx(); await practiceView(unsure);
+  byClass(unsure.root, 'opt')[1].click(); await tick(60);
+  check('insufficient evidence -> no «root found» button and no fake diagnosis', all(unsure.root, (e) => e.attrs && e.attrs['data-testid'] === 'root-cta').length === 0 && text(unsure.root).includes('نجمع الأدلة'));
+  routes.shift();
+  unsure.destroy();
+  routes.unshift(['GET', /\/adaptive\/state/, () => ok({ workflow: { stage: 'remediation', current_skill: 'adding_integers', current_name_ar: 'جمع الأعداد الصحيحة', origin: 'mult_div_integers', origin_name_ar: 'ضرب الأعداد الصحيحة', root: 'adding_integers', root_name_ar: 'جمع الأعداد الصحيحة', confidence: 'متوسطة', step: 3 } })]);
+  const back = mkctx(); await practiceView(back); await tick(40);
+  check('coming back during remediation, the button is still there (from the backend workflow)', all(back.root, (e) => e.attrs && e.attrs['data-testid'] === 'root-cta').length === 1);
+  routes.shift();
+  back.destroy();
+  const calm = mkctx(); routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'continue', next_skill: 'adding_integers', next_difficulty: 2, reason: 'r', breadcrumb: null, gap_skill: null, round_over: false, is_correct: true, correct_answer: '3', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 15 })]);
   await practiceView(calm);
   byClass(calm.root, 'opt')[0].click(); await tick(60);
   check('no scan on a correct answer', byClass(calm.root, 'scan-card').length === 0);
@@ -599,7 +644,7 @@ await run('judge hint + input validation + diagnosis card', async () => {
   check('markup is rejected before reaching the server', sent() === baseline);
   type(input, ''); sendBtn.click(); await tick(20);
   check('empty answer is rejected before reaching the server', sent() === baseline);
-  routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'continue', next_skill: 'fractions_addsub', next_difficulty: 1, reason: 'r', breadcrumb: null, gap_skill: null, round_over: false, coins_awarded: 0, gems_awarded: 0, is_correct: true, correct_answer: '5/6', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 10 })]);
+  routes.unshift(['POST', /\/adaptive\/answer/, () => ok({ action: 'continue', next_skill: 'fractions_addsub', next_difficulty: 1, reason: 'r', breadcrumb: null, gap_skill: null, round_over: false, is_correct: true, correct_answer: '5/6', misconception: '', explanation: '', new_gaps: [], remedial: null, next_stage: 'same_pattern', mistake_card: null, gap_locked: false, remaining_questions: 10 })]);
   type(input, '5/6'); sendBtn.click(); await tick(40);
   check('a valid fraction is sent', sent() === baseline + 1);
   routes.shift(); routes.shift();
